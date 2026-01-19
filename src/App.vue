@@ -1,16 +1,20 @@
 <script setup>
-/**
- * Root App component | 根组件
- * Provides naive-ui config and router view
- */
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme } from 'naive-ui'
 import { isDark } from './stores/theme'
+import { useAuth } from './hooks'
+import LoginModal from './components/LoginModal.vue'
 
-// Naive UI theme based on dark mode | 基于深色模式的 Naive UI 主题
+const { init: initAuth } = useAuth()
+
 const theme = computed(() => isDark.value ? darkTheme : null)
 
-// Global theme overrides | 全局主题覆盖
+const showLoginModal = ref(false)
+
+window.$showLoginModal = () => {
+  showLoginModal.value = true
+}
+
 const themeOverrides = {
   common: {
     borderRadius: '12px',
@@ -37,9 +41,15 @@ const themeOverrides = {
   },
   Input: {
     borderRadius: '10px',
-    heightMedium: '36px'
+    heightMedium: '36px',
+    // Fix password input suffix background | 修复密码输入框后缀背景
+    suffixTextColor: 'inherit'
   }
 }
+
+onMounted(() => {
+  initAuth()
+})
 </script>
 
 <template>
@@ -47,6 +57,7 @@ const themeOverrides = {
     <n-message-provider>
       <n-dialog-provider>
         <router-view />
+        <LoginModal v-model:show="showLoginModal" />
       </n-dialog-provider>
     </n-message-provider>
   </n-config-provider>
@@ -54,4 +65,17 @@ const themeOverrides = {
 
 <style>
 /* Global app styles handled in style.css */
+
+/* Fix password input suffix background | 修复密码输入框后缀背景 */
+.n-input .n-input__suffix {
+  background-color: transparent !important;
+}
+
+.n-input .n-input-wrapper {
+  background-color: transparent !important;
+}
+
+.n-input .n-input__eye {
+  background-color: transparent !important;
+}
 </style>

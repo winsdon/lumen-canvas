@@ -34,11 +34,7 @@
         >
           <n-icon :size="20"><SettingsOutline /></n-icon>
         </button>
-        <!-- <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-          <span class="text-[var(--accent-color)]">◆</span>
-          <span class="text-sm font-medium">112.00</span>
-          <span class="text-xs text-[var(--text-secondary)]">开通会员</span>
-        </div> -->
+        <UserAvatar @login="handleShowLogin" />
       </div>
     </header>
 
@@ -226,7 +222,7 @@
  * Home view component | 首页视图组件
  * Entry point with project list and creation input
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { NIcon, NDropdown, NModal, NInput, NButton, useDialog } from 'naive-ui'
 import { 
@@ -256,14 +252,19 @@ import {
 } from '../stores/projects'
 import { useApiConfig } from '../hooks/useApiConfig'
 import ApiSettings from '../components/ApiSettings.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const router = useRouter()
 const dialog = useDialog()
 const apiConfig = useApiConfig()
 
-// API Settings state | API 设置状态
 const showApiSettings = ref(false)
 const isApiConfigured = ref(apiConfig.isConfigured.value)
+
+// Handle show login modal | 显示登录弹窗
+const handleShowLogin = () => {
+  window.$showLoginModal?.()
+}
 
 // Refresh API config state | 刷新 API 配置状态
 const refreshApiConfig = () => {
@@ -430,9 +431,6 @@ const isVideoUrl = (url) => {
   const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv']
   return videoExtensions.some(ext => url.toLowerCase().includes(ext))
 }
-
-// Import h for render functions | 导入 h 用于渲染函数
-import { h } from 'vue'
 
 // Projects section ref | 项目区域引用
 const projectsSection = ref(null)

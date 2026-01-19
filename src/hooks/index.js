@@ -17,3 +17,6 @@ export {
 
 // Workflow Orchestrator Hook | 工作流编排 Hook
 export { useWorkflowOrchestrator } from './useWorkflowOrchestrator'
+
+// Auth Hook | 认证 Hook
+export { useAuth } from './useAuth'
