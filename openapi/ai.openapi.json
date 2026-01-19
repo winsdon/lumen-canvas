@@ -1,0 +1,1273 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "默认模块",
+    "description": "",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "前台 - AI 绘画"
+    },
+    {
+      "name": "前台 - AI 模型"
+    }
+  ],
+  "paths": {
+    "/app-api/ai/image/midjourney/notify": {
+      "post": {
+        "summary": "【Midjourney】通知图片进展",
+        "deprecated": false,
+        "description": "由 Midjourney Proxy 回调",
+        "operationId": "midjourneyNotify",
+        "tags": [
+          "前台 - AI 绘画"
+        ],
+        "parameters": [
+          {
+            "name": "tenant-id",
+            "in": "header",
+            "description": "租户编号",
+            "required": false,
+            "example": 0,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "description": "租户编号"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "认证 Token",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string",
+              "default": "Bearer test1",
+              "description": "认证 Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Notify"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultBoolean"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/app-api/ai/image/midjourney/imagine": {
+      "post": {
+        "summary": "【Midjourney】生成图片",
+        "deprecated": false,
+        "description": "",
+        "operationId": "midjourneyImagine",
+        "tags": [
+          "前台 - AI 绘画"
+        ],
+        "parameters": [
+          {
+            "name": "tenant-id",
+            "in": "header",
+            "description": "租户编号",
+            "required": false,
+            "example": 0,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "description": "租户编号"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "认证 Token",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string",
+              "default": "Bearer test1",
+              "description": "认证 Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiMidjourneyImagineReqVO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultLong"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/app-api/ai/image/midjourney/action": {
+      "post": {
+        "summary": "【Midjourney】Action 操作（二次生成图片）",
+        "deprecated": false,
+        "description": "例如说：放大、缩小、U1、U2 等",
+        "operationId": "midjourneyAction",
+        "tags": [
+          "前台 - AI 绘画"
+        ],
+        "parameters": [
+          {
+            "name": "tenant-id",
+            "in": "header",
+            "description": "租户编号",
+            "required": false,
+            "example": 0,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "description": "租户编号"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "认证 Token",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string",
+              "default": "Bearer test1",
+              "description": "认证 Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiMidjourneyActionReqVO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultLong"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/app-api/ai/image/draw": {
+      "post": {
+        "summary": "生成图片",
+        "deprecated": false,
+        "description": "",
+        "operationId": "drawImage",
+        "tags": [
+          "前台 - AI 绘画"
+        ],
+        "parameters": [
+          {
+            "name": "tenant-id",
+            "in": "header",
+            "description": "租户编号",
+            "required": false,
+            "example": 0,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "description": "租户编号"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "认证 Token",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string",
+              "default": "Bearer test1",
+              "description": "认证 Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiImageDrawReqVO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultLong"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/app-api/ai/image/public-page": {
+      "get": {
+        "summary": "获取公开的绘图分页",
+        "deprecated": false,
+        "description": "",
+        "operationId": "getImagePagePublic",
+        "tags": [
+          "前台 - AI 绘画"
+        ],
+        "parameters": [
+          {
+            "name": "prompt",
+            "in": "query",
+            "description": "提示词",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "提示词"
+            }
+          },
+          {
+            "name": "pageNo",
+            "in": "query",
+            "description": "页码，从 1 开始",
+            "required": true,
+            "example": 1,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "页码，从 1 开始",
+              "minimum": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "每页条数，最大值为 100",
+            "required": true,
+            "example": 10,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "每页条数，最大值为 100",
+              "maximum": 100,
+              "minimum": 1,
+              "example": 10
+            }
+          },
+          {
+            "name": "tenant-id",
+            "in": "header",
+            "description": "租户编号",
+            "required": false,
+            "example": 0,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "description": "租户编号"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "认证 Token",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string",
+              "default": "Bearer test1",
+              "description": "认证 Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultPageResultAiImageRespVO"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/app-api/ai/image/my-page": {
+      "get": {
+        "summary": "获取【我的】绘图分页",
+        "deprecated": false,
+        "description": "",
+        "operationId": "getImagePageMy",
+        "tags": [
+          "前台 - AI 绘画"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "description": "用户编号",
+            "required": false,
+            "example": 28987,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "用户编号",
+              "example": 28987
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "description": "平台",
+            "required": false,
+            "example": "OpenAI",
+            "schema": {
+              "type": "string",
+              "description": "平台",
+              "example": "OpenAI"
+            }
+          },
+          {
+            "name": "prompt",
+            "in": "query",
+            "description": "提示词",
+            "required": false,
+            "example": "1",
+            "schema": {
+              "type": "string",
+              "description": "提示词",
+              "example": 1
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "绘画状态",
+            "required": false,
+            "example": 1,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "绘画状态",
+              "example": 1
+            }
+          },
+          {
+            "name": "publicStatus",
+            "in": "query",
+            "description": "是否发布",
+            "required": false,
+            "example": "1",
+            "schema": {
+              "type": "boolean",
+              "description": "是否发布",
+              "example": 1
+            }
+          },
+          {
+            "name": "createTime",
+            "in": "query",
+            "description": "创建时间",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "description": "创建时间",
+              "items": {
+                "type": "string",
+                "format": "date-time",
+                "description": "创建时间"
+              }
+            }
+          },
+          {
+            "name": "pageNo",
+            "in": "query",
+            "description": "页码，从 1 开始",
+            "required": true,
+            "example": 1,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "页码，从 1 开始",
+              "minimum": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "每页条数，最大值为 100",
+            "required": true,
+            "example": 10,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "每页条数，最大值为 100",
+              "maximum": 100,
+              "minimum": 1,
+              "example": 10
+            }
+          },
+          {
+            "name": "tenant-id",
+            "in": "header",
+            "description": "租户编号",
+            "required": false,
+            "example": 0,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "description": "租户编号"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "认证 Token",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string",
+              "default": "Bearer test1",
+              "description": "认证 Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultPageResultAiImageRespVO"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/app-api/ai/image/my-list-by-ids": {
+      "get": {
+        "summary": "获取【我的】绘图记录列表",
+        "deprecated": false,
+        "description": "",
+        "operationId": "getImageListMyByIds",
+        "tags": [
+          "前台 - AI 绘画"
+        ],
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "description": "绘画编号数组",
+            "required": true,
+            "example": "1024,2048",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          {
+            "name": "tenant-id",
+            "in": "header",
+            "description": "租户编号",
+            "required": false,
+            "example": 0,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "description": "租户编号"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "认证 Token",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string",
+              "default": "Bearer test1",
+              "description": "认证 Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultListAiImageRespVO"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/app-api/ai/image/get-my": {
+      "get": {
+        "summary": "获取【我的】绘图记录",
+        "deprecated": false,
+        "description": "",
+        "operationId": "getImageMy",
+        "tags": [
+          "前台 - AI 绘画"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "description": "绘画编号",
+            "required": true,
+            "example": 1024,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "tenant-id",
+            "in": "header",
+            "description": "租户编号",
+            "required": false,
+            "example": 0,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "description": "租户编号"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "认证 Token",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string",
+              "default": "Bearer test1",
+              "description": "认证 Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiImageRespVO"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/app-api/ai/image/delete-my": {
+      "delete": {
+        "summary": "删除【我的】绘画记录",
+        "deprecated": false,
+        "description": "",
+        "operationId": "deleteImageMy",
+        "tags": [
+          "前台 - AI 绘画"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "description": "绘画编号",
+            "required": true,
+            "example": 1024,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "tenant-id",
+            "in": "header",
+            "description": "租户编号",
+            "required": false,
+            "example": 0,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "description": "租户编号"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "认证 Token",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string",
+              "default": "Bearer test1",
+              "description": "认证 Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultBoolean"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/app-api/ai/model/simple-list": {
+      "get": {
+        "summary": "获得模型列表",
+        "deprecated": false,
+        "description": "",
+        "operationId": "getModelSimpleList",
+        "tags": [
+          "前台 - AI 模型"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "description": "类型",
+            "required": true,
+            "example": 1,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "description": "平台",
+            "required": false,
+            "example": "midjourney",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenant-id",
+            "in": "header",
+            "description": "租户编号",
+            "required": false,
+            "example": 0,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "description": "租户编号"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "认证 Token",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string",
+              "default": "Bearer test1",
+              "description": "认证 Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultListAiModelRespVO"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CommonResultBoolean": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Button": {
+        "type": "object",
+        "properties": {
+          "customId": {
+            "type": "string"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string"
+          }
+        }
+      },
+      "Notify": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "promptEn": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "submitTime": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "startTime": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "finishTime": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "string"
+          },
+          "failReason": {
+            "type": "string"
+          },
+          "buttons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Button"
+            }
+          }
+        }
+      },
+      "AiMidjourneyImagineReqVO": {
+        "type": "object",
+        "description": "管理后台 - AI 绘画生成（Midjourney） Request VO",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "提示词",
+            "minLength": 1,
+            "example": "中国神龙"
+          },
+          "modelId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "模型编号",
+            "example": 1
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "图片宽度",
+            "example": 1
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "description": "图片高度",
+            "example": 1
+          },
+          "version": {
+            "type": "string",
+            "description": "版本号",
+            "minLength": 1,
+            "example": 6
+          },
+          "referImageUrl": {
+            "type": "string",
+            "description": "参考图",
+            "example": "https://www.iocoder.cn/x.png"
+          }
+        },
+        "required": [
+          "height",
+          "modelId",
+          "prompt",
+          "version",
+          "width"
+        ]
+      },
+      "AiMidjourneyActionReqVO": {
+        "type": "object",
+        "description": "管理后台 - AI 绘图操作（Midjourney） Request VO",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "图片编号",
+            "example": 1
+          },
+          "customId": {
+            "type": "string",
+            "description": "操作按钮编号",
+            "minLength": 1,
+            "example": "MJ::JOB::variation::4::06aa3e66-0e97-49cc-8201-e0295d883de4"
+          }
+        },
+        "required": [
+          "customId",
+          "id"
+        ]
+      },
+      "AiImageDrawReqVO": {
+        "type": "object",
+        "description": "管理后台 - AI 绘画 Request VO",
+        "properties": {
+          "modelId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "模型编号",
+            "example": 1024
+          },
+          "prompt": {
+            "type": "string",
+            "description": "提示词",
+            "maxLength": 1200,
+            "minLength": 0,
+            "example": "画一个长城"
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "description": "图片高度"
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "图片宽度"
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "绘制参数",
+            "properties": {}
+          }
+        },
+        "required": [
+          "height",
+          "modelId",
+          "prompt",
+          "width"
+        ]
+      },
+      "AiModelRespVO": {
+        "type": "object",
+        "description": "管理后台 - AI 模型 Response VO",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "编号",
+            "example": 2630
+          },
+          "keyId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "API 秘钥编号",
+            "example": 22042
+          },
+          "name": {
+            "type": "string",
+            "description": "模型名字",
+            "example": "张三"
+          },
+          "model": {
+            "type": "string",
+            "description": "模型标识",
+            "example": "gpt-3.5-turbo-0125"
+          },
+          "platform": {
+            "type": "string",
+            "description": "模型平台",
+            "example": "OpenAI"
+          },
+          "type": {
+            "type": "integer",
+            "format": "int32",
+            "description": "模型类型",
+            "example": 1
+          },
+          "sort": {
+            "type": "integer",
+            "format": "int32",
+            "description": "排序",
+            "example": 1
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "状态",
+            "example": 2
+          },
+          "temperature": {
+            "type": "number",
+            "format": "double",
+            "description": "温度参数",
+            "example": 1
+          },
+          "maxTokens": {
+            "type": "integer",
+            "format": "int32",
+            "description": "单条回复的最大 Token 数量",
+            "example": 4096
+          },
+          "maxContexts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "上下文的最大 Message 数量",
+            "example": 8192
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          }
+        },
+        "required": [
+          "createTime",
+          "id"
+        ]
+      },
+      "CommonResultListAiModelRespVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiModelRespVO"
+            }
+          }
+        }
+      },
+      "AiImageRespVO": {
+        "type": "object",
+        "description": "管理后台 - AI 绘画 Response VO",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "编号",
+            "example": 1
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "用户编号",
+            "example": 1
+          },
+          "platform": {
+            "type": "string",
+            "description": "平台",
+            "example": "OpenAI"
+          },
+          "model": {
+            "type": "string",
+            "description": "模型",
+            "example": "stable-diffusion-v1-6"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "提示词",
+            "example": "南极的小企鹅"
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "图片宽度",
+            "example": 1024
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "description": "图片高度",
+            "example": 1024
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "绘画状态",
+            "example": 10
+          },
+          "publicStatus": {
+            "type": "boolean",
+            "description": "是否发布",
+            "example": false
+          },
+          "picUrl": {
+            "type": "string",
+            "description": "图片地址",
+            "example": "https://www.iocoder.cn/1.png"
+          },
+          "errorMessage": {
+            "type": "string",
+            "description": "绘画错误信息",
+            "example": "图片错误信息"
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "绘制参数",
+            "properties": {}
+          },
+          "buttons": {
+            "type": "array",
+            "description": "mj buttons 按钮",
+            "items": {
+              "$ref": "#/components/schemas/Button"
+            }
+          },
+          "finishTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "完成时间"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          }
+        },
+        "required": [
+          "createTime",
+          "height",
+          "id",
+          "model",
+          "platform",
+          "prompt",
+          "publicStatus",
+          "status",
+          "userId",
+          "width"
+        ]
+      },
+      "CommonResultPageResultAiImageRespVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultAiImageRespVO"
+          }
+        }
+      },
+      "PageResultAiImageRespVO": {
+        "type": "object",
+        "description": "分页结果",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "总量"
+          },
+          "list": {
+            "type": "array",
+            "description": "数据",
+            "items": {
+              "$ref": "#/components/schemas/AiImageRespVO"
+            }
+          }
+        },
+        "required": [
+          "list",
+          "total"
+        ]
+      },
+      "CommonResultListAiImageRespVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiImageRespVO"
+            }
+          }
+        }
+      },
+      "CommonResultAiImageRespVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiImageRespVO"
+          }
+        }
+      },
+      "CommonResultLong": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      }
+    },
+    "securitySchemes": {}
+  },
+  "servers": [],
+  "security": []
+}

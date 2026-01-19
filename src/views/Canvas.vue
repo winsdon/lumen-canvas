@@ -17,7 +17,7 @@
           </button>
         </n-dropdown>
       </div>
-      <div class="flex items-center gap-2">
+<div class="flex items-center gap-2">
         <button 
           @click="toggleTheme"
           class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
@@ -43,11 +43,7 @@
         >
           <n-icon :size="20"><SettingsOutline /></n-icon>
         </button>
-        <!-- <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)]">
-          <span class="text-[var(--accent-color)]">◆</span>
-          <span class="text-sm font-medium">112.00</span>
-          <span class="text-xs text-[var(--text-secondary)]">开通会员</span>
-        </div> -->
+        <UserAvatar @login="window.$showLoginModal?.()" />
       </div>
     </header>
 
@@ -295,12 +291,11 @@ import { loadAllModels } from '../stores/models'
 import { useApiConfig, useChat, useWorkflowOrchestrator } from '../hooks'
 import { projects, initProjectsStore, updateProject, renameProject, currentProject } from '../stores/projects'
 
-// API Settings component | API 设置组件
 import ApiSettings from '../components/ApiSettings.vue'
 import DownloadModal from '../components/DownloadModal.vue'
 import WorkflowPanel from '../components/WorkflowPanel.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 
-// API Config hook | API 配置 hook
 const { isConfigured: isApiConfigured } = useApiConfig()
 
 // Initialize models on page load | 页面加载时初始化模型

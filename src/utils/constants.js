@@ -5,6 +5,12 @@
 // API Base URL | API 基础 URL
 export const DEFAULT_API_BASE_URL = 'https://api.chatfire.site/v1'
 
+// Auth API Base URL | 认证 API 基础 URL
+export const AUTH_BASE_URL = 'https://api.xmlumen.com/app-api'
+
+// Tenant ID | 租户 ID（固定为 1）
+export const TENANT_ID = 1
+
 // API Endpoints | API 端点
 export const API_ENDPOINTS = {
   // Model | 模型
@@ -50,4 +56,28 @@ export const DEFAULT_CHAT_CONFIG = {
 export const STORAGE_KEYS = {
   API_KEY: 'apiKey',
   BASE_URL: 'apiBaseUrl'
+}
+
+// Auth Storage Keys | 认证存储键
+export const AUTH_STORAGE_KEYS = {
+  ACCESS_TOKEN: 'accessToken',
+  REFRESH_TOKEN: 'refreshToken',
+  EXPIRES_TIME: 'expiresTime',
+  USER_INFO: 'userInfo',
+  WECHAT_STATE: 'wechatState'
+}
+
+// Social Type Enum | 社交类型枚举
+export const SOCIAL_TYPE = {
+  WECHAT_OPEN: 30,
+  WECHAT_MP: 31,
+  WECHAT_MINI_APP: 34
+}
+
+// SMS Scene Enum | 短信场景枚举
+export const SMS_SCENE = {
+  LOGIN: 1,
+  UPDATE_MOBILE: 2,
+  UPDATE_PASSWORD: 3,
+  RESET_PASSWORD: 4
 }

@@ -4,6 +4,7 @@
 
 export * from './constants'
 export * from './schema'
+export * from './auth'
 import request, { setBaseUrl, getBaseUrl } from './request'
 
 export { request, setBaseUrl, getBaseUrl }
