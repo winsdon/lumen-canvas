@@ -44,12 +44,41 @@ export const loadProjects = () => {
 
 /**
  * Save projects to localStorage | 保存项目到 localStorage
+ * Handles QuotaExceededError by compressing data | 通过压缩数据处理配额超限错误
  */
 export const saveProjects = () => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(projects.value))
   } catch (err) {
-    console.error('Failed to save projects:', err)
+    if (err.name === 'QuotaExceededError') {
+      console.warn('localStorage quota exceeded, attempting to clean up...')
+      // Try to save without base64 image data | 尝试保存时移除 base64 图片数据
+      const compressedProjects = projects.value.map(project => ({
+        ...project,
+        canvasData: project.canvasData ? {
+          ...project.canvasData,
+          nodes: project.canvasData.nodes?.map(node => {
+            if (node.type === 'image' && node.data?.base64) {
+              // Remove base64 data, keep only url | 移除 base64 数据，只保留 url
+              const { base64, ...restData } = node.data
+              return { ...node, data: restData }
+            }
+            return node
+          })
+        } : project.canvasData,
+        // Compress thumbnail if it's a data URL | 如果缩略图是 data URL 则压缩
+        thumbnail: project.thumbnail?.startsWith?.('data:') ? '' : project.thumbnail
+      }))
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(compressedProjects))
+        console.log('Saved compressed projects successfully')
+      } catch (retryErr) {
+        console.error('Still failed after compression:', retryErr)
+        window.$message?.error('存储空间已满，请手动删除一些项目后重试')
+      }
+    } else {
+      console.error('Failed to save projects:', err)
+    }
   }
 }
 

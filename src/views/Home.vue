@@ -1,13 +1,22 @@
 <template>
   <!-- Home page | 首页 -->
-  <div class="min-h-screen bg-[var(--bg-primary)]">
+  <div class="min-h-screen h-screen overflow-y-auto bg-[var(--bg-primary)]">
     <!-- Header | 顶部导航 -->
     <header class="flex items-center justify-between px-4 md:px-8 py-4 border-b border-[var(--border-color)]">
       <div class="flex items-center gap-2">
         <!-- <img src="../assets/logo.png" alt="Logo" class="w-8 h-8" /> -->
         <!-- <span class="text-lg font-bold text-[var(--text-primary)]">火宝无限画布</span> -->
       </div>
-<div class="flex items-center gap-4">
+      <div class="flex items-center gap-4">
+        <a 
+          href="https://github.com/chatfire-AI/huobao-canvas"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-[var(--text-primary)] hover:text-[var(--accent-color)]"
+          title="GitHub"
+        >
+          <n-icon :size="20"><LogoGithub /></n-icon>
+        </a>
         <button 
           @click="toggleTheme"
           class="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
@@ -229,7 +238,8 @@ import {
   CreateOutline,
   CopyOutline,
   SettingsOutline,
-  TrashOutline
+  TrashOutline,
+  LogoGithub
 } from '@vicons/ionicons5'
 import { isDark, toggleTheme } from '../stores/theme'
 import { 

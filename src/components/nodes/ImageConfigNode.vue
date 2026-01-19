@@ -73,8 +73,8 @@
         <div
           class="flex items-center gap-2 text-xs text-[var(--text-secondary)] py-1 border-t border-[var(--border-color)]">
           <span class="px-2 py-0.5 rounded-full"
-            :class="connectedPrompt ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'">
-            提示词 {{ connectedPrompt ? '✓' : '○' }}
+            :class="connectedPrompts.length > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'">
+            提示词 {{ connectedPrompts.length > 0 ? `${connectedPrompts.length}个` : '○' }}
           </span>
           <span class="px-2 py-0.5 rounded-full"
             :class="connectedRefImages.length > 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'">
@@ -83,7 +83,27 @@
         </div>
 
         <!-- Generate button | 生成按钮 -->
-        <button @click="handleGenerate" :disabled="loading || !isConfigured"
+        <div v-if="hasConnectedImageWithContent" class="flex gap-2">
+          <!-- Create new (primary) | 新建节点（主按钮） -->
+          <button @click="handleGenerate('new')" :disabled="loading || !isConfigured"
+            class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-[var(--accent-color)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <n-spin v-if="loading" :size="14" />
+            <template v-else>
+              <n-icon :size="14"><AddOutline /></n-icon>
+              新建生成
+            </template>
+          </button>
+          <!-- Replace existing (secondary) | 替换现有（次按钮） -->
+          <button @click="handleGenerate('replace')" :disabled="loading || !isConfigured"
+            class="flex-shrink-0 flex items-center justify-center gap-1 py-2 px-2.5 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-color)] hover:text-[var(--accent-color)] text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <n-spin v-if="loading" :size="14" />
+            <template v-else>
+              <n-icon :size="14"><RefreshOutline /></n-icon>
+              替换
+            </template>
+          </button>
+        </div>
+        <button v-else @click="handleGenerate('auto')" :disabled="loading || !isConfigured"
           class="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--accent-color)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           <n-spin v-if="loading" :size="14" />
           <template v-else>
@@ -141,7 +161,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NDropdown, NSpin } from 'naive-ui'
-import { ChevronDownOutline, ChevronForwardOutline, CopyOutline, TrashOutline } from '@vicons/ionicons5'
+import { ChevronDownOutline, ChevronForwardOutline, CopyOutline, TrashOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
 import { useImageGeneration, useApiConfig } from '../../hooks'
 import { updateNode, addNode, addEdge, nodes, edges, duplicateNode, removeNode } from '../../stores/canvas'
 import { imageModelOptions, getModelSizeOptions, getModelQualityOptions, getModelConfig, DEFAULT_IMAGE_MODEL } from '../../stores/models'
@@ -165,7 +185,7 @@ const showActions = ref(false)
 
 // Local state | 本地状态
 const localModel = ref(props.data?.model || DEFAULT_IMAGE_MODEL)
-const localSize = ref(props.data?.size || '1024x1024')
+const localSize = ref(props.data?.size || '2048x2048')
 const localQuality = ref(props.data?.quality || 'standard')
 
 // Get current model config | 获取当前模型配置
@@ -225,7 +245,7 @@ onMounted(() => {
 // Get connected nodes | 获取连接的节点
 const getConnectedInputs = () => {
   const connectedEdges = edges.value.filter(e => e.target === props.id)
-  let prompt = ''
+  const prompts = [] // Array of { order, content } | 提示词数组
   const refImages = []
 
   for (const edge of connectedEdges) {
@@ -233,7 +253,12 @@ const getConnectedInputs = () => {
     if (!sourceNode) continue
 
     if (sourceNode.type === 'text') {
-      prompt = sourceNode.data?.content || ''
+      const content = sourceNode.data?.content || ''
+      if (content) {
+        // Get order from edge data, default to 1 | 从边数据获取顺序，默认为1
+        const order = edge.data?.promptOrder || 1
+        prompts.push({ order, content, nodeId: sourceNode.id })
+      }
     } else if (sourceNode.type === 'image') {
       // Prefer base64, fallback to url | 优先使用 base64，回退到 url
       const imageData = sourceNode.data?.base64 || sourceNode.data?.url
@@ -243,12 +268,16 @@ const getConnectedInputs = () => {
     }
   }
 
-  return { prompt, refImages }
+  // Sort prompts by order and concatenate | 按顺序排序并拼接
+  prompts.sort((a, b) => a.order - b.order)
+  const combinedPrompt = prompts.map(p => p.content).join('\n\n')
+
+  return { prompt: combinedPrompt, prompts, refImages }
 }
 
-// Computed connected prompt | 计算连接的提示词
-const connectedPrompt = computed(() => {
-  return getConnectedInputs().prompt
+// Computed connected prompts (sorted by order) | 计算连接的提示词（按顺序排列）
+const connectedPrompts = computed(() => {
+  return getConnectedInputs().prompts
 })
 
 // Computed connected reference images | 计算连接的参考图
@@ -301,28 +330,54 @@ const updateSize = () => {
 // Created image node ID | 创建的图片节点 ID
 const createdImageNodeId = ref(null)
 
-// Find connected output image node (empty image node) | 查找已连接的输出图片节点（空白图片节点）
-const findConnectedOutputImageNode = () => {
+// Find connected output image node | 查找已连接的输出图片节点
+const findConnectedOutputImageNode = (onlyEmpty = true) => {
   // Find edges where this node is the source | 查找以当前节点为源的边
   const outputEdges = edges.value.filter(e => e.source === props.id)
   
   for (const edge of outputEdges) {
     const targetNode = nodes.value.find(n => n.id === edge.target)
-    // Check if target is an image node with empty or no url | 检查目标是否为空白图片节点
-    if (targetNode?.type === 'image' && (!targetNode.data?.url || targetNode.data?.url === '')) {
-      return targetNode.id
+    if (targetNode?.type === 'image') {
+      if (onlyEmpty) {
+        // Check if target is an image node with empty or no url | 检查目标是否为空白图片节点
+        if (!targetNode.data?.url || targetNode.data?.url === '') {
+          return targetNode.id
+        }
+      } else {
+        // Return any connected image node | 返回任意连接的图片节点
+        return targetNode.id
+      }
     }
   }
   return null
 }
 
+// Check if there's a connected image node with content | 检查是否有已连接且有内容的图片节点
+const hasConnectedImageWithContent = computed(() => {
+  const outputEdges = edges.value.filter(e => e.source === props.id)
+  
+  for (const edge of outputEdges) {
+    const targetNode = nodes.value.find(n => n.id === edge.target)
+    if (targetNode?.type === 'image' && targetNode.data?.url && targetNode.data.url !== '') {
+      return true
+    }
+  }
+  return false
+})
+
 // Handle generate action | 处理生成操作
-const handleGenerate = async () => {
-  const { prompt, refImages } = getConnectedInputs()
+// mode: 'auto' = 自动判断, 'replace' = 替换现有, 'new' = 新建节点
+const handleGenerate = async (mode = 'auto') => {
+  const { prompt, prompts, refImages } = getConnectedInputs()
 
   if (!prompt && refImages.length === 0) {
     window.$message?.warning('请连接文本节点（提示词）或图片节点（参考图）')
     return
+  }
+  
+  // Log prompt order for debugging | 记录提示词顺序用于调试
+  if (prompts.length > 1) {
+    console.log('[ImageConfigNode] 拼接提示词顺序:', prompts.map(p => `${p.order}: ${p.content.substring(0, 20)}...`))
   }
 
   if (!isConfigured.value) {
@@ -330,20 +385,40 @@ const handleGenerate = async () => {
     return
   }
 
-  // Check for existing connected empty image node | 检查是否已有连接的空白图片节点
-  let imageNodeId = findConnectedOutputImageNode()
+  let imageNodeId = null
   
-  if (imageNodeId) {
-    // Use existing empty image node | 使用已有的空白图片节点
-    updateNode(imageNodeId, { loading: true })
+  if (mode === 'replace') {
+    // Replace mode: find any connected image node | 替换模式：查找任意连接的图片节点
+    imageNodeId = findConnectedOutputImageNode(false)
+    if (imageNodeId) {
+      updateNode(imageNodeId, { loading: true, url: '' })
+    }
+  } else if (mode === 'new') {
+    // New mode: always create new node | 新建模式：始终创建新节点
+    imageNodeId = null
   } else {
+    // Auto mode: check for empty connected node first | 自动模式：先检查空白连接节点
+    imageNodeId = findConnectedOutputImageNode(true)
+    if (imageNodeId) {
+      updateNode(imageNodeId, { loading: true })
+    }
+  }
+  
+  if (!imageNodeId) {
     // Get current node position | 获取当前节点位置
     const currentNode = nodes.value.find(n => n.id === props.id)
     const nodeX = currentNode?.position?.x || 0
     const nodeY = currentNode?.position?.y || 0
+    
+    // Calculate Y offset if creating new node alongside existing | 如果是新建节点，计算Y偏移
+    let yOffset = 0
+    if (mode === 'new') {
+      const outputEdges = edges.value.filter(e => e.source === props.id)
+      yOffset = outputEdges.length * 280 // Stack below existing outputs | 在现有输出下方堆叠
+    }
 
     // Create image node with loading state | 创建带加载状态的图片节点
-    imageNodeId = addNode('image', { x: nodeX + 400, y: nodeY }, {
+    imageNodeId = addNode('image', { x: nodeX + 400, y: nodeY + yOffset }, {
       url: '',
       loading: true,
       label: '图像生成结果'

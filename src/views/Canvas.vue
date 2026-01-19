@@ -352,6 +352,7 @@ import VideoNode from '../components/nodes/VideoNode.vue'
 import ImageNode from '../components/nodes/ImageNode.vue'
 import VideoConfigNode from '../components/nodes/VideoConfigNode.vue'
 import ImageRoleEdge from '../components/edges/ImageRoleEdge.vue'
+import PromptOrderEdge from '../components/edges/PromptOrderEdge.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -370,7 +371,8 @@ const nodeTypes = {
 
 // Register custom edge types | 注册自定义边类型
 const edgeTypes = {
-  imageRole: markRaw(ImageRoleEdge)
+  imageRole: markRaw(ImageRoleEdge),
+  promptOrder: markRaw(PromptOrderEdge)
 }
 
 // UI state | UI状态
@@ -491,7 +493,9 @@ const handleAddWorkflow = ({ workflow, options }) => {
         source: edge.source,
         target: edge.target,
         sourceHandle: edge.sourceHandle || 'right',
-        targetHandle: edge.targetHandle || 'left'
+        targetHandle: edge.targetHandle || 'left',
+        type: edge.type,  // Preserve edge type (e.g., promptOrder) | 保留边类型
+        data: edge.data   // Preserve edge data (e.g., promptOrder number) | 保留边数据
       })
     })
     
@@ -508,7 +512,7 @@ const handleAddWorkflow = ({ workflow, options }) => {
 
 // Handle connection | 处理连接
 const onConnect = (params) => {
-  // Check if connecting image to videoConfig | 检查是否将图片连接到视频配置
+  // Check connection types | 检查连接类型
   const sourceNode = nodes.value.find(n => n.id === params.source)
   const targetNode = nodes.value.find(n => n.id === params.target)
   
@@ -518,6 +522,19 @@ const onConnect = (params) => {
       ...params,
       type: 'imageRole',
       data: { imageRole: 'first_frame_image' } // Default to first frame | 默认首帧
+    })
+  } else if (sourceNode?.type === 'text' && targetNode?.type === 'imageConfig') {
+    // Use promptOrder edge type | 使用提示词顺序边类型
+    // Calculate next order number | 计算下一个顺序号
+    const existingTextEdges = edges.value.filter(e => 
+      e.target === params.target && e.type === 'promptOrder'
+    )
+    const nextOrder = existingTextEdges.length + 1
+    
+    addEdge({
+      ...params,
+      type: 'promptOrder',
+      data: { promptOrder: nextOrder }
     })
   } else {
     addEdge(params)

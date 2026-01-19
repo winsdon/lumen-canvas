@@ -117,7 +117,7 @@ export const CHAT_MODELS = [
 
 // Image size options | 图片尺寸选项
 export const IMAGE_SIZE_OPTIONS = [
-    { label: '1024x1024', key: '1024x1024' },
+    { label: '2048x2048', key: '2048x2048' },
     { label: '1792x1024 (横版)', key: '1792x1024' },
     { label: '1024x1792 (竖版)', key: '1024x1792' }
 ]

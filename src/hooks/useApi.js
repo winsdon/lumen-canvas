@@ -138,7 +138,7 @@ export const useImageGeneration = () => {
       const requestData = {
         model: params.model,
         prompt: params.prompt,
-        size: params.size || modelConfig?.defaultParams?.size || '1024x1024',
+        size: params.size || modelConfig?.defaultParams?.size || '2048x2048',
         // n: params.n || 1
       }
 
