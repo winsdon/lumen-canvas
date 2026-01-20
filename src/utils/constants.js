@@ -3,10 +3,10 @@
  */
 
 // API Base URL | API 基础 URL
-export const DEFAULT_API_BASE_URL = 'https://api.chatfire.site/v1'
+export const DEFAULT_API_BASE_URL = import.meta.env.VITE_BASE_URL || 'https://api.chatfire.site/v1'
 
 // Auth API Base URL | 认证 API 基础 URL
-export const AUTH_BASE_URL = 'https://api.xmlumen.com/app-api'
+export const AUTH_BASE_URL = import.meta.env.VITE_BASE_URL || 'https://api.xmlumen.com/app-api'
 
 // Tenant ID | 租户 ID（固定为 1）
 export const TENANT_ID = 1

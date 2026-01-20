@@ -221,12 +221,12 @@ export const initSampleData = () => {
  * Load project data | 加载项目数据
  * @param {string} projectId - Project ID | 项目ID
  */
-export const loadProject = (projectId) => {
+export const loadProject = async (projectId) => {
   autoSaveEnabled = false
   isRestoring = true
   currentProjectId.value = projectId
   
-  const canvasData = getProjectCanvas(projectId)
+  const canvasData = await getProjectCanvas(projectId)
   
   if (canvasData) {
     // Restore nodes | 恢复节点
@@ -265,9 +265,9 @@ export const loadProject = (projectId) => {
 /**
  * Save current project | 保存当前项目
  */
-export const saveProject = () => {
+export const saveProject = async () => {
   if (!currentProjectId.value) return
-  updateProjectCanvas(currentProjectId.value, {
+  await updateProjectCanvas(currentProjectId.value, {
     nodes: nodes.value,
     edges: edges.value,
     viewport: canvasViewport.value

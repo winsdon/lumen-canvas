@@ -10,11 +10,9 @@ import { getAccessToken, getRefreshToken, setTokens, clearAuth } from './auth'
 // Get stored base URL from localStorage, fallback to env or default | 从 localStorage 获取存储的 base URL
 const getStoredBaseUrl = () => {
   try {
-    return localStorage.getItem(STORAGE_KEYS.BASE_URL) || 
-           import.meta.env.VITE_API_BASE_URL || 
-           DEFAULT_API_BASE_URL
+    return localStorage.getItem(STORAGE_KEYS.BASE_URL) || DEFAULT_API_BASE_URL
   } catch {
-    return import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
+    return DEFAULT_API_BASE_URL
   }
 }
 

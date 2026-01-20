@@ -344,7 +344,7 @@ const getProjectActions = (project) => [
 ]
 
 // Handle project action | 处理项目操作
-const handleProjectAction = (key, project) => {
+const handleProjectAction = async (key, project) => {
   switch (key) {
     case 'rename':
       renameTargetId.value = project.id
@@ -352,7 +352,7 @@ const handleProjectAction = (key, project) => {
       showRenameModal.value = true
       break
     case 'duplicate':
-      const newId = duplicateProject(project.id)
+      const newId = await duplicateProject(project.id)
       if (newId) {
         window.$message?.success('项目已复制')
       }
@@ -363,8 +363,8 @@ const handleProjectAction = (key, project) => {
         content: `确定要删除项目「${project.name}」吗？此操作不可恢复。`,
         positiveText: '删除',
         negativeText: '取消',
-        onPositiveClick: () => {
-          deleteProject(project.id)
+        onPositiveClick: async () => {
+          await deleteProject(project.id)
           window.$message?.success('项目已删除')
         }
       })
@@ -373,9 +373,9 @@ const handleProjectAction = (key, project) => {
 }
 
 // Confirm rename | 确认重命名
-const confirmRename = () => {
+const confirmRename = async () => {
   if (renameTargetId.value && renameValue.value.trim()) {
-    renameProject(renameTargetId.value, renameValue.value.trim())
+    await renameProject(renameTargetId.value, renameValue.value.trim())
     window.$message?.success('已重命名')
   }
   showRenameModal.value = false
@@ -400,21 +400,29 @@ const checkApiKeyAndNavigate = (callback) => {
 
 // Create new project | 创建新项目
 const createNewProject = () => {
-  checkApiKeyAndNavigate(() => {
-    const id = createProject('未命名项目')
-    router.push(`/canvas/${id}`)
+  checkApiKeyAndNavigate(async () => {
+    try {
+      const id = await createProject('未命名项目')
+      router.push(`/canvas/${id}`)
+    } catch (e) {
+      // Error handled in store
+    }
   })
 }
 
 // Create project with input text | 使用输入文本创建项目
 const handleCreateWithInput = () => {
-  checkApiKeyAndNavigate(() => {
-    const name = inputText.value.trim() || '未命名项目'
-    const id = createProject(name)
-    // Store the input text to be used as initial prompt
-    sessionStorage.setItem('ai-canvas-initial-prompt', inputText.value.trim())
-    inputText.value = ''
-    router.push(`/canvas/${id}`)
+  checkApiKeyAndNavigate(async () => {
+    try {
+      const name = inputText.value.trim() || '未命名项目'
+      const id = await createProject(name)
+      // Store the input text to be used as initial prompt
+      sessionStorage.setItem('ai-canvas-initial-prompt', inputText.value.trim())
+      inputText.value = ''
+      router.push(`/canvas/${id}`)
+    } catch (e) {
+      // Error handled in store
+    }
   })
 }
 

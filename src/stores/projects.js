@@ -1,14 +1,9 @@
 /**
  * Projects store | 项目状态管理
- * Manages projects with localStorage persistence
+ * Manages projects with API integration
  */
-import { ref, computed, watch } from 'vue'
-
-// Storage key | 存储键
-const STORAGE_KEY = 'ai-canvas-projects'
-
-// Generate unique ID | 生成唯一ID
-const generateId = () => `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+import * as projectApi from '@/api/project'
+import { computed, ref } from 'vue'
 
 // Projects list | 项目列表
 export const projects = ref([])
@@ -22,63 +17,21 @@ export const currentProject = computed(() => {
 })
 
 /**
- * Load projects from localStorage | 从 localStorage 加载项目
+ * Load projects from API | 从 API 加载项目
  */
-export const loadProjects = () => {
+export const loadProjects = async (params) => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      // Convert date strings back to Date objects | 将日期字符串转换回 Date 对象
-      projects.value = parsed.map(p => ({
-        ...p,
-        createdAt: new Date(p.createdAt),
-        updatedAt: new Date(p.updatedAt)
-      }))
-    }
+    const res = await projectApi.getProjectList(params)
+    projects.value = res.list.map(p => ({
+      ...p,
+      createdAt: new Date(p.createdAt),
+      updatedAt: new Date(p.updatedAt)
+    }))
+    return res
   } catch (err) {
     console.error('Failed to load projects:', err)
+    window.$message?.error('加载项目列表失败')
     projects.value = []
-  }
-}
-
-/**
- * Save projects to localStorage | 保存项目到 localStorage
- * Handles QuotaExceededError by compressing data | 通过压缩数据处理配额超限错误
- */
-export const saveProjects = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects.value))
-  } catch (err) {
-    if (err.name === 'QuotaExceededError') {
-      console.warn('localStorage quota exceeded, attempting to clean up...')
-      // Try to save without base64 image data | 尝试保存时移除 base64 图片数据
-      const compressedProjects = projects.value.map(project => ({
-        ...project,
-        canvasData: project.canvasData ? {
-          ...project.canvasData,
-          nodes: project.canvasData.nodes?.map(node => {
-            if (node.type === 'image' && node.data?.base64) {
-              // Remove base64 data, keep only url | 移除 base64 数据，只保留 url
-              const { base64, ...restData } = node.data
-              return { ...node, data: restData }
-            }
-            return node
-          })
-        } : project.canvasData,
-        // Compress thumbnail if it's a data URL | 如果缩略图是 data URL 则压缩
-        thumbnail: project.thumbnail?.startsWith?.('data:') ? '' : project.thumbnail
-      }))
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(compressedProjects))
-        console.log('Saved compressed projects successfully')
-      } catch (retryErr) {
-        console.error('Still failed after compression:', retryErr)
-        window.$message?.error('存储空间已满，请手动删除一些项目后重试')
-      }
-    } else {
-      console.error('Failed to save projects:', err)
-    }
   }
 }
 
@@ -87,28 +40,21 @@ export const saveProjects = () => {
  * @param {string} name - Project name | 项目名称
  * @returns {string} - New project ID | 新项目ID
  */
-export const createProject = (name = '未命名项目') => {
-  const id = generateId()
-  const now = new Date()
-  
-  const newProject = {
-    id,
-    name,
-    thumbnail: '',
-    createdAt: now,
-    updatedAt: now,
-    // Canvas data | 画布数据
-    canvasData: {
-      nodes: [],
-      edges: [],
-      viewport: { x: 100, y: 50, zoom: 0.8 }
-    }
+export const createProject = async (name = '未命名项目') => {
+  try {
+    const newProject = await projectApi.createProject({ name })
+    // Add to list immediately | 立即添加到列表
+    projects.value.unshift({
+      ...newProject,
+      createdAt: new Date(newProject.createdAt),
+      updatedAt: new Date(newProject.updatedAt)
+    })
+    return newProject.id
+  } catch (err) {
+    console.error('Failed to create project:', err)
+    window.$message?.error('创建项目失败')
+    throw err
   }
-  
-  projects.value = [newProject, ...projects.value]
-  saveProjects()
-  
-  return id
 }
 
 /**
@@ -116,22 +62,27 @@ export const createProject = (name = '未命名项目') => {
  * @param {string} id - Project ID | 项目ID
  * @param {object} data - Update data | 更新数据
  */
-export const updateProject = (id, data) => {
-  const index = projects.value.findIndex(p => p.id === id)
-  if (index === -1) return false
-  
-  projects.value[index] = {
-    ...projects.value[index],
-    ...data,
-    updatedAt: new Date()
+export const updateProject = async (id, data) => {
+  try {
+    await projectApi.saveProject({ id, ...data })
+    
+    // Update local state | 更新本地状态
+    const index = projects.value.findIndex(p => p.id === id)
+    if (index !== -1) {
+      projects.value[index] = {
+        ...projects.value[index],
+        ...data,
+        updatedAt: new Date()
+      }
+      // Move to top | 移到顶部
+      const [updated] = projects.value.splice(index, 1)
+      projects.value = [updated, ...projects.value]
+    }
+    return true
+  } catch (err) {
+    console.error('Failed to update project:', err)
+    return false
   }
-  
-  // Move to top of list | 移动到列表顶部
-  const [updated] = projects.value.splice(index, 1)
-  projects.value = [updated, ...projects.value]
-  
-  saveProjects()
-  return true
 }
 
 /**
@@ -139,39 +90,45 @@ export const updateProject = (id, data) => {
  * @param {string} id - Project ID | 项目ID
  * @param {object} canvasData - Canvas data (nodes, edges, viewport) | 画布数据
  */
-export const updateProjectCanvas = (id, canvasData) => {
+export const updateProjectCanvas = async (id, canvasData) => {
   const project = projects.value.find(p => p.id === id)
-  if (!project) return false
   
-  project.canvasData = {
-    ...project.canvasData,
-    ...canvasData
-  }
-  project.updatedAt = new Date()
-  
-  // Auto-update thumbnail from last edited image/video node | 自动从最后编辑的图片/视频节点更新缩略图
+  // Calculate thumbnail logic | 计算缩略图逻辑
+  let thumbnail = project?.thumbnail
   if (canvasData.nodes) {
     const mediaNodes = canvasData.nodes
       .filter(node => (node.type === 'image' || node.type === 'video') && node.data?.url)
       .sort((a, b) => {
-        // Sort by last updated time | 按最后更新时间排序
         const aTime = a.data?.updatedAt || a.data?.createdAt || 0
         const bTime = b.data?.updatedAt || b.data?.createdAt || 0
         return bTime - aTime
       })
     if (mediaNodes.length > 0) {
       const latestNode = mediaNodes[0]
-      // Use thumbnail for video nodes, url for image nodes | 视频节点使用缩略图，图片节点使用 URL
       if (latestNode.type === 'video') {
-        project.thumbnail = latestNode.data.thumbnail || latestNode.data.url
+        thumbnail = latestNode.data.thumbnail || latestNode.data.url
       } else {
-        project.thumbnail = latestNode.data.url
+        thumbnail = latestNode.data.url
       }
     }
   }
-  
-  saveProjects()
-  return true
+
+  try {
+    await projectApi.saveProject({
+      id,
+      canvasData,
+      thumbnail
+    })
+    
+    if (project) {
+        project.thumbnail = thumbnail
+        project.updatedAt = new Date()
+    }
+    return true
+  } catch (err) {
+    console.error('Failed to save canvas:', err)
+    return false
+  }
 }
 
 /**
@@ -179,18 +136,27 @@ export const updateProjectCanvas = (id, canvasData) => {
  * @param {string} id - Project ID | 项目ID
  * @returns {object|null} - Canvas data or null | 画布数据或空
  */
-export const getProjectCanvas = (id) => {
-  const project = projects.value.find(p => p.id === id)
-  return project?.canvasData || null
+export const getProjectCanvas = async (id) => {
+  try {
+    const project = await projectApi.getProjectDetail(id)
+    return project.canvasData
+  } catch (err) {
+    console.error('Failed to get project detail:', err)
+    return null
+  }
 }
 
 /**
  * Delete project | 删除项目
  * @param {string} id - Project ID | 项目ID
  */
-export const deleteProject = (id) => {
-  projects.value = projects.value.filter(p => p.id !== id)
-  saveProjects()
+export const deleteProject = async (id) => {
+  try {
+    await projectApi.deleteProject(id)
+    projects.value = projects.value.filter(p => p.id !== id)
+  } catch (err) {
+    window.$message?.error('删除项目失败')
+  }
 }
 
 /**
@@ -198,25 +164,30 @@ export const deleteProject = (id) => {
  * @param {string} id - Source project ID | 源项目ID
  * @returns {string|null} - New project ID or null | 新项目ID或空
  */
-export const duplicateProject = (id) => {
-  const source = projects.value.find(p => p.id === id)
-  if (!source) return null
-  
-  const newId = generateId()
-  const now = new Date()
-  
-  const newProject = {
-    ...JSON.parse(JSON.stringify(source)), // Deep clone | 深拷贝
-    id: newId,
-    name: `${source.name} (副本)`,
-    createdAt: now,
-    updatedAt: now
+export const duplicateProject = async (id) => {
+  try {
+    // Get full data first | 先获取完整数据
+    const source = await projectApi.getProjectDetail(id)
+    
+    const newProject = await projectApi.createProject({
+      name: `${source.name} (副本)`
+    })
+    
+    // Update with source canvas data | 更新画布数据
+    await projectApi.saveProject({
+        id: newProject.id,
+        canvasData: source.canvasData,
+        thumbnail: source.thumbnail
+    })
+    
+    // Refresh list | 刷新列表
+    await loadProjects()
+    
+    return newProject.id
+  } catch (err) {
+    window.$message?.error('复制项目失败')
+    return null
   }
-  
-  projects.value = [newProject, ...projects.value]
-  saveProjects()
-  
-  return newId
 }
 
 /**
@@ -224,7 +195,7 @@ export const duplicateProject = (id) => {
  * @param {string} id - Project ID | 项目ID
  * @param {string} name - New name | 新名称
  */
-export const renameProject = (id, name) => {
+export const renameProject = async (id, name) => {
   return updateProject(id, { name })
 }
 
@@ -233,7 +204,7 @@ export const renameProject = (id, name) => {
  * @param {string} id - Project ID | 项目ID
  * @param {string} thumbnail - Thumbnail URL (base64 or URL) | 缩略图URL
  */
-export const updateProjectThumbnail = (id, thumbnail) => {
+export const updateProjectThumbnail = async (id, thumbnail) => {
   return updateProject(id, { thumbnail })
 }
 
@@ -272,59 +243,16 @@ export const getSortedProjects = (sortBy = 'updatedAt', order = 'desc') => {
 /**
  * Initialize projects store | 初始化项目存储
  */
-export const initProjectsStore = () => {
-  loadProjects()
-  
-  // Create sample project if empty | 如果为空则创建示例项目
-  if (projects.value.length === 0) {
-    const id = createProject('示例项目')
-    const project = projects.value.find(p => p.id === id)
-    if (project) {
-      project.canvasData = {
-        nodes: [
-          {
-            id: 'node_0',
-            type: 'text',
-            position: { x: 150, y: 150 },
-            data: {
-              content: '一只金毛寻回犬在草地上奔跑，摇着尾巴，脸上带着快乐的表情。它的毛发在阳光下闪耀，眼神充满了对自由的渴望，全身散发着阳光、友善的气息。',
-              label: '文本输入'
-            }
-          },
-          {
-            id: 'node_1',
-            type: 'imageConfig',
-            position: { x: 500, y: 150 },
-            data: {
-              prompt: '',
-              model: 'doubao-seedream-4-5-251128',
-              size: '512x512',
-              label: '文生图'
-            }
-          }
-        ],
-        edges: [
-          {
-            id: 'edge_node_0_node_1',
-            source: 'node_0',
-            target: 'node_1',
-            sourceHandle: 'right',
-            targetHandle: 'left'
-          }
-        ],
-        viewport: { x: 100, y: 50, zoom: 0.8 }
-      }
-      saveProjects()
-    }
-  }
+export const initProjectsStore = async () => {
+  await loadProjects()
 }
+
 
 // Export for debugging | 导出用于调试
 if (typeof window !== 'undefined') {
   window.__aiCanvasProjects = {
     projects,
     loadProjects,
-    saveProjects,
     createProject,
     deleteProject
   }

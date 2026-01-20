@@ -43,7 +43,7 @@
         >
           <n-icon :size="20"><SettingsOutline /></n-icon>
         </button>
-        <UserAvatar @login="window.$showLoginModal?.()" />
+        <UserAvatar @login="handleLogin" />
       </div>
     </header>
 
@@ -62,6 +62,7 @@
         :max-zoom="2"
         :snap-to-grid="true"
         :snap-grid="[20, 20]"
+        :zoom-on-double-click="false"
         @connect="onConnect"
         @node-click="onNodeClick"
         @pane-click="onPaneClick"
@@ -81,7 +82,7 @@
       <!-- Left toolbar | 左侧工具栏 -->
       <aside class="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-1 p-2 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] shadow-lg z-10">
         <button 
-          @click="showNodeMenu = !showNodeMenu"
+          @click="toggleNodeMenu"
           class="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--accent-color)] text-white hover:bg-[var(--accent-hover)] transition-colors"
           title="添加节点"
         >
@@ -110,10 +111,27 @@
       <!-- Node menu popup | 节点菜单弹窗 -->
       <div 
         v-if="showNodeMenu"
-        class="absolute left-20 top-1/2 -translate-y-1/2 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] shadow-lg p-2 z-20"
+        ref="nodeMenuRef"
+        class="fixed bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] shadow-lg p-2 z-50 transition-all duration-200 min-w-[160px]"
+        :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }"
+        @keydown.esc="showNodeMenu = false"
       >
+        <div class="px-2 py-1 text-xs text-[var(--text-secondary)] font-medium">添加节点</div>
         <button 
-          v-for="nodeType in nodeTypeOptions" 
+          v-for="nodeType in nodeTypeOptions.filter(n => ['text', 'imageConfig', 'videoConfig'].includes(n.type))" 
+          :key="nodeType.type"
+          @click="addNewNode(nodeType.type)"
+          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+        >
+          <n-icon :size="20" :color="nodeType.color"><component :is="nodeType.icon" /></n-icon>
+          <span class="text-sm">{{ nodeType.name }}</span>
+        </button>
+        
+        <div class="w-full h-px bg-[var(--border-color)] my-1"></div>
+        
+        <div class="px-2 py-1 text-xs text-[var(--text-secondary)] font-medium">添加资源</div>
+        <button 
+          v-for="nodeType in nodeTypeOptions.filter(n => ['image', 'video'].includes(n.type))" 
           :key="nodeType.type"
           @click="addNewNode(nodeType.type)"
           class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left"
@@ -289,7 +307,7 @@ import { isDark, toggleTheme } from '../stores/theme'
 import { nodes, edges, addNode, addEdge, updateNode, initSampleData, loadProject, saveProject, clearCanvas, canvasViewport, updateViewport, undo, redo, canUndo, canRedo, manualSaveHistory } from '../stores/canvas'
 import { loadAllModels } from '../stores/models'
 import { useApiConfig, useChat, useWorkflowOrchestrator } from '../hooks'
-import { projects, initProjectsStore, updateProject, renameProject, currentProject } from '../stores/projects'
+import { projects, initProjectsStore, updateProject, renameProject, deleteProject, currentProject } from '../stores/projects'
 
 import ApiSettings from '../components/ApiSettings.vue'
 import DownloadModal from '../components/DownloadModal.vue'
@@ -358,7 +376,7 @@ const router = useRouter()
 const route = useRoute()
 
 // Vue Flow instance | Vue Flow 实例
-const { viewport, zoomIn, zoomOut, fitView, updateNodeInternals } = useVueFlow()
+const { viewport, zoomIn, zoomOut, fitView, updateNodeInternals, project } = useVueFlow()
 
 // Register custom node types | 注册自定义节点类型
 const nodeTypes = {
@@ -377,12 +395,41 @@ const edgeTypes = {
 
 // UI state | UI状态
 const showNodeMenu = ref(false)
+const nodeMenuRef = ref(null)
+const menuPosition = ref({ x: 80, y: 300 })
+const targetNodePosition = ref(null)
 const chatInput = ref('')
 const autoExecute = ref(true)
 const isMobile = ref(false)
 const showGrid = ref(true)
 const showApiSettings = ref(false)
 const isProcessing = ref(false)
+
+// Toggle node menu | 切换节点菜单
+const toggleNodeMenu = () => {
+  if (showNodeMenu.value) {
+    showNodeMenu.value = false
+  } else {
+    // Reset to default position (near toolbar) | 重置到默认位置（工具栏旁）
+    menuPosition.value = { x: 80, y: window.innerHeight / 2 - 100 }
+    targetNodePosition.value = null
+    showNodeMenu.value = true
+  }
+}
+
+// Handle pane double click | 处理画布双击
+const onPaneDblClick = (e) => {
+  const { event } = e
+  event.preventDefault()
+  
+  // Set menu position at click coordinates | 在点击坐标处设置菜单位置
+  menuPosition.value = { x: event.clientX, y: event.clientY }
+  
+  // Store target node position (converted to canvas coordinates) | 存储目标节点位置（转换为画布坐标）
+  targetNodePosition.value = project({ x: event.clientX, y: event.clientY })
+  
+  showNodeMenu.value = true
+}
 
 // Flow key for forcing re-render on project switch | 项目切换时强制重新渲染的 key
 const flowKey = ref(Date.now())
@@ -446,12 +493,22 @@ const suggestions = [
 
 // Add new node | 添加新节点
 const addNewNode = async (type) => {
-  // Calculate viewport center position | 计算视口中心位置
-  const viewportCenterX = -viewport.value.x / viewport.value.zoom + (window.innerWidth / 2) / viewport.value.zoom
-  const viewportCenterY = -viewport.value.y / viewport.value.zoom + (window.innerHeight / 2) / viewport.value.zoom
+  let position
   
-  // Add node at viewport center | 在视口中心添加节点
-  const nodeId = addNode(type, { x: viewportCenterX - 100, y: viewportCenterY - 100 })
+  if (targetNodePosition.value) {
+    // Use stored target position (from double click) | 使用存储的目标位置（来自双击）
+    position = targetNodePosition.value
+    // Reset target position | 重置目标位置
+    targetNodePosition.value = null
+  } else {
+    // Calculate viewport center position | 计算视口中心位置
+    const viewportCenterX = -viewport.value.x / viewport.value.zoom + (window.innerWidth / 2) / viewport.value.zoom
+    const viewportCenterY = -viewport.value.y / viewport.value.zoom + (window.innerHeight / 2) / viewport.value.zoom
+    position = { x: viewportCenterX - 100, y: viewportCenterY - 100 }
+  }
+  
+  // Add node | 添加节点
+  const nodeId = addNode(type, position)
   
   // Set highest z-index | 设置最高层级
   const maxZIndex = Math.max(0, ...nodes.value.map(n => n.zIndex || 0))
@@ -543,6 +600,7 @@ const onConnect = (params) => {
 
 // Handle node click | 处理节点点击
 const onNodeClick = (event) => {
+  showNodeMenu.value = false
   // nodes.value.forEach(node => {
   //   updateNode(node.id, { selected: false })
   // })
@@ -573,13 +631,18 @@ const onEdgesChange = (changes) => {
 }
 
 // Handle pane click | 处理画布点击
-const onPaneClick = () => {
-  showNodeMenu.value = false
-  // Clear all selections | 清除所有选中
-  // nodes.value = nodes.value.map(node => ({
-  //   ...node,
-  //   selected: false
-  // }))
+let lastClickTime = 0
+const onPaneClick = (event) => {
+  const now = Date.now()
+  if (now - lastClickTime < 300) {
+    // Double click detected | 检测到双击
+    onPaneDblClick({ event })
+    lastClickTime = 0 // Reset | 重置
+  } else {
+    // Single click | 单击
+    showNodeMenu.value = false
+    lastClickTime = now
+  }
 }
 
 // Handle project action | 处理项目操作
@@ -600,19 +663,19 @@ const handleProjectAction = (key) => {
 }
 
 // Confirm rename | 确认重命名
-const confirmRename = () => {
+const confirmRename = async () => {
   const projectId = route.params.id
   if (renameValue.value.trim()) {
-    renameProject(projectId, renameValue.value.trim())
+    await renameProject(projectId, renameValue.value.trim())
     window.$message?.success('已重命名')
   }
   showRenameModal.value = false
 }
 
 // Confirm delete | 确认删除
-const confirmDelete = () => {
+const confirmDelete = async () => {
   const projectId = route.params.id
-  // deleteProject(projectId) // TODO: import deleteProject
+  await deleteProject(projectId)
   showDeleteModal.value = false
   window.$message?.success('项目已删除')
   router.push('/')
@@ -734,6 +797,11 @@ const sendMessage = async () => {
   }
 }
 
+// Handle login | 处理登录
+const handleLogin = () => {
+  window.$showLoginModal?.()
+}
+
 // Go back to home | 返回首页
 const goBack = () => {
   router.push('/')
@@ -745,12 +813,12 @@ const checkMobile = () => {
 }
 
 // Load project by ID | 根据ID加载项目
-const loadProjectById = (projectId) => {
+const loadProjectById = async (projectId) => {
   // Update flow key to force VueFlow re-render | 更新 key 强制 VueFlow 重新渲染
   flowKey.value = Date.now()
   
   if (projectId && projectId !== 'new') {
-    loadProject(projectId)
+    await loadProject(projectId)
   } else {
     // New project - clear canvas | 新项目 - 清空画布
     clearCanvas()
@@ -760,28 +828,28 @@ const loadProjectById = (projectId) => {
 // Watch for route changes | 监听路由变化
 watch(
   () => route.params.id,
-  (newId, oldId) => {
+  async (newId, oldId) => {
     if (newId && newId !== oldId) {
       // Save current project before switching | 切换前保存当前项目
       if (oldId) {
-        saveProject()
+        await saveProject()
       }
       // Load new project | 加载新项目
-      loadProjectById(newId)
+      await loadProjectById(newId)
     }
   }
 )
 
 // Initialize | 初始化
-onMounted(() => {
+onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
   
   // Initialize projects store | 初始化项目存储
-  initProjectsStore()
+  await initProjectsStore()
   
   // Load project data | 加载项目数据
-  loadProjectById(route.params.id)
+  await loadProjectById(route.params.id)
   
   // Check for initial prompt from home page | 检查来自首页的初始提示词
   const initialPrompt = sessionStorage.getItem('ai-canvas-initial-prompt')
@@ -796,10 +864,10 @@ onMounted(() => {
 })
 
 // Cleanup on unmount | 卸载时清理
-onUnmounted(() => {
+onUnmounted(async () => {
   window.removeEventListener('resize', checkMobile)
   // Save project before leaving | 离开前保存项目
-  saveProject()
+  await saveProject()
 })
 </script>
 
