@@ -2,19 +2,37 @@
  * Image API | 图片生成 API
  */
 
-import { request, getBaseUrl } from '@/utils'
+import { authRequest } from '@/utils/request'
 
-// 生成图片
-export const generateImage = (data, options = {}) => {
-  const { requestType = 'json', endpoint = '/images/generations' } = options
+/**
+ * Get AI Model List | 获取 AI 模型列表
+ * @param {Object} params - { type, platform }
+ */
+export const getAiModelList = (params = {}) => {
+  return authRequest.get('/ai/model/simple-list', { params })
+}
 
-  return request({
-    url: endpoint,
-    method: 'post',
-    data,
-    headers: requestType === 'formdata' ? { 'Content-Type': 'multipart/form-data' } : {}
+/**
+ * Draw Image | 生成图片
+ * @param {Object} data - { modelId, prompt, width, height, ... }
+ */
+export const aiImageDraw = (data) => {
+  return authRequest.post('/ai/image/draw', data)
+}
+
+/**
+ * Get Image List by IDs | 根据 ID 数组获取图片列表
+ * @param {Array} ids - Array of image IDs
+ */
+export const getAiImageListByIds = (ids) => {
+  return authRequest.get('/ai/image/my-list-by-ids', {
+    params: { ids: ids.join(',') }
   })
 }
+
+// Deprecated or optional legacy functions can remain if needed, 
+// but we focus on the new backend integration.
+
 
 /**
  * Generate image using Gemini chat completions format | 使用 Gemini 聊天补全格式生成图片

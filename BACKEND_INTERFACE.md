@@ -21,16 +21,16 @@
 
 ### 2.1 获取项目列表
 
-*   **URL**: `/member/project/list`
+*   **URL**: `/prompt/project/page`
 *   **Method**: `GET`
 *   **描述**: 获取当前用户的项目列表（简要信息，不包含庞大的画布数据）。
 
 **请求参数 (Query)**:
 | 参数名 | 类型 | 必填 | 描述 |
 |---|---|---|---|
-| page | Number | 否 | 页码 (默认1) |
-| size | Number | 否 | 每页数量 (默认20) |
-| keyword | String | 否 | 搜索关键词 |
+| pageNo | Number | 否 | 页码 (默认1) |
+| pageSize | Number | 否 | 每页数量 (默认20) |
+| name | String | 否 | 搜索关键词 |
 
 **响应示例**:
 ```json
@@ -47,16 +47,14 @@
         "updatedAt": "2024-01-21T10:00:00.000Z"
       }
     ],
-    "total": 1,
-    "page": 1,
-    "size": 20
+    "total": 1
   }
 }
 ```
 
 ### 2.2 创建项目
 
-*   **URL**: `/member/project/create`
+*   **URL**: `/prompt/project/create`
 *   **Method**: `POST`
 *   **描述**: 创建一个新的空白项目。
 
@@ -83,7 +81,7 @@
 
 ### 2.3 获取项目详情（画板数据）
 
-*   **URL**: `/member/project/detail`
+*   **URL**: `/prompt/project/get`
 *   **Method**: `GET`
 *   **描述**: 获取单个项目的完整数据，包括画布节点和连线。
 
@@ -114,8 +112,8 @@
 
 ### 2.4 保存/更新项目
 
-*   **URL**: `/member/project/save`
-*   **Method**: `POST`
+*   **URL**: `/prompt/project/update`
+*   **Method**: `PUT`
 *   **描述**: 保存项目数据，包括画布内容、缩略图和名称。
 
 **请求参数 (Body)**:
@@ -139,11 +137,11 @@
 
 ### 2.5 删除项目
 
-*   **URL**: `/member/project/delete`
-*   **Method**: `POST`
+*   **URL**: `/prompt/project/delete`
+*   **Method**: `DELETE`
 *   **描述**: 删除指定项目。
 
-**请求参数 (Body)**:
+**请求参数 (Query)**:
 | 参数名 | 类型 | 必填 | 描述 |
 |---|---|---|---|
 | id | String | 是 | 项目ID |

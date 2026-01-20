@@ -90,7 +90,7 @@ export const getProjectDetail = async (id) => {
     if (!project) throw new Error('Project not found')
     return project
   }
-  return authRequest.get('/prompt/project/get', { params: { id } })
+  return authRequest.get('/prompt/project/detail', { params: { id } })
 }
 
 /**

@@ -5,12 +5,14 @@
 
 import { ref, reactive, onUnmounted } from 'vue'
 import {
-  generateImage,
+  aiImageDraw,
+  getAiImageListByIds,
   createVideoTask,
   getVideoTaskStatus,
   streamChatCompletions
 } from '@/api'
 import { getModelByName } from '@/config/models'
+import { fetchModels, getModelId } from '@/stores/aiModels'
 import { useApiConfig } from './useApiConfig'
 
 /**
@@ -132,38 +134,84 @@ export const useImageGeneration = () => {
     currentImage.value = null
 
     try {
-      const modelConfig = getModelByName(params.model)
+      // 1. Ensure models are fetched | 确保模型已加载
+      await fetchModels()
       
-      // Build request data | 构建请求数据
-      const requestData = {
-        model: params.model,
-        prompt: params.prompt,
-        size: params.size || modelConfig?.defaultParams?.size || '2048x2048',
-        // n: params.n || 1
+      // 2. Get Model ID | 获取模型 ID
+      const modelId = getModelId(params.model)
+      if (!modelId) {
+        // Fallback or error? For now error.
+        throw new Error(`Model not found or not mapped: ${params.model}`)
       }
-
-      // Add reference image if provided | 添加参考图
-      if (params.image) {
-        requestData.image = params.image
+      
+      // 3. Parse size | 解析尺寸
+      // Format: "1024x1024"
+      const sizeStr = params.size || '1024x1024'
+      const [width, height] = sizeStr.split('x').map(Number)
+      
+      // 4. Submit tasks (Handle batch) | 提交任务（处理批量）
+      const count = params.n || 1
+      const taskIds = []
+      
+      for (let i = 0; i < count; i++) {
+         const taskId = await aiImageDraw({
+           modelId,
+           prompt: params.prompt,
+           width,
+           height,
+           image: params.image // Optional for img2img
+         })
+         taskIds.push(taskId)
       }
+      
+      if (taskIds.length === 0) {
+        throw new Error('No tasks created')
+      }
+      
+      status.value = 'polling'
+      
+      // 5. Polling | 轮询
+      const maxAttempts = 120 // 5 mins roughly
+      const interval = 3000 // 3s
+      
+      for (let i = 0; i < maxAttempts; i++) {
+        // Fetch all statuses
+        const results = await getAiImageListByIds(taskIds)
+        // results: Array of AiImageRespVO
+        
+        // Filter finished items (Success or Fail)
+        const finishedItems = results.filter(item => item.picUrl || item.errorMessage)
+        
+        // If all tasks have a result (success or fail)
+        if (finishedItems.length >= taskIds.length) {
+          // Check for any success
+          const successItems = results.filter(item => item.picUrl)
+          const failItems = results.filter(item => item.errorMessage)
+          
+          if (successItems.length > 0) {
+            // Map to unified format
+            const generatedImages = successItems.map(item => ({
+              url: item.picUrl,
+              revisedPrompt: item.prompt,
+              id: item.id
+            }))
+            
+            images.value = generatedImages
+            currentImage.value = generatedImages[0]
+            setSuccess()
+            return generatedImages
+          } else {
+             // All failed
+             throw new Error(failItems[0]?.errorMessage || 'Image generation failed')
+          }
+        }
+        
+        // Wait
+        await new Promise(resolve => setTimeout(resolve, interval))
+      }
+      
+      throw new Error('Image generation timeout')
 
-      // Call API | 调用 API
-      const response = await generateImage(requestData, {
-        requestType: 'json',
-        endpoint: modelConfig?.endpoint || '/images/generations'
-      })
-
-      // Parse response (OpenAI format) | 解析响应
-      const data = response.data || response
-      const generatedImages = (Array.isArray(data) ? data : [data]).map(item => ({
-        url: item.url || item.b64_json || item,
-        revisedPrompt: item.revised_prompt || ''
-      }))
-
-      images.value = generatedImages
-      currentImage.value = generatedImages[0] || null
-      setSuccess()
-      return generatedImages
     } catch (err) {
       setError(err)
       throw err
