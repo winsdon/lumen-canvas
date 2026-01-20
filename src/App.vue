@@ -4,6 +4,7 @@ import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme } from 'n
 import { isDark } from './stores/theme'
 import { useAuth } from './hooks'
 import LoginModal from './components/LoginModal.vue'
+import MessageApi from './components/MessageApi.vue'
 
 const { init: initAuth } = useAuth()
 
@@ -55,6 +56,7 @@ onMounted(() => {
 <template>
   <n-config-provider :theme="theme" :theme-overrides="themeOverrides">
     <n-message-provider>
+      <MessageApi />
       <n-dialog-provider>
         <router-view />
         <LoginModal v-model:show="showLoginModal" />

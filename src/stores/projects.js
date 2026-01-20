@@ -30,7 +30,7 @@ export const loadProjects = async (params) => {
     return res
   } catch (err) {
     console.error('Failed to load projects:', err)
-    window.$message?.error('加载项目列表失败')
+    // Global error handler will show the message | 全局错误处理会显示消息
     projects.value = []
   }
 }
@@ -52,7 +52,7 @@ export const createProject = async (name = '未命名项目') => {
     return newProject.id
   } catch (err) {
     console.error('Failed to create project:', err)
-    window.$message?.error('创建项目失败')
+    // Global error handler will show the message | 全局错误处理会显示消息
     throw err
   }
 }
@@ -155,7 +155,8 @@ export const deleteProject = async (id) => {
     await projectApi.deleteProject(id)
     projects.value = projects.value.filter(p => p.id !== id)
   } catch (err) {
-    window.$message?.error('删除项目失败')
+    // Global error handler will show the message | 全局错误处理会显示消息
+    console.error('Failed to delete project:', err)
   }
 }
 
@@ -185,7 +186,8 @@ export const duplicateProject = async (id) => {
     
     return newProject.id
   } catch (err) {
-    window.$message?.error('复制项目失败')
+    // Global error handler will show the message | 全局错误处理会显示消息
+    console.error('Failed to duplicate project:', err)
     return null
   }
 }

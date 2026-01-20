@@ -2,7 +2,7 @@ import { authRequest } from '@/utils/request'
 
 // 切换此开关以启用/禁用 Mock 模式
 // Set to false when backend is ready | 后端准备好后设置为 false
-const USE_MOCK = true
+const USE_MOCK = false
 
 // Mock 辅助函数
 const MOCK_STORAGE_KEY = 'ai-canvas-projects'
@@ -41,7 +41,18 @@ export const getProjectList = async (params = {}) => {
       size: params.size || 20
     }
   }
-  return authRequest.get('/member/project/list', { params })
+  
+  // Adapt params to backend requirements (pageNo, pageSize) | 适配后端参数
+  const queryParams = {
+    pageNo: params.page || 1,
+    pageSize: params.size || 20,
+    name: params.keyword, // Assuming keyword maps to name | 假设关键字映射为名称
+    ...params
+  }
+  // Remove original page/size/keyword to avoid confusion if needed, 
+  // but keeping them usually doesn't hurt.
+  
+  return authRequest.get('/prompt/project/page', { params: queryParams })
 }
 
 /**
@@ -64,7 +75,7 @@ export const createProject = async (data) => {
     setMockData(projects)
     return newProject
   }
-  return authRequest.post('/member/project/create', data)
+  return authRequest.post('/prompt/project/create', data)
 }
 
 /**
@@ -79,7 +90,7 @@ export const getProjectDetail = async (id) => {
     if (!project) throw new Error('Project not found')
     return project
   }
-  return authRequest.get('/member/project/detail', { params: { id } })
+  return authRequest.get('/prompt/project/get', { params: { id } })
 }
 
 /**
@@ -101,7 +112,7 @@ export const saveProject = async (data) => {
     setMockData(projects)
     return { updatedAt: projects[index].updatedAt }
   }
-  return authRequest.post('/member/project/save', data)
+  return authRequest.put('/prompt/project/update', data)
 }
 
 /**
@@ -116,5 +127,5 @@ export const deleteProject = async (id) => {
     setMockData(filtered)
     return null
   }
-  return authRequest.post('/member/project/delete', { id })
+  return authRequest.delete('/prompt/project/delete', { params: { id } })
 }

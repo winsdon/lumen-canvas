@@ -58,7 +58,9 @@ export const generateImageViaChat = async (data, stream = true) => {
     })
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      const errorMsg = `HTTP error! status: ${response.status}`
+      window.$message?.error(errorMsg)
+      throw new Error(errorMsg)
     }
 
     return response

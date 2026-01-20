@@ -44,7 +44,8 @@ instance.interceptors.request.use(
 
 instance.interceptors.response.use(
   (res) => {
-    const { data, code, message } = res.data || {}
+    // Attempt to parse standard backend response format: { code, data, msg } | 尝试解析标准后端响应格式
+    const { data, code, msg, message } = res.data || {}
     
     if (res.config.responseType === 'stream') {
       return res.data
@@ -54,19 +55,29 @@ instance.interceptors.response.use(
       return res.data
     }
     
-    if (code === 200 || res.status === 200) {
+    // Check for success code 0 (backend standard) | 检查成功状态码 0（后端标准）
+    if (code === 0) {
+      // Return inner data if present, similar to authInstance | 如果存在内部数据则返回，类似 authInstance
+      return data !== undefined ? data : res.data
+    }
+
+    // Check for loose success (e.g. 3rd party APIs might not have 'code') | 检查宽松成功（例如第三方 API 可能没有 'code'）
+    if (code === undefined && res.status === 200) {
       return res.data
     }
     
-    window.$message?.error(message || 'Request failed')
-    return Promise.reject(res.data)
+    // Handle error with msg/message | 处理错误
+    const errorMsg = msg || message || 'Request failed'
+    window.$message?.error(errorMsg)
+    return Promise.reject(new Error(errorMsg))
   },
   (error) => {
     const { response } = error
     
     if (response) {
       const { status, data } = response
-      const message = data?.message || data?.error?.message || error.message
+      // Prioritize msg from backend error response | 优先使用后端错误响应中的 msg
+      const message = data?.msg || data?.message || data?.error?.message || error.message
       
       if (status === 401) {
         window.$message?.error('API Key 无效或已过期')

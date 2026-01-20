@@ -712,7 +712,8 @@ const handlePolish = async () => {
     }
   } catch (err) {
     chatInput.value = originalInput
-    window.$message?.error(err.message || '润色失败')
+    // Global error handler will show the message | 全局错误处理会显示消息
+    console.error('Polish failed:', err)
   } finally {
     isProcessing.value = false
   }
@@ -791,7 +792,8 @@ const sendMessage = async () => {
       })
     }
   } catch (err) {
-    window.$message?.error(err.message || '创建失败')
+    // Global error handler will show the message | 全局错误处理会显示消息
+    console.error('Create failed:', err)
   } finally {
     isProcessing.value = false
   }
