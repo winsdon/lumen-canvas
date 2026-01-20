@@ -158,13 +158,13 @@
  * Image config node component | 文生图配置节点组件
  * Configuration panel for text-to-image generation with API integration
  */
-import { ref, computed, watch, onMounted } from 'vue'
+import { AddOutline, ChevronDownOutline, ChevronForwardOutline, CopyOutline, RefreshOutline, TrashOutline } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
-import { NIcon, NDropdown, NSpin } from 'naive-ui'
-import { ChevronDownOutline, ChevronForwardOutline, CopyOutline, TrashOutline, RefreshOutline, AddOutline } from '@vicons/ionicons5'
-import { useImageGeneration, useApiConfig } from '../../hooks'
-import { updateNode, addNode, addEdge, nodes, edges, duplicateNode, removeNode } from '../../stores/canvas'
-import { imageModelOptions, getModelSizeOptions, getModelQualityOptions, getModelConfig, DEFAULT_IMAGE_MODEL } from '../../stores/models'
+import { NDropdown, NIcon, NSpin } from 'naive-ui'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useApiConfig, useImageGeneration } from '../../hooks'
+import { addEdge, addNode, duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
+import { DEFAULT_IMAGE_MODEL, getModelConfig, getModelQualityOptions, getModelSizeOptions, imageModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -192,11 +192,12 @@ const localQuality = ref(props.data?.quality || 'standard')
 const currentModelConfig = computed(() => getModelConfig(localModel.value))
 
 // Model options from store | 从 store 获取模型选项
-const modelOptions = imageModelOptions
+const modelOptions = imageModelSelectOptions
 
 // Display model name | 显示模型名称
 const displayModelName = computed(() => {
-  const model = modelOptions.value.find(m => m.key === localModel.value)
+  // Try to find model by value or key
+  const model = modelOptions.value.find(m => m.value === localModel.value || m.key === localModel.value)
   return model?.label || localModel.value || '选择模型'
 })
 

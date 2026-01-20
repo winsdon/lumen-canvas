@@ -112,7 +112,7 @@ export const saveProject = async (data) => {
     setMockData(projects)
     return { updatedAt: projects[index].updatedAt }
   }
-  return authRequest.put('/prompt/project/update', data)
+  return authRequest.post('/prompt/project/update', data)
 }
 
 /**

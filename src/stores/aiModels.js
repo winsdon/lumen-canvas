@@ -1,37 +1,49 @@
 /**
  * AI Models Store | AI 模型状态管理
  */
-import { ref } from 'vue'
 import { getAiModelList } from '@/api/image'
+import { ref } from 'vue'
 
-// Cached models list | 缓存的模型列表
-export const aiModels = ref([])
+// Cached models list (Keyed by type) | 缓存的模型列表（按类型存储）
+export const aiModels = ref({})
 
 // Loading state | 加载状态
 export const isLoading = ref(false)
 
-// Initialized flag | 初始化标志
-export const isInitialized = ref(false)
+// Initialized flags by type | 各类型的初始化标志
+export const initializedTypes = ref(new Set())
 
 /**
  * Fetch and cache models | 获取并缓存模型
  * type: 2 (Image Generation) based on convention
+ * 
+ * Model Types:
+ * 1: CHAT (对话)
+ * 2: IMAGE (图片)
+ * 3: VOICE (语音)
+ * 4: VIDEO (视频)
+ * 5: EMBEDDING (向量)
+ * 6: RERANK (重排序)
  */
-export const fetchModels = async () => {
-  if (isLoading.value || isInitialized.value) return
+export const fetchModels = async (type = 2) => {
+  // If already initialized for this type, skip
+  if (initializedTypes.value.has(type)) return
   
-  isLoading.value = true
+  // We don't block by global isLoading because we might want parallel fetches for different types.
+  // Ideally we should have per-type loading state, but for simplicity:
+  
   try {
-    // Fetch Image Models (Type 2)
-    const res = await getAiModelList({ type: 2, status: 1 })
+    const res = await getAiModelList({ type, status: 1 })
     if (res) {
-      aiModels.value = res
-      isInitialized.value = true
+      // Store by type
+      aiModels.value = {
+        ...aiModels.value,
+        [type]: res
+      }
+      initializedTypes.value.add(type)
     }
   } catch (error) {
-    console.error('Failed to fetch AI models:', error)
-  } finally {
-    isLoading.value = false
+    console.error(`Failed to fetch AI models (type ${type}):`, error)
   }
 }
 
@@ -41,7 +53,10 @@ export const fetchModels = async () => {
  */
 export const getModelId = (key) => {
   if (!key) return null
-  // Match by 'model' field (e.g. 'gpt-4') or 'name'
-  const target = aiModels.value.find(m => m.model === key || m.name === key)
-  return target ? target.id : null
+  // Search in all type lists
+  for (const list of Object.values(aiModels.value)) {
+    const target = list.find(m => m.model === key || m.name === key)
+    if (target) return target.id
+  }
+  return null
 }

@@ -183,6 +183,10 @@ export const useImageGeneration = () => {
         const finishedItems = results.filter(item => item.picUrl || item.errorMessage)
         
         // If all tasks have a result (success or fail)
+        // Also check status 20 for success if picUrl is missing but status is correct?
+        // User provided example shows: status: 20, picUrl: "..."
+        // So checking picUrl should be enough, but let's be robust.
+        
         if (finishedItems.length >= taskIds.length) {
           // Check for any success
           const successItems = results.filter(item => item.picUrl)
@@ -190,11 +194,22 @@ export const useImageGeneration = () => {
           
           if (successItems.length > 0) {
             // Map to unified format
-            const generatedImages = successItems.map(item => ({
-              url: item.picUrl,
-              revisedPrompt: item.prompt,
-              id: item.id
-            }))
+            const generatedImages = successItems.map(item => {
+              // Clean up URL if it has spaces or extra quotes (based on user feedback `...` in json?)
+              // The example shows: "picUrl": " `https://...` "
+              // It seems like there might be extra spaces or backticks in the string? 
+              // Let's trim it just in case.
+              let url = item.picUrl
+              if (url) {
+                url = url.trim().replace(/^`|`$/g, '')
+              }
+              
+              return {
+                url: url,
+                revisedPrompt: item.prompt,
+                id: item.id
+              }
+            })
             
             images.value = generatedImages
             currentImage.value = generatedImages[0]

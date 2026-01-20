@@ -35,86 +35,6 @@ export const SEEDREAM_QUALITY_OPTIONS = [
     { label: '4K 高清', key: '4k' }
 ]
 
-// Image generation models | 图片生成模型
-export const IMAGE_MODELS = [
-    {
-        label: '豆包 Seedream 4.5',
-        key: 'doubao-seedream-4-5-251128',
-        sizes: SEEDREAM_SIZE_OPTIONS.map(s => s.key),
-        qualities: SEEDREAM_QUALITY_OPTIONS,
-        getSizesByQuality: (quality) => quality === '4k' ? SEEDREAM_4K_SIZE_OPTIONS : SEEDREAM_SIZE_OPTIONS,
-        defaultParams: {
-            size: '2048x2048',
-            quality: 'standard',
-            style: 'vivid'
-        }
-    },
-    {
-        label: 'Nano Banana',
-        key: 'nano-banana',
-        tips: '尺寸写在提示词中: 尺寸 9:16',
-        sizes: [],
-        defaultParams: {
-            quality: 'standard',
-            style: 'vivid'
-        }
-    },
-    {
-        label: 'Nano Banana Pro',
-        key: 'nano-banana-pro',
-        sizes: SEEDREAM_SIZE_OPTIONS.map(s => s.key),
-        // qualities: SEEDREAM_QUALITY_OPTIONS,
-        // getSizesByQuality: (quality) => quality === '4k' ? SEEDREAM_4K_SIZE_OPTIONS : SEEDREAM_SIZE_OPTIONS,
-        defaultParams: {
-            size: '2048x2048',
-            quality: 'standard',
-            style: 'vivid'
-        }
-    }
-]
-
-// Video ratio options | 视频比例选项
-export const VIDEO_RATIO_LIST = [
-    { label: '16:9 (横版)', key: '16:9' },
-    { label: '4:3', key: '4:3' },
-    { label: '1:1 (方形)', key: '1:1' },
-    { label: '3:4', key: '3:4' },
-    { label: '9:16 (竖版)', key: '9:16' }
-]
-
-// Video generation models | 视频生成模型
-export const VIDEO_MODELS = [
-    {
-        label: '豆包视频 720P',
-        key: 'doubao-seedance-1-5-pro_720p',
-        ratios: VIDEO_RATIO_LIST.map(s => s.key),
-        durs: [{ label: '5 秒', key: 5 }, { label: '10 秒', key: 10 }],
-        defaultParams: { ratio: '16:9', duration: 5 }
-    },
-    {
-        label: 'Wan 2.6 720P', key: 'wan2.6_720p',
-        ratios: VIDEO_RATIO_LIST.map(s => s.key),
-        durs: [{ label: '5 秒', key: 5 }, { label: '10 秒', key: 10 }],
-        defaultParams: { ratio: '16:9', duration: 5 }
-    },
-    {
-        label: 'Sora 2', key: 'sora-2',
-        ratios: VIDEO_RATIO_LIST.map(s => s.key),
-        durs: [{ label: '5 秒', key: 5 }, { label: '10 秒', key: 10 }],
-        defaultParams: { ratio: '16:9', duration: 5 }
-    }
-]
-
-// Chat/LLM models | 对话模型
-export const CHAT_MODELS = [
-    { label: 'GPT-4o Mini', key: 'gpt-4o-mini' },
-    { label: 'GPT-4o', key: 'gpt-4o' },
-    { label: 'GPT-5.2', key: 'gpt-5.2' },
-    { label: 'DeepSeek Chat', key: 'deepseek-chat' },
-    { label: '豆包 Seed Flash', key: 'doubao-seed-1-6-flash-250615' },
-    { label: 'Gemini 3 Pro', key: 'gemini-3-pro' }
-]
-
 // Image size options | 图片尺寸选项
 export const IMAGE_SIZE_OPTIONS = [
     { label: '2048x2048', key: '2048x2048' },
@@ -133,6 +53,98 @@ export const IMAGE_STYLE_OPTIONS = [
     { label: '生动', key: 'vivid' },
     { label: '自然', key: 'natural' }
 ]
+
+// Image generation model capabilities | 图片生成模型能力配置
+// This configuration defines the capabilities (sizes, qualities, etc.) for supported models.
+// The actual list of available models is fetched from the backend.
+export const IMAGE_MODEL_CAPABILITIES = [
+    {
+        pattern: /doubao-seedream|seedream/i, // Match doubao seedream family
+        sizes: SEEDREAM_SIZE_OPTIONS.map(s => s.key),
+        qualities: SEEDREAM_QUALITY_OPTIONS,
+        getSizesByQuality: (quality) => quality === '4k' ? SEEDREAM_4K_SIZE_OPTIONS : SEEDREAM_SIZE_OPTIONS,
+        defaultParams: {
+            size: '2048x2048',
+            quality: 'standard',
+            style: 'vivid'
+        }
+    },
+    {
+        pattern: /nano-banana/i, // Match nano banana family
+        tips: '尺寸写在提示词中: 尺寸 9:16',
+        sizes: [],
+        defaultParams: {
+            quality: 'standard',
+            style: 'vivid'
+        }
+    },
+    {
+        pattern: /gpt/i, // Match GPT family
+        sizes: IMAGE_SIZE_OPTIONS.map(s => s.key),
+        qualities: IMAGE_QUALITY_OPTIONS,
+        defaultParams: {
+            size: '2048x2048',
+            quality: 'standard',
+            style: 'vivid'
+        }
+    },
+    // Fallback/Generic configuration could be added here
+    {
+        pattern: /.*/, // Match all others as fallback
+        sizes: IMAGE_SIZE_OPTIONS.map(s => s.key),
+        defaultParams: {
+            size: '2048x2048',
+            quality: 'standard'
+        }
+    }
+]
+
+// Video ratio options | 视频比例选项
+export const VIDEO_RATIO_LIST = [
+    { label: '16:9 (横版)', key: '16:9' },
+    { label: '4:3', key: '4:3' },
+    { label: '1:1 (方形)', key: '1:1' },
+    { label: '3:4', key: '3:4' },
+    { label: '9:16 (竖版)', key: '9:16' }
+]
+
+// Video generation model capabilities | 视频生成模型能力配置
+export const VIDEO_MODEL_CAPABILITIES = [
+    {
+        key: 'doubao-seedance-1-5-pro_720p',
+        ratios: VIDEO_RATIO_LIST.map(s => s.key),
+        durs: [{ label: '5 秒', key: 5 }, { label: '10 秒', key: 10 }],
+        defaultParams: { ratio: '16:9', duration: 5 }
+    },
+    {
+        key: 'wan2.6_720p',
+        ratios: VIDEO_RATIO_LIST.map(s => s.key),
+        durs: [{ label: '5 秒', key: 5 }, { label: '10 秒', key: 10 }],
+        defaultParams: { ratio: '16:9', duration: 5 }
+    },
+    {
+        key: 'sora-2',
+        ratios: VIDEO_RATIO_LIST.map(s => s.key),
+        durs: [{ label: '5 秒', key: 5 }, { label: '10 秒', key: 10 }],
+        defaultParams: { ratio: '16:9', duration: 5 }
+    }
+]
+
+// Chat/LLM model capabilities | 对话模型能力配置
+// Currently simple list, but can be expanded
+export const CHAT_MODEL_CAPABILITIES = [
+    { key: 'gpt-4o-mini' },
+    { key: 'gpt-4o' },
+    { key: 'gpt-5.2' },
+    { key: 'deepseek-chat' },
+    { key: 'doubao-seed-1-6-flash-250615' },
+    { key: 'gemini-3-pro' }
+]
+
+// Deprecated: Use dynamic loading instead
+export const IMAGE_MODELS = []
+export const VIDEO_MODELS = []
+export const CHAT_MODELS = []
 
 // Video ratio options | 视频比例选项
 export const VIDEO_RATIO_OPTIONS = VIDEO_RATIO_LIST

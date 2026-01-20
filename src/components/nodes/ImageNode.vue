@@ -58,15 +58,23 @@
         <!-- Image display | 图片显示 -->
         <div 
           v-else-if="data.url" 
-          class="rounded-xl overflow-hidden relative" 
+          class="relative group/image aspect-square rounded-xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-tertiary)]"
           ref="imageContainerRef"
         >
-          <img 
-            :src="data.url" 
-            :alt="data.label" 
-            class="w-full h-auto object-cover"
+          <n-image
+            :src="data.url"
+            class="w-full h-full"
+            object-fit="cover"
+            :preview-disabled="false"
+            fallback-src="https://via.placeholder.com/200?text=Error"
             :class="{ 'pointer-events-none': isInpaintMode }"
-          />
+          >
+            <template #placeholder>
+              <div class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                <n-spin size="small" />
+              </div>
+            </template>
+          </n-image>
           
           <!-- Inpaint canvas with events | 涂抹画布（带事件） -->
           <canvas 
@@ -218,6 +226,13 @@
       </button>
     </div>
   </div>
+
+  <!-- Preview Modal | 预览模态框 -->
+  <n-modal v-model:show="showPreviewModal" preset="card" class="w-[90vw] max-w-[1200px]" :title="data.label || '图片预览'">
+    <div class="flex items-center justify-center bg-black/5 p-4 rounded-lg">
+      <img :src="data.url" class="max-w-full max-h-[80vh] object-contain" />
+    </div>
+  </n-modal>
 </template>
 
 <script setup>
@@ -227,8 +242,21 @@
  */
 import { ref, nextTick } from 'vue'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
-import { NIcon } from 'naive-ui'
-import { TrashOutline, ExpandOutline, ImageOutline, CloseCircleOutline, CopyOutline, VideocamOutline, DownloadOutline, EyeOutline, BrushOutline, RefreshOutline, ColorWandOutline } from '@vicons/ionicons5'
+import { NIcon, NSpin, NImage, NModal } from 'naive-ui'
+import {
+  TrashOutline,
+  ExpandOutline,
+  ImageOutline,
+  CloseCircleOutline,
+  CopyOutline,
+  VideocamOutline,
+  DownloadOutline,
+  EyeOutline,
+  BrushOutline,
+  RefreshOutline,
+  ColorWandOutline,
+  CreateOutline
+} from '@vicons/ionicons5'
 import { updateNode, removeNode, duplicateNode, addNode, addEdge, nodes } from '../../stores/canvas'
 
 const props = defineProps({
@@ -543,9 +571,10 @@ const handleImageGen = () => {
 }
 
 // Handle preview | 处理预览
+const showPreviewModal = ref(false)
 const handlePreview = () => {
   if (props.data.url) {
-    window.open(props.data.url, '_blank')
+    showPreviewModal.value = true
   }
 }
 
