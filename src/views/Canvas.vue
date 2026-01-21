@@ -110,7 +110,7 @@
       >
         <div class="px-2 py-1 text-xs text-[var(--text-secondary)] font-medium">添加节点</div>
         <button 
-          v-for="nodeType in nodeTypeOptions.filter(n => ['text', 'imageConfig', 'videoConfig'].includes(n.type))" 
+          v-for="nodeType in nodeTypeOptions.filter(n => ['textToImage', 'text', 'imageConfig', 'videoConfig'].includes(n.type))" 
           :key="nodeType.type"
           @click="addNewNode(nodeType.type)"
           class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left"
@@ -351,6 +351,7 @@ import ImageRoleEdge from '../components/edges/ImageRoleEdge.vue'
 import PromptOrderEdge from '../components/edges/PromptOrderEdge.vue'
 import ImageConfigNode from '../components/nodes/ImageConfigNode.vue'
 import ImageNode from '../components/nodes/ImageNode.vue'
+import TextToImageNode from '../components/nodes/TextToImageNode.vue'
 import TextNode from '../components/nodes/TextNode.vue'
 import VideoConfigNode from '../components/nodes/VideoConfigNode.vue'
 import VideoNode from '../components/nodes/VideoNode.vue'
@@ -367,7 +368,8 @@ const nodeTypes = {
   imageConfig: markRaw(ImageConfigNode),
   video: markRaw(VideoNode),
   image: markRaw(ImageNode),
-  videoConfig: markRaw(VideoConfigNode)
+  videoConfig: markRaw(VideoConfigNode),
+  textToImage: markRaw(TextToImageNode)
 }
 
 // Register custom edge types | 注册自定义边类型
@@ -455,6 +457,7 @@ const tools = [
 
 // Node type options for menu | 节点类型菜单选项
 const nodeTypeOptions = [
+  { type: 'textToImage', name: '文生图(组合)', icon: ImageOutline, color: '#ec4899' },
   { type: 'text', name: '文本节点', icon: TextOutline, color: '#3b82f6' },
   { type: 'imageConfig', name: '文生图配置', icon: ColorPaletteOutline, color: '#22c55e' },
   { type: 'videoConfig', name: '视频生成配置', icon: VideocamOutline, color: '#f59e0b' },

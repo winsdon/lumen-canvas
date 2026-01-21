@@ -48,7 +48,24 @@ const props = defineProps({
   targetPosition: String,
   data: Object,
   markerEnd: String,
-  style: Object
+  style: Object,
+  sourceNode: Object,
+  targetNode: Object,
+  type: String,
+  updatable: Boolean,
+  selected: Boolean,
+  animated: Boolean,
+  label: String,
+  labelStyle: Object,
+  labelShowBg: Boolean,
+  labelBgStyle: Object,
+  labelBgPadding: Array,
+  labelBgBorderRadius: Number,
+  events: Object,
+  markerStart: String,
+  sourceHandleId: String,
+  targetHandleId: String,
+  interactionWidth: Number
 })
 
 // Order labels | 顺序标签

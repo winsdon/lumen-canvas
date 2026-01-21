@@ -115,6 +115,14 @@ const getDefaultNodeData = (type) => {
         url: '',
         label: '图片节点'
       }
+    case 'textToImage':
+      return {
+        content: '',
+        model: 'doubao-seedream-4-5-251128',
+        n: 1,
+        url: '',
+        label: '文生图(组合)'
+      }
     default:
       return {}
   }
