@@ -1,8 +1,8 @@
 /**
  * Router configuration | 路由配置
  */
+import { fetchUserInfo, isLoggedIn, userInfo } from '@/stores/user'
 import { createRouter, createWebHistory } from 'vue-router'
-import { isLoggedIn } from '@/stores/user'
 
 const routes = [
   {
@@ -28,12 +28,22 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAuth && !isLoggedIn.value) {
     window.$showLoginModal?.()
     next(false)
     return
   }
+  
+  // Try to fetch user info if logged in but missing info | 如果已登录但缺少信息，尝试获取
+  if (isLoggedIn.value && !userInfo.value) {
+    try {
+      await fetchUserInfo()
+    } catch (e) {
+      console.error('Failed to fetch user info in route guard:', e)
+    }
+  }
+  
   next()
 })
 

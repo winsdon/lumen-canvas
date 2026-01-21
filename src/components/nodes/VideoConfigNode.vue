@@ -86,7 +86,7 @@
       </div> -->
 
         <!-- Generate button | 生成按钮 -->
-        <button @click="handleGenerate" :disabled="loading || !isConfigured"
+        <button @click="handleGenerate" :disabled="loading"
           class="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--accent-color)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           <n-spin v-if="loading" :size="14" />
           <template v-else>
@@ -140,7 +140,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NDropdown, NSpin } from 'naive-ui'
 import { ChevronForwardOutline, ChevronDownOutline, TrashOutline, VideocamOutline, CopyOutline } from '@vicons/ionicons5'
-import { useVideoGeneration, useApiConfig } from '../../hooks'
+import { useVideoGeneration } from '../../hooks'
 import { updateNode, removeNode, duplicateNode, addNode, addEdge, nodes, edges } from '../../stores/canvas'
 import { videoModelOptions, getModelRatioOptions, getModelDurationOptions, getModelConfig, DEFAULT_VIDEO_MODEL } from '../../stores/models'
 
@@ -151,9 +151,6 @@ const props = defineProps({
 
 // Vue Flow instance | Vue Flow 实例
 const { updateNodeInternals } = useVueFlow()
-
-// API config hook | API 配置 hook
-const { isConfigured } = useApiConfig()
 
 // Video generation hook | 视频生成 hook
 const { loading, error, status, video: generatedVideo, progress, generate } = useVideoGeneration()
@@ -309,11 +306,6 @@ const handleGenerate = async () => {
   const hasInput = prompt || first_frame_image || last_frame_image || images.length > 0
   if (!hasInput) {
     window.$message?.warning('请先连接文本节点或图片节点')
-    return
-  }
-
-  if (!isConfigured.value) {
-    window.$message?.warning('请先配置 API Key')
     return
   }
 

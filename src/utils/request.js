@@ -4,34 +4,22 @@
  */
 
 import axios from 'axios'
-import { AUTH_BASE_URL, TENANT_ID, STORAGE_KEYS, DEFAULT_API_BASE_URL } from './constants'
-import { getAccessToken, getRefreshToken, setTokens, clearAuth } from './auth'
-
-// Get stored base URL from localStorage, fallback to env or default | 从 localStorage 获取存储的 base URL
-const getStoredBaseUrl = () => {
-  try {
-    return localStorage.getItem(STORAGE_KEYS.BASE_URL) || DEFAULT_API_BASE_URL
-  } catch {
-    return DEFAULT_API_BASE_URL
-  }
-}
-
-const BASE_URL = getStoredBaseUrl()
+import { getAccessToken, getRefreshToken, setTokens } from './auth'
+import { AUTH_BASE_URL, DEFAULT_API_BASE_URL, TENANT_ID } from './constants'
 
 const instance = axios.create({
-  baseURL: BASE_URL,
-  timeout: 30000000
+  baseURL: DEFAULT_API_BASE_URL,
+  timeout: 30000000,
+  headers: {
+    'tenant-id': TENANT_ID
+  }
 })
 
 instance.interceptors.request.use(
   (config) => {
-    const apiKey = localStorage.getItem('apiKey')
-    
-    const noAuthEndpoints = ['/model/page', '/model/fullName', '/model/types']
-    const isNoAuth = noAuthEndpoints.some(ep => config.url?.includes(ep))
-    
-    if (apiKey && !isNoAuth) {
-      config.headers['Authorization'] = `Bearer ${apiKey}`
+    const token = getAccessToken()
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`
     }
     
     return config
@@ -80,7 +68,7 @@ instance.interceptors.response.use(
       const message = data?.msg || data?.message || data?.error?.message || error.message
       
       if (status === 401) {
-        window.$message?.error('API Key 无效或已过期')
+        window.$handleSessionExpire?.()
       } else if (status === 429) {
         window.$message?.error('请求过于频繁，请稍后再试')
       } else {
@@ -93,14 +81,6 @@ instance.interceptors.response.use(
     return Promise.reject(error)
   }
 )
-
-export const setBaseUrl = (url) => {
-  instance.defaults.baseURL = url
-}
-
-export const getBaseUrl = () => {
-  return instance.defaults.baseURL
-}
 
 const authInstance = axios.create({
   baseURL: AUTH_BASE_URL,
@@ -123,6 +103,56 @@ const addRefreshSubscriber = (callback) => {
   refreshSubscribers.push(callback)
 }
 
+const handle401Error = async (config) => {
+  if (!config._retry) {
+    if (isRefreshing) {
+      return new Promise((resolve) => {
+        addRefreshSubscriber((token) => {
+          config.headers['Authorization'] = `Bearer ${token}`
+          resolve(authInstance(config))
+        })
+      })
+    }
+    
+    config._retry = true
+    isRefreshing = true
+    
+    try {
+      const refreshTokenValue = getRefreshToken()
+      if (!refreshTokenValue) {
+        throw new Error('No refresh token')
+      }
+      
+      const res = await axios.post(
+        `${AUTH_BASE_URL}/member/auth/refresh-token`,
+        null,
+        {
+          params: { refreshToken: refreshTokenValue },
+          headers: { 'tenant-id': TENANT_ID }
+        }
+      )
+      
+      if (res.data?.code === 0) {
+        const { accessToken, refreshToken, expiresTime } = res.data.data
+        setTokens({ accessToken, refreshToken, expiresTime })
+        onRefreshed(accessToken)
+        config.headers['Authorization'] = `Bearer ${accessToken}`
+        return authInstance(config)
+      }
+      
+      throw new Error('Refresh token failed')
+    } catch (refreshError) {
+      window.$handleSessionExpire?.()
+      return Promise.reject(refreshError)
+    } finally {
+      isRefreshing = false
+    }
+  } else {
+    window.$handleSessionExpire?.()
+    return Promise.reject(new Error('Session expired'))
+  }
+}
+
 authInstance.interceptors.request.use(
   (config) => {
     const token = getAccessToken()
@@ -142,57 +172,18 @@ authInstance.interceptors.response.use(
       return data
     }
     
+    if (code === 401) {
+      return handle401Error(res.config)
+    }
+    
     window.$message?.error(msg || '请求失败')
     return Promise.reject(new Error(msg || '请求失败'))
   },
   async (error) => {
     const { response, config } = error
     
-    if (response?.status === 401 && !config._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve) => {
-          addRefreshSubscriber((token) => {
-            config.headers['Authorization'] = `Bearer ${token}`
-            resolve(authInstance(config))
-          })
-        })
-      }
-      
-      config._retry = true
-      isRefreshing = true
-      
-      try {
-        const refreshTokenValue = getRefreshToken()
-        if (!refreshTokenValue) {
-          throw new Error('No refresh token')
-        }
-        
-        const res = await axios.post(
-          `${AUTH_BASE_URL}/member/auth/refresh-token`,
-          null,
-          {
-            params: { refreshToken: refreshTokenValue },
-            headers: { 'tenant-id': TENANT_ID }
-          }
-        )
-        
-        if (res.data?.code === 0) {
-          const { accessToken, refreshToken, expiresTime } = res.data.data
-          setTokens({ accessToken, refreshToken, expiresTime })
-          onRefreshed(accessToken)
-          config.headers['Authorization'] = `Bearer ${accessToken}`
-          return authInstance(config)
-        }
-        
-        throw new Error('Refresh token failed')
-      } catch (refreshError) {
-        clearAuth()
-        window.$message?.error('登录已过期，请重新登录')
-        window.$showLoginModal?.()
-        return Promise.reject(refreshError)
-      } finally {
-        isRefreshing = false
-      }
+    if (response?.status === 401) {
+      return handle401Error(config)
     }
     
     if (response) {

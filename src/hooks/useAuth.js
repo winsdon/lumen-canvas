@@ -1,22 +1,22 @@
-import { ref } from 'vue'
 import {
+  getUserInfo as apiGetUserInfo,
+  getWechatAuthUrl as apiGetWechatAuthUrl,
   loginByPassword as apiLoginByPassword,
   loginBySms as apiLoginBySms,
-  sendSmsCode as apiSendSmsCode,
-  wechatLogin as apiWechatLogin,
-  getWechatAuthUrl as apiGetWechatAuthUrl,
   logout as apiLogout,
-  getUserInfo as apiGetUserInfo
+  sendSmsCode as apiSendSmsCode,
+  wechatLogin as apiWechatLogin
 } from '@/api/auth'
 import {
+  clearUserAuth,
+  initUserStore,
   isLoggedIn,
-  userInfo,
   setTokens,
   setUserInfo,
-  clearUserAuth,
-  initUserStore
+  userInfo
 } from '@/stores/user'
 import { generateState } from '@/utils/auth'
+import { ref } from 'vue'
 
 export const useAuth = () => {
   const loading = ref(false)
@@ -156,7 +156,8 @@ export const useAuth = () => {
 
   const init = () => {
     initUserStore()
-    if (isLoggedIn.value && !userInfo.value) {
+    // Always refresh user info if logged in to keep points and data up to date | 如果已登录，始终刷新用户信息以保持积分和数据最新
+    if (isLoggedIn.value) {
       fetchUserInfo().catch(() => {})
     }
   }

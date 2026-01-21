@@ -13,7 +13,6 @@ import {
 } from '@/api'
 import { getModelByName } from '@/config/models'
 import { fetchModels, getModelId } from '@/stores/aiModels'
-import { useApiConfig } from './useApiConfig'
 
 /**
  * Base API state hook | 基础 API 状态 Hook
@@ -344,10 +343,9 @@ export const useVideoGeneration = () => {
  * Combined API composable | 综合 API 组合式函数
  */
 export const useApi = () => {
-  const config = useApiConfig()
   const chat = useChat()
   const image = useImageGeneration()
   const videoGen = useVideoGeneration()
 
-  return { config, chat, image, video: videoGen }
+  return { chat, image, video: videoGen }
 }

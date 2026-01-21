@@ -9,6 +9,7 @@ import {
   clearAuth,
   isTokenExpired
 } from '@/utils/auth'
+import { getUserInfo as apiGetUserInfo } from '@/api/auth'
 
 export const accessToken = ref(getAccessToken())
 export const refreshToken = ref(getRefreshToken())
@@ -44,4 +45,16 @@ export const initUserStore = () => {
   refreshToken.value = getRefreshToken()
   expiresTime.value = getExpiresTime()
   userInfo.value = getStoredUserInfo()
+}
+
+export const fetchUserInfo = async () => {
+  if (!isLoggedIn.value) return null
+  try {
+    const info = await apiGetUserInfo()
+    setUserInfo(info)
+    return info
+  } catch (err) {
+    console.error('Fetch user info failed:', err)
+    throw err
+  }
 }

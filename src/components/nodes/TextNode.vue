@@ -93,7 +93,7 @@ import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NSpin } from 'naive-ui'
 import { TrashOutline, ExpandOutline, CopyOutline, ImageOutline, VideocamOutline } from '@vicons/ionicons5'
 import { updateNode, removeNode, duplicateNode, addNode, addEdge, nodes } from '../../stores/canvas'
-import { useChat, useApiConfig } from '../../hooks'
+import { useChat } from '../../hooks'
 
 const props = defineProps({
   id: String,
@@ -102,9 +102,6 @@ const props = defineProps({
 
 // Vue Flow instance | Vue Flow 实例
 const { updateNodeInternals } = useVueFlow()
-
-// API config hook | API 配置 hook
-const { isConfigured: isApiConfigured } = useApiConfig()
 
 // Chat hook for polish | 润色用的 Chat hook
 const { send: sendChat } = useChat({
@@ -138,12 +135,6 @@ const handlePolish = async () => {
   const input = content.value.trim()
   if (!input) return
   
-  // Check API configuration | 检查 API 配置
-  if (!isApiConfigured.value) {
-    window.$message?.warning('请先配置 API Key')
-    return
-  }
-
   isPolishing.value = true
   const originalContent = content.value
 

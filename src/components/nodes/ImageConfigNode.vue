@@ -85,7 +85,7 @@
         <!-- Generate button | 生成按钮 -->
         <div v-if="hasConnectedImageWithContent" class="flex gap-2">
           <!-- Create new (primary) | 新建节点（主按钮） -->
-          <button @click="handleGenerate('new')" :disabled="loading || !isConfigured"
+          <button @click="handleGenerate('new')" :disabled="loading"
             class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-[var(--accent-color)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             <n-spin v-if="loading" :size="14" />
             <template v-else>
@@ -94,7 +94,7 @@
             </template>
           </button>
           <!-- Replace existing (secondary) | 替换现有（次按钮） -->
-          <button @click="handleGenerate('replace')" :disabled="loading || !isConfigured"
+          <button @click="handleGenerate('replace')" :disabled="loading"
             class="flex-shrink-0 flex items-center justify-center gap-1 py-2 px-2.5 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-color)] hover:text-[var(--accent-color)] text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             <n-spin v-if="loading" :size="14" />
             <template v-else>
@@ -103,7 +103,7 @@
             </template>
           </button>
         </div>
-        <button v-else @click="handleGenerate('auto')" :disabled="loading || !isConfigured"
+        <button v-else @click="handleGenerate('auto')" :disabled="loading"
           class="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--accent-color)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           <n-spin v-if="loading" :size="14" />
           <template v-else>
@@ -162,7 +162,7 @@ import { AddOutline, ChevronDownOutline, ChevronForwardOutline, CopyOutline, Ref
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NSpin } from 'naive-ui'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useApiConfig, useImageGeneration } from '../../hooks'
+import { useImageGeneration } from '../../hooks'
 import { addEdge, addNode, duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
 import { DEFAULT_IMAGE_MODEL, getModelConfig, getModelQualityOptions, getModelSizeOptions, imageModelSelectOptions } from '../../stores/models'
 
@@ -173,9 +173,6 @@ const props = defineProps({
 
 // Vue Flow instance | Vue Flow 实例
 const { updateNodeInternals } = useVueFlow()
-
-// API config hook | API 配置 hook
-const { isConfigured } = useApiConfig()
 
 // Image generation hook | 图片生成 hook
 const { loading, error, images: generatedImages, generate } = useImageGeneration()
@@ -379,11 +376,6 @@ const handleGenerate = async (mode = 'auto') => {
   // Log prompt order for debugging | 记录提示词顺序用于调试
   if (prompts.length > 1) {
     console.log('[ImageConfigNode] 拼接提示词顺序:', prompts.map(p => `${p.order}: ${p.content.substring(0, 20)}...`))
-  }
-
-  if (!isConfigured.value) {
-    window.$message?.warning('请先配置 API Key')
-    return
   }
 
   let imageNodeId = null

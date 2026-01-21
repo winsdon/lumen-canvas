@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme } from 'naive-ui'
 import { isDark } from './stores/theme'
 import { useAuth } from './hooks'
+import { clearUserAuth } from './stores/user'
 import LoginModal from './components/LoginModal.vue'
 import MessageApi from './components/MessageApi.vue'
 
@@ -14,6 +15,12 @@ const showLoginModal = ref(false)
 
 window.$showLoginModal = () => {
   showLoginModal.value = true
+}
+
+window.$handleSessionExpire = () => {
+  clearUserAuth()
+  window.$message?.error('登录已过期，请重新登录')
+  window.$showLoginModal?.()
 }
 
 const themeOverrides = {

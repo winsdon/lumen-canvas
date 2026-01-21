@@ -35,14 +35,6 @@
         >
           <n-icon :size="20"><DownloadOutline /></n-icon>
         </button>
-        <button 
-          @click="showApiSettings = true"
-          class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
-          :class="{ 'text-[var(--accent-color)]': isApiConfigured }"
-          title="API 设置"
-        >
-          <n-icon :size="20"><SettingsOutline /></n-icon>
-        </button>
         <UserAvatar @login="handleLogin" />
       </div>
     </header>
@@ -241,9 +233,6 @@
       </div>
     </div>
 
-    <!-- API Settings Modal | API 设置弹窗 -->
-    <ApiSettings v-model:show="showApiSettings" />
-
     <!-- Rename Modal | 重命名弹窗 -->
     <n-modal v-model:show="showRenameModal" preset="dialog" title="重命名项目">
       <n-input v-model:value="renameValue" placeholder="请输入项目名称" />
@@ -275,46 +264,40 @@
  * Canvas view component | 画布视图组件
  * Main infinite canvas with Vue Flow integration
  */
-import { ref, computed, onMounted, onUnmounted, watch, nextTick, markRaw } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { VueFlow, useVueFlow } from '@vue-flow/core'
-import { Background } from '@vue-flow/background'
-import { MiniMap } from '@vue-flow/minimap'
-import { NIcon, NSwitch, NDropdown, NMessageProvider, NSpin, NModal, NInput, NButton } from 'naive-ui'
-import { 
-  ChevronBackOutline,
-  ChevronDownOutline,
-  SunnyOutline, 
-  MoonOutline,
-  SettingsOutline,
-  AddOutline,
-  ImageOutline,
-  SendOutline,
-  RefreshOutline,
-  TextOutline,
-  VideocamOutline,
-  ColorPaletteOutline,
-  BookmarkOutline,
-  ArrowUndoOutline,
-  ArrowRedoOutline,
-  GridOutline,
-  LocateOutline,
-  RemoveOutline,
-  DownloadOutline,
-  AppsOutline
+import {
+    AddOutline,
+    AppsOutline,
+    ArrowRedoOutline,
+    ArrowUndoOutline,
+    ChevronBackOutline,
+    ChevronDownOutline,
+    ColorPaletteOutline,
+    DownloadOutline,
+    ImageOutline,
+    LocateOutline,
+    MoonOutline,
+    RefreshOutline,
+    RemoveOutline,
+    SendOutline,
+    SunnyOutline,
+    TextOutline,
+    VideocamOutline
 } from '@vicons/ionicons5'
-import { isDark, toggleTheme } from '../stores/theme'
-import { nodes, edges, addNode, addEdge, updateNode, initSampleData, loadProject, saveProject, clearCanvas, canvasViewport, updateViewport, undo, redo, canUndo, canRedo, manualSaveHistory } from '../stores/canvas'
+import { Background } from '@vue-flow/background'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
+import { MiniMap } from '@vue-flow/minimap'
+import { NButton, NDropdown, NIcon, NInput, NModal, NSpin, NSwitch } from 'naive-ui'
+import { computed, markRaw, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useChat, useWorkflowOrchestrator } from '../hooks'
+import { addEdge, addNode, canRedo, canUndo, canvasViewport, clearCanvas, edges, loadProject, manualSaveHistory, nodes, redo, saveProject, undo, updateNode, updateViewport } from '../stores/canvas'
 import { loadAllModels } from '../stores/models'
-import { useApiConfig, useChat, useWorkflowOrchestrator } from '../hooks'
-import { projects, initProjectsStore, updateProject, renameProject, deleteProject, currentProject } from '../stores/projects'
+import { deleteProject, initProjectsStore, projects, renameProject } from '../stores/projects'
+import { isDark, toggleTheme } from '../stores/theme'
 
-import ApiSettings from '../components/ApiSettings.vue'
 import DownloadModal from '../components/DownloadModal.vue'
-import WorkflowPanel from '../components/WorkflowPanel.vue'
 import UserAvatar from '../components/UserAvatar.vue'
-
-const { isConfigured: isApiConfigured } = useApiConfig()
+import WorkflowPanel from '../components/WorkflowPanel.vue'
 
 // Initialize models on page load | 页面加载时初始化模型
 onMounted(() => {
@@ -364,13 +347,13 @@ const {
 } = useWorkflowOrchestrator()
 
 // Custom node components | 自定义节点组件
-import TextNode from '../components/nodes/TextNode.vue'
-import ImageConfigNode from '../components/nodes/ImageConfigNode.vue'
-import VideoNode from '../components/nodes/VideoNode.vue'
-import ImageNode from '../components/nodes/ImageNode.vue'
-import VideoConfigNode from '../components/nodes/VideoConfigNode.vue'
 import ImageRoleEdge from '../components/edges/ImageRoleEdge.vue'
 import PromptOrderEdge from '../components/edges/PromptOrderEdge.vue'
+import ImageConfigNode from '../components/nodes/ImageConfigNode.vue'
+import ImageNode from '../components/nodes/ImageNode.vue'
+import TextNode from '../components/nodes/TextNode.vue'
+import VideoConfigNode from '../components/nodes/VideoConfigNode.vue'
+import VideoNode from '../components/nodes/VideoNode.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -402,7 +385,6 @@ const chatInput = ref('')
 const autoExecute = ref(true)
 const isMobile = ref(false)
 const showGrid = ref(true)
-const showApiSettings = ref(false)
 const isProcessing = ref(false)
 
 // Toggle node menu | 切换节点菜单
@@ -692,13 +674,6 @@ const handlePolish = async () => {
   const input = chatInput.value.trim()
   if (!input) return
   
-  // Check API configuration | 检查 API 配置
-  if (!isApiConfigured.value) {
-    window.$message?.warning('请先配置 API Key')
-    showApiSettings.value = true
-    return
-  }
-
   isProcessing.value = true
   const originalInput = chatInput.value
 
@@ -723,13 +698,6 @@ const handlePolish = async () => {
 const sendMessage = async () => {
   const input = chatInput.value.trim()
   if (!input) return
-
-  // Check API configuration | 检查 API 配置
-  if (!isApiConfigured.value) {
-    window.$message?.warning('请先配置 API Key')
-    showApiSettings.value = true
-    return
-  }
 
   isProcessing.value = true
   const content = chatInput.value

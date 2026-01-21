@@ -52,12 +52,6 @@ export const DEFAULT_CHAT_CONFIG = {
   supportDeepThink: false
 }
 
-// Local Storage Keys | 本地存储键
-export const STORAGE_KEYS = {
-  API_KEY: 'apiKey',
-  BASE_URL: 'apiBaseUrl'
-}
-
 // Auth Storage Keys | 认证存储键
 export const AUTH_STORAGE_KEYS = {
   ACCESS_TOKEN: 'accessToken',

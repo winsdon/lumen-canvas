@@ -8,15 +8,6 @@
         <!-- <span class="text-lg font-bold text-[var(--text-primary)]">火宝无限画布</span> -->
       </div>
       <div class="flex items-center gap-4">
-        <a 
-          href="https://github.com/chatfire-AI/huobao-canvas"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-[var(--text-primary)] hover:text-[var(--accent-color)]"
-          title="GitHub"
-        >
-          <n-icon :size="20"><LogoGithub /></n-icon>
-        </a>
         <button 
           @click="toggleTheme"
           class="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
@@ -25,14 +16,6 @@
             <SunnyOutline v-if="isDark" />
             <MoonOutline v-else />
           </n-icon>
-        </button>
-        <button 
-          @click="showApiSettings = true"
-          class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
-          :class="{ 'text-[var(--accent-color)]': isApiConfigured }"
-          title="API 设置"
-        >
-          <n-icon :size="20"><SettingsOutline /></n-icon>
         </button>
         <UserAvatar @login="handleShowLogin" />
       </div>
@@ -43,7 +26,7 @@
       <!-- Welcome section | 欢迎区域 -->
       <section class="text-center mb-12">
         <div class="flex items-center justify-center gap-4 mb-8">
-          <img src="../assets/logo.png" alt="Logo" class="w-12 h-12 md:w-16 md:h-16" />
+          <img src="https://ai.xmlumen.com/logo.png" alt="Logo" class="w-12 h-12 md:w-16 md:h-16" />
           <h1 class="text-2xl md:text-4xl font-bold text-[var(--text-primary)]">欢迎来到火宝无限画布</h1>
         </div>
         
@@ -203,9 +186,6 @@
       </button>
     </aside>
 
-    <!-- API Settings Modal | API 设置弹窗 -->
-    <ApiSettings v-model:show="showApiSettings" @saved="refreshApiConfig" />
-
     <!-- Rename modal | 重命名弹窗 -->
     <n-modal v-model:show="showRenameModal" preset="dialog" title="重命名项目">
       <n-input v-model:value="renameValue" placeholder="请输入项目名称" />
@@ -222,53 +202,39 @@
  * Home view component | 首页视图组件
  * Entry point with project list and creation input
  */
-import { ref, onMounted, h } from 'vue'
-import { useRouter } from 'vue-router'
-import { NIcon, NDropdown, NModal, NInput, NButton, useDialog } from 'naive-ui'
-import { 
-  SunnyOutline, 
-  MoonOutline, 
-  AddOutline, 
-  ImageOutline, 
-  SendOutline,
-  RefreshOutline,
-  DocumentOutline,
-  FolderOutline,
-  EllipsisHorizontalOutline,
-  CreateOutline,
-  CopyOutline,
-  SettingsOutline,
-  TrashOutline,
-  LogoGithub
+import {
+    AddOutline,
+    CopyOutline,
+    CreateOutline,
+    DocumentOutline,
+    EllipsisHorizontalOutline,
+    FolderOutline,
+    MoonOutline,
+    RefreshOutline,
+    SendOutline,
+    SunnyOutline,
+    TrashOutline
 } from '@vicons/ionicons5'
-import { isDark, toggleTheme } from '../stores/theme'
-import { 
-  projects, 
-  initProjectsStore, 
-  createProject, 
-  deleteProject, 
-  duplicateProject, 
-  renameProject 
-} from '../stores/projects'
-import { useApiConfig } from '../hooks/useApiConfig'
-import ApiSettings from '../components/ApiSettings.vue'
+import { NButton, NDropdown, NIcon, NInput, NModal, useDialog } from 'naive-ui'
+import { h, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import UserAvatar from '../components/UserAvatar.vue'
+import {
+    createProject,
+    deleteProject,
+    duplicateProject,
+    initProjectsStore,
+    projects,
+    renameProject
+} from '../stores/projects'
+import { isDark, toggleTheme } from '../stores/theme'
 
 const router = useRouter()
 const dialog = useDialog()
-const apiConfig = useApiConfig()
-
-const showApiSettings = ref(false)
-const isApiConfigured = ref(apiConfig.isConfigured.value)
 
 // Handle show login modal | 显示登录弹窗
 const handleShowLogin = () => {
   window.$showLoginModal?.()
-}
-
-// Refresh API config state | 刷新 API 配置状态
-const refreshApiConfig = () => {
-  isApiConfigured.value = !!localStorage.getItem('apiKey')
 }
 
 // Video refs for hover play | 视频引用用于悬停播放
@@ -383,54 +349,32 @@ const confirmRename = async () => {
   renameValue.value = ''
 }
 
-// Check API key before navigation | 跳转前检查 API Key
-const checkApiKeyAndNavigate = (callback) => {
-  
-  if (!isApiConfigured.value) {
-    dialog.warning({
-      title: '未配置 API Key',
-      content: '请先在设置中配置 API Key 才能使用画布功能。',
-      positiveText: '知道了'
-    })
-    return false
-  }
-  callback()
-  return true
-}
-
 // Create new project | 创建新项目
-const createNewProject = () => {
-  checkApiKeyAndNavigate(async () => {
-    try {
-      const id = await createProject('未命名项目')
-      router.push(`/canvas/${id}`)
-    } catch (e) {
-      // Error handled in store
-    }
-  })
+const createNewProject = async () => {
+  try {
+    const id = await createProject('未命名项目')
+    router.push(`/canvas/${id}`)
+  } catch (e) {
+    // Error handled in store
+  }
 }
 
 // Create project with input text | 使用输入文本创建项目
-const handleCreateWithInput = () => {
-  checkApiKeyAndNavigate(async () => {
-    try {
-      const name = inputText.value.trim() || '未命名项目'
-      const id = await createProject(name)
-      // Store the input text to be used as initial prompt
-      sessionStorage.setItem('ai-canvas-initial-prompt', inputText.value.trim())
-      inputText.value = ''
-      router.push(`/canvas/${id}`)
-    } catch (e) {
-      // Error handled in store
-    }
-  })
+const handleCreateWithInput = async () => {
+  try {
+    const name = inputText.value.trim() || '未命名项目'
+    const id = await createProject(name)
+    sessionStorage.setItem('ai-canvas-initial-prompt', inputText.value.trim())
+    inputText.value = ''
+    router.push(`/canvas/${id}`)
+  } catch (e) {
+    // Error handled in store
+  }
 }
 
 // Open existing project | 打开已有项目
 const openProject = (project) => {
-  checkApiKeyAndNavigate(() => {
-    router.push(`/canvas/${project.id}`)
-  })
+  router.push(`/canvas/${project.id}`)
 }
 
 // Check if URL is a video | 检查 URL 是否为视频
