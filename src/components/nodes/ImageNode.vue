@@ -258,11 +258,31 @@ import {
   CreateOutline
 } from '@vicons/ionicons5'
 import { updateNode, removeNode, duplicateNode, addNode, addEdge, nodes } from '../../stores/canvas'
+import { getFilePresignedUrl, uploadFileToUrl } from '@/api'
 
 const props = defineProps({
   id: String,
-  data: Object
+  data: Object,
+  type: String,
+  selected: Boolean,
+  position: Object,
+  zIndex: Number,
+  label: String,
+  dragging: Boolean,
+  resizing: Boolean,
+  connectable: Boolean,
+  dimensions: Object,
+  isValidTargetPos: Function,
+  isValidSourcePos: Function,
+  parent: String,
+  parentNodeId: String,
+  targetPosition: String,
+  sourcePosition: String,
+  dragHandle: String,
+  events: Object
 })
+
+const emit = defineEmits(['updateNodeInternals'])
 
 // Vue Flow instance | Vue Flow 实例
 const { updateNodeInternals } = useVueFlow()
@@ -492,20 +512,28 @@ const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   if (file) {
     try {
-      // Convert to base64 | 转换为 base64
-      const base64 = await fileToBase64(file)
-      // Store both display URL and base64 | 同时存储显示 URL 和 base64
+      updateNode(props.id, { loading: true, error: null })
+
+      // 1. Get presigned URL | 获取预签名地址
+      const res = await getFilePresignedUrl(file.name)
+      const { uploadUrl, url } = res
+
+      // 2. Upload file | 上传文件
+      await uploadFileToUrl(uploadUrl, file)
+
+      // 3. Update node | 更新节点
       updateNode(props.id, {
-        url: base64,  // Use base64 as display URL | 使用 base64 作为显示 URL
-        base64: base64,  // Store base64 for API calls | 存储 base64 用于 API 调用
+        url: url,
         fileName: file.name,
         fileType: file.type,
         label: '参考图',
+        loading: false,
         updatedAt: Date.now()
       })
     } catch (err) {
       console.error('File upload error:', err)
       window.$message?.error('图片上传失败')
+      updateNode(props.id, { loading: false, error: '上传失败' })
     }
   }
 }

@@ -145,6 +145,7 @@ import { Handle, Position } from '@vue-flow/core'
 import { NIcon, NSpin } from 'naive-ui'
 import { TrashOutline, ExpandOutline, VideocamOutline, CopyOutline, CloseCircleOutline, DownloadOutline, EyeOutline } from '@vicons/ionicons5'
 import { updateNode, removeNode, duplicateNode } from '../../stores/canvas'
+import { getFilePresignedUrl, uploadFileToUrl } from '@/api'
 
 const props = defineProps({
   id: String,
@@ -155,14 +156,27 @@ const props = defineProps({
 const showActions = ref(false)
 
 // Handle file upload | 处理文件上传
-const handleFileUpload = (event) => {
+const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   if (file) {
-    const url = URL.createObjectURL(file)
-    updateNode(props.id, { 
-      url,
-      updatedAt: Date.now()
-    })
+    try {
+      updateNode(props.id, { loading: true, error: null })
+      
+      const res = await getFilePresignedUrl(file.name)
+      const { uploadUrl, url } = res
+      
+      await uploadFileToUrl(uploadUrl, file)
+      
+      updateNode(props.id, { 
+        url,
+        loading: false,
+        updatedAt: Date.now()
+      })
+    } catch (err) {
+      console.error('File upload error:', err)
+      window.$message?.error('视频上传失败')
+      updateNode(props.id, { loading: false, error: '上传失败' })
+    }
   }
 }
 
