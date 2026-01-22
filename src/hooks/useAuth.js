@@ -25,13 +25,6 @@ export const useAuth = () => {
   const handleLoginSuccess = async (data) => {
     const { accessToken, refreshToken, expiresTime } = data
     setTokens({ accessToken, refreshToken, expiresTime })
-    
-    try {
-      const info = await apiGetUserInfo()
-      setUserInfo(info)
-    } catch (e) {
-      console.error('Failed to fetch user info:', e)
-    }
   }
 
   const loginByPassword = async (mobile, password) => {
@@ -41,6 +34,7 @@ export const useAuth = () => {
       const data = await apiLoginByPassword(mobile, password)
       await handleLoginSuccess(data)
       window.$message?.success('登录成功')
+      window.location.reload()
       return data
     } catch (e) {
       error.value = e.message || '登录失败'
@@ -57,6 +51,7 @@ export const useAuth = () => {
       const data = await apiLoginBySms(mobile, code)
       await handleLoginSuccess(data)
       window.$message?.success('登录成功')
+      window.location.reload()
       return data
     } catch (e) {
       error.value = e.message || '登录失败'
@@ -81,13 +76,16 @@ export const useAuth = () => {
     }
   }
 
-  const loginByWechat = async (code, state) => {
+  const loginByWechat = async (code, state, shouldReload = true) => {
     loading.value = true
     error.value = null
     try {
       const data = await apiWechatLogin(code, state)
       await handleLoginSuccess(data)
       window.$message?.success('登录成功')
+      if (shouldReload) {
+        window.location.reload()
+      }
       return data
     } catch (e) {
       error.value = e.message || '微信登录失败'

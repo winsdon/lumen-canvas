@@ -3,7 +3,7 @@
  * Manages nodes, edges and canvas state
  */
 import { ref, watch } from 'vue'
-import { updateProjectCanvas, getProjectCanvas } from './projects'
+import { getProjectCanvas, updateProjectCanvas } from './projects'
 
 // Node ID counter | 节点ID计数器
 let nodeId = 0
@@ -90,7 +90,7 @@ const getDefaultNodeData = (type) => {
     case 'imageConfig':
       return {
         prompt: '',
-        model: 'doubao-seedream-4-5-251128',
+        model: 'gemini-2.5-flash-image',
         size: '2048x2048',
         ratio: '1:1',
         quality: '4张 | 高清',
@@ -118,7 +118,7 @@ const getDefaultNodeData = (type) => {
     case 'textToImage':
       return {
         content: '',
-        model: 'doubao-seedream-4-5-251128',
+        model: 'gemini-2.5-flash-image',
         n: 1,
         url: '',
         label: '文生图(组合)'
@@ -211,7 +211,7 @@ export const initSampleData = () => {
   // Add image config node | 添加文生图配置节点
   addNode('imageConfig', { x: 450, y: 150 }, {
     prompt: '',
-    model: 'doubao-seedream-4-5-251128',
+    model: 'gemini-2.5-flash-image',
     ratio: '16:9 | 4张 | 高清',
     label: '文生图'
   })

@@ -88,6 +88,16 @@ export const IMAGE_MODEL_CAPABILITIES = [
             style: 'vivid'
         }
     },
+    {
+        pattern: /gemini.*image/i, // Match Gemini image models
+        sizes: IMAGE_SIZE_OPTIONS.map(s => s.key),
+        qualities: IMAGE_QUALITY_OPTIONS,
+        defaultParams: {
+            size: '2048x2048',
+            quality: 'standard',
+            style: 'vivid'
+        }
+    },
     // Fallback/Generic configuration could be added here
     {
         pattern: /.*/, // Match all others as fallback
@@ -156,7 +166,7 @@ export const VIDEO_DURATION_OPTIONS = [
 ]
 
 // Default values | 默认值
-export const DEFAULT_IMAGE_MODEL = 'doubao-seedream-4-5-251128'
+export const DEFAULT_IMAGE_MODEL = 'gemini-2.5-flash-image'
 export const DEFAULT_VIDEO_MODEL = 'doubao-seedance-1-5-pro_720p'
 export const DEFAULT_CHAT_MODEL = 'gpt-4o-mini'
 export const DEFAULT_IMAGE_SIZE = '2048x2048'

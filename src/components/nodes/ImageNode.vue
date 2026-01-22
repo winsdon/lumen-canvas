@@ -240,25 +240,22 @@
  * Image node component | 图片节点组件
  * Displays and manages image content with loading state
  */
-import { ref, nextTick } from 'vue'
-import { Handle, Position, useVueFlow } from '@vue-flow/core'
-import { NIcon, NSpin, NImage, NModal } from 'naive-ui'
+import { getFilePresignedUrl, uploadFileToUrl } from '@/api'
 import {
-  TrashOutline,
-  ExpandOutline,
-  ImageOutline,
+  BrushOutline,
   CloseCircleOutline,
   CopyOutline,
-  VideocamOutline,
   DownloadOutline,
   EyeOutline,
-  BrushOutline,
+  ImageOutline,
   RefreshOutline,
-  ColorWandOutline,
-  CreateOutline
+  TrashOutline,
+  VideocamOutline
 } from '@vicons/ionicons5'
-import { updateNode, removeNode, duplicateNode, addNode, addEdge, nodes } from '../../stores/canvas'
-import { getFilePresignedUrl, uploadFileToUrl } from '@/api'
+import { Handle, Position, useVueFlow } from '@vue-flow/core'
+import { NIcon, NImage, NModal, NSpin } from 'naive-ui'
+import { nextTick, ref } from 'vue'
+import { addEdge, addNode, duplicateNode, nodes, removeNode, updateNode } from '../../stores/canvas'
 
 const props = defineProps({
   id: String,

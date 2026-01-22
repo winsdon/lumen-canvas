@@ -64,7 +64,7 @@ onMounted(async () => {
   }
   
   try {
-    await loginByWechat(code, state)
+    await loginByWechat(code, state, false)
     success.value = true
     notifyParent({ type: 'wechat_login_callback', code, state, success: true })
   } catch (e) {
