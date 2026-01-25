@@ -39,6 +39,9 @@
           <button @click.stop="handlePreview" class="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="放大预览">
             <n-icon :size="16"><EyeOutline /></n-icon>
           </button>
+          <button @click.stop="handleDelete" class="p-1 text-[var(--text-secondary)] hover:text-red-500 transition-colors" title="删除">
+            <n-icon :size="16"><TrashOutline /></n-icon>
+          </button>
         </div>
     </div>
     
@@ -54,7 +57,10 @@
         <span class="text-xs font-semibold text-[var(--text-primary)] drop-shadow-md">图片</span>
       </div>
 
-      <div class="relative aspect-square bg-[var(--bg-tertiary)] group/image cursor-pointer" @click.stop="toggleInputPanel">
+      <div 
+        class="relative bg-[var(--bg-tertiary)] group/image cursor-pointer transition-all duration-300" 
+        :style="{ aspectRatio: imageAspectRatio }"
+      >
         
         <!-- Loading State -->
         <div v-if="loading" class="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[var(--bg-tertiary)]">
@@ -241,34 +247,29 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { Handle, Position, useVueFlow } from '@vue-flow/core'
-import { NIcon, NSpin, NImage, NDropdown, NPopover } from 'naive-ui'
-import { 
-  SparklesOutline, 
-  ImageOutline, 
-  CloseCircleOutline, 
-  DownloadOutline, 
-  EyeOutline,
-  ChevronDownOutline,
+import {
   AddOutline,
-  RemoveOutline,
-  FlashOutline,
-  CopyOutline,
-  TrashOutline,
-  VideocamOutline,
-  ColorWandOutline,
-  CheckmarkOutline,
-  PeopleOutline,
   ArrowUpOutline,
-  ScanOutline,
+  ChevronDownOutline,
+  CloseCircleOutline,
+  ColorWandOutline,
   CreateOutline,
-  CropOutline,
-  ExpandOutline
+  DownloadOutline,
+  ExpandOutline,
+  EyeOutline,
+  ImageOutline,
+  PeopleOutline,
+  ScanOutline,
+  SparklesOutline,
+  TrashOutline,
+  VideocamOutline
 } from '@vicons/ionicons5'
-import { updateNode, removeNode, duplicateNode } from '../../stores/canvas'
-import { useImageGeneration, useChat } from '../../hooks'
-import { imageModelSelectOptions, DEFAULT_IMAGE_MODEL, getModelConfig } from '../../stores/models'
+import { Handle, Position, useVueFlow } from '@vue-flow/core'
+import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useChat, useImageGeneration } from '../../hooks'
+import { duplicateNode, removeNode, updateNode } from '../../stores/canvas'
+import { DEFAULT_IMAGE_MODEL, getModelConfig, getModelSizeOptions, imageModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -351,6 +352,17 @@ const imageUrl = computed(() => {
   return props.data?.url
 })
 
+const imageAspectRatio = computed(() => {
+  if (!props.data?.generatedSize) return '1 / 1'
+  try {
+    const [w, h] = props.data.generatedSize.split('x').map(Number)
+    if (!w || !h) return '1 / 1'
+    return `${w} / ${h}`
+  } catch (e) {
+    return '1 / 1'
+  }
+})
+
 const modelOptions = imageModelSelectOptions
 
 const displayModelName = computed(() => {
@@ -406,8 +418,35 @@ const handleGenerate = async () => {
   
   try {
     const config = getModelConfig(localModel.value)
-    const size = config?.defaultParams?.size || '1024x1024'
+    let size = config?.defaultParams?.size || '1024x1024'
     const quality = config?.defaultParams?.quality || 'standard'
+
+    // Calculate size based on ratio if not auto
+    if (selectedRatio.value !== 'auto') {
+      const [rW, rH] = selectedRatio.value.split(':').map(Number)
+      const targetRatio = rW / rH
+      
+      // Get available sizes for this model
+      const availableSizes = getModelSizeOptions(localModel.value, quality)
+      
+      if (availableSizes && availableSizes.length > 0) {
+        // Find closest aspect ratio
+        let bestSize = availableSizes[0].key
+        let minDiff = Number.MAX_VALUE
+        
+        for (const option of availableSizes) {
+          const [w, h] = option.key.split('x').map(Number)
+          const currentRatio = w / h
+          const diff = Math.abs(currentRatio - targetRatio)
+          
+          if (diff < minDiff) {
+            minDiff = diff
+            bestSize = option.key
+          }
+        }
+        size = bestSize
+      }
+    }
 
     const result = await generate({
       model: localModel.value,
@@ -421,7 +460,8 @@ const handleGenerate = async () => {
       updateNode(props.id, {
         url: result[0].url,
         loading: false,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        generatedSize: size
       })
       window.$message?.success('图片生成成功')
     }

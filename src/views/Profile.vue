@@ -23,13 +23,78 @@
       <!-- 用户信息卡片 -->
       <div class="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-6 mb-6">
         <div class="flex items-center mb-6">
-          <img
-            :src="userInfo?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'"
-            alt="头像"
-            class="w-20 h-20 rounded-full object-cover mr-4"
-          />
+          <!-- 头像区域 -->
+          <div class="relative group cursor-pointer mr-4" @click="triggerHeaderAvatarUpload">
+            <img
+              :src="userInfo?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'"
+              alt="头像"
+              class="w-20 h-20 rounded-full object-cover border-2 border-[var(--border-color)] group-hover:border-blue-500 transition-colors"
+            />
+            <!-- 悬停遮罩 -->
+            <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <n-icon size="24" color="white">
+                <CameraOutline />
+              </n-icon>
+            </div>
+            <!-- 加载状态 -->
+            <div v-if="isUploadingAvatar" class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+              <div class="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <!-- 隐藏的 input -->
+            <input
+              ref="headerAvatarInput"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="handleHeaderAvatarChange"
+              @click.stop
+            />
+          </div>
+
+          <!-- 信息区域 -->
           <div>
-            <h2 class="text-xl font-semibold text-[var(--text-primary)]">{{ userInfo?.nickname || '未设置昵称' }}</h2>
+            <!-- 昵称编辑区域 -->
+            <div class="flex items-center h-8 mb-1">
+              <template v-if="!isEditingNickname">
+                <h2 class="text-xl font-semibold text-[var(--text-primary)] mr-2">{{ userInfo?.nickname || '未设置昵称' }}</h2>
+                <button
+                  @click="startEditNickname"
+                  class="p-1 text-[var(--text-secondary)] hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                  title="修改昵称"
+                >
+                  <n-icon size="16"><CreateOutline /></n-icon>
+                </button>
+              </template>
+              <template v-else>
+                <div class="flex items-center space-x-2">
+                  <input
+                    id="nickname-edit-input"
+                    v-model="editingNickname"
+                    type="text"
+                    class="w-40 px-2 py-1 text-sm border border-[var(--border-color)] rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-[var(--bg-primary)] text-[var(--text-primary)]"
+                    placeholder="请输入昵称"
+                    @keyup.enter="saveNickname"
+                    @keyup.esc="cancelEditNickname"
+                  />
+                  <button
+                    @click="saveNickname"
+                    :disabled="isSavingNickname"
+                    class="p-1 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
+                    title="保存"
+                  >
+                    <n-icon size="18"><CheckmarkOutline /></n-icon>
+                  </button>
+                  <button
+                    @click="cancelEditNickname"
+                    :disabled="isSavingNickname"
+                    class="p-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                    title="取消"
+                  >
+                    <n-icon size="18"><CloseOutline /></n-icon>
+                  </button>
+                </div>
+              </template>
+            </div>
             <p class="text-[var(--text-secondary)]">{{ userInfo?.mobile || '未绑定手机' }}</p>
           </div>
         </div>
@@ -63,43 +128,6 @@
               class="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="请输入昵称"
             />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">头像</label>
-            <div class="flex items-center space-x-4">
-              <!-- 头像预览 -->
-              <div class="relative">
-                <img
-                  :src="formData.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'"
-                  alt="头像预览"
-                  class="w-24 h-24 rounded-full object-cover border-2 border-[var(--border-color)]"
-                />
-                <div v-if="isUploadingAvatar" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
-                  <div class="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              </div>
-
-              <!-- 上传按钮 -->
-              <div class="flex-1">
-                <input
-                  ref="avatarInput"
-                  type="file"
-                  accept="image/*"
-                  class="hidden"
-                  @change="handleAvatarUpload"
-                />
-                <button
-                  type="button"
-                  @click="$refs.avatarInput.click()"
-                  :disabled="isUploadingAvatar"
-                  class="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-sm font-medium text-[var(--text-primary)] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {{ isUploadingAvatar ? '上传中...' : '选择图片' }}
-                </button>
-                <p class="text-xs text-[var(--text-secondary)] mt-2">支持 JPG、PNG、GIF 格式，建议尺寸 200x200 像素</p>
-              </div>
-            </div>
           </div>
 
           <div>
@@ -259,16 +287,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { NIcon } from 'naive-ui'
-import { ArrowBackOutline } from '@vicons/ionicons5'
-import { userInfo as storeUserInfo, fetchUserInfo } from '@/stores/user'
-import { updateUserInfo, updatePassword, updateMobile } from '@/api/user'
 import { sendSmsCode } from '@/api/auth'
 import { getFilePresignedUrl, uploadFileToUrl } from '@/api/file'
-import { SMS_SCENE } from '@/utils/constants'
+import { updateMobile, updatePassword, updateUserInfo } from '@/api/user'
 import AppHeader from '@/components/AppHeader.vue'
+import { fetchUserInfo, userInfo as storeUserInfo } from '@/stores/user'
+import { SMS_SCENE } from '@/utils/constants'
+import { ArrowBackOutline } from '@vicons/ionicons5'
+import { NIcon } from 'naive-ui'
+import { nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
@@ -276,7 +304,12 @@ const activeTab = ref('info')
 const isSubmitting = ref(false)
 const isUploadingAvatar = ref(false)
 const userInfo = ref(null)
-const avatarInput = ref(null)
+const headerAvatarInput = ref(null)
+
+// 顶部昵称编辑状态
+const isEditingNickname = ref(false)
+const editingNickname = ref('')
+const isSavingNickname = ref(false)
 
 const tabs = [
   { key: 'info', label: '基本信息' },
@@ -337,19 +370,23 @@ const loadUserInfo = async () => {
   }
 }
 
-// 头像上传处理
-const handleAvatarUpload = async (event) => {
+// 触发顶部头像上传
+const triggerHeaderAvatarUpload = () => {
+  if (isUploadingAvatar.value) return
+  headerAvatarInput.value?.click()
+}
+
+// 处理顶部头像变更
+const handleHeaderAvatarChange = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
 
-  // 验证文件类型
+  // 复用之前的验证逻辑，或者提取为公共函数
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
   if (!allowedTypes.includes(file.type)) {
     window.$message?.warning('只支持 JPG、PNG、GIF、WEBP 格式的图片')
     return
   }
-
-  // 验证文件大小 (最大 5MB)
   const maxSize = 5 * 1024 * 1024
   if (file.size > maxSize) {
     window.$message?.warning('图片大小不能超过 5MB')
@@ -357,7 +394,6 @@ const handleAvatarUpload = async (event) => {
   }
 
   isUploadingAvatar.value = true
-
   try {
     // 1. 获取预签名 URL
     const res = await getFilePresignedUrl(file.name, 'avatar')
@@ -366,19 +402,79 @@ const handleAvatarUpload = async (event) => {
     // 2. 上传文件到 OSS
     await uploadFileToUrl(uploadUrl, file)
 
-    // 3. 更新表单数据
+    // 3. 直接更新用户信息
+    await updateUserInfo({
+      ...userInfo.value,
+      avatar: url
+    })
+    
+    window.$message?.success('头像更新成功')
+    
+    // 刷新数据
+    await loadUserInfo()
+    
+    // 同时更新表单数据，保持同步
     formData.avatar = url
-    window.$message?.success('头像上传成功')
-
-    // 清空文件选择
-    if (avatarInput.value) {
-      avatarInput.value.value = ''
-    }
+    
   } catch (error) {
-    console.error('头像上传失败:', error)
-    window.$message?.error('头像上传失败，请重试')
+    console.error('头像更新失败:', error)
+    window.$message?.error('头像更新失败，请重试')
   } finally {
     isUploadingAvatar.value = false
+    // 清空 input
+    if (headerAvatarInput.value) {
+      headerAvatarInput.value.value = ''
+    }
+  }
+}
+
+// 开始编辑昵称
+const startEditNickname = () => {
+  editingNickname.value = userInfo.value?.nickname || ''
+  isEditingNickname.value = true
+  // 自动聚焦
+  nextTick(() => {
+    const input = document.getElementById('nickname-edit-input')
+    input?.focus()
+  })
+}
+
+// 取消编辑昵称
+const cancelEditNickname = () => {
+  isEditingNickname.value = false
+  editingNickname.value = ''
+}
+
+// 保存昵称
+const saveNickname = async () => {
+  if (!editingNickname.value.trim()) {
+    window.$message?.warning('昵称不能为空')
+    return
+  }
+  
+  if (editingNickname.value === userInfo.value?.nickname) {
+    cancelEditNickname()
+    return
+  }
+
+  isSavingNickname.value = true
+  try {
+    await updateUserInfo({
+      ...userInfo.value,
+      nickname: editingNickname.value
+    })
+    window.$message?.success('昵称更新成功')
+    await loadUserInfo()
+    
+    // 同步更新下方表单
+    formData.nickname = editingNickname.value
+    
+    isEditingNickname.value = false
+  } catch (error) {
+    console.error('昵称更新失败:', error)
+    // 错误处理已经在 request.js 中统一处理了，或者这里可以加个提示
+  } finally {
+    isSavingNickname.value = false
   }
 }
 
@@ -386,11 +482,6 @@ const handleAvatarUpload = async (event) => {
 const handleUpdateInfo = async () => {
   if (!formData.nickname) {
     window.$message?.warning('请输入昵称')
-    return
-  }
-
-  if (!formData.avatar) {
-    window.$message?.warning('请先上传头像')
     return
   }
 
