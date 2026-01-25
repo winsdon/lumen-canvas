@@ -4,21 +4,21 @@
  */
 
 import {
-  DEFAULT_CHAT_MODEL,
-  DEFAULT_IMAGE_MODEL,
-  DEFAULT_IMAGE_SIZE,
-  DEFAULT_VIDEO_DURATION,
-  DEFAULT_VIDEO_MODEL,
-  DEFAULT_VIDEO_RATIO,
-  SEEDREAM_4K_SIZE_OPTIONS,
-  SEEDREAM_QUALITY_OPTIONS,
-  SEEDREAM_SIZE_OPTIONS,
-  CHAT_MODEL_CAPABILITIES as STATIC_CHAT_CAPABILITIES,
-  IMAGE_MODEL_CAPABILITIES as STATIC_IMAGE_CAPABILITIES,
-  VIDEO_MODEL_CAPABILITIES as STATIC_VIDEO_CAPABILITIES,
-  VIDEO_DURATION_OPTIONS,
-  VIDEO_RATIO_LIST,
-  VIDEO_RATIO_OPTIONS
+    DEFAULT_CHAT_MODEL,
+    DEFAULT_IMAGE_MODEL,
+    DEFAULT_IMAGE_SIZE,
+    DEFAULT_VIDEO_DURATION,
+    DEFAULT_VIDEO_MODEL,
+    DEFAULT_VIDEO_RATIO,
+    SEEDREAM_4K_SIZE_OPTIONS,
+    SEEDREAM_QUALITY_OPTIONS,
+    SEEDREAM_SIZE_OPTIONS,
+    CHAT_MODEL_CAPABILITIES as STATIC_CHAT_CAPABILITIES,
+    IMAGE_MODEL_CAPABILITIES as STATIC_IMAGE_CAPABILITIES,
+    VIDEO_MODEL_CAPABILITIES as STATIC_VIDEO_CAPABILITIES,
+    VIDEO_DURATION_OPTIONS,
+    VIDEO_RATIO_LIST,
+    VIDEO_RATIO_OPTIONS
 } from '@/config/models'
 import { aiModels as dynamicAiModels, fetchModels, isLoading as isModelsLoading } from '@/stores/aiModels'
 import { computed, ref } from 'vue'
@@ -91,6 +91,7 @@ const computeModels = (type, staticCapabilities, defaultLabelFn) => {
         key: m.model,
         id: m.id,
         platform: m.platform,
+        imagePoint: m.imagePoint,
         // Ensure defaults
         sizes: config.sizes || [],
         qualities: config.qualities || [],
@@ -177,7 +178,12 @@ export const chatModelOptions = computed(() => chatModels.value)
 
 // Simple select options (for n-select and n-dropdown) | 简单选择选项（用于 n-select 和 n-dropdown）
 export const imageModelSelectOptions = computed(() => 
-  imageModels.value.map(m => ({ label: m.label, value: m.key, key: m.key }))
+  imageModels.value.map(m => ({ 
+    label: m.label, 
+    value: m.key, 
+    key: m.key,
+    imagePoint: m.imagePoint
+  }))
 )
 
 export const videoModelSelectOptions = computed(() => 
@@ -193,7 +199,7 @@ export { chatModels, imageModels, videoModels }
 
 // Export defaults | 导出默认值
 export {
-  DEFAULT_CHAT_MODEL, DEFAULT_IMAGE_MODEL, DEFAULT_IMAGE_SIZE, DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RATIO
+    DEFAULT_CHAT_MODEL, DEFAULT_IMAGE_MODEL, DEFAULT_IMAGE_SIZE, DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RATIO
 }
 
 // Export options | 导出选项

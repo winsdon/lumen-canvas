@@ -9,10 +9,9 @@
     
     <!-- Image Toolbar (Floating Pill) -->
     <div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-[var(--bg-secondary)]/90 backdrop-blur-md rounded-full px-3 py-1.5 border border-[var(--border-color)] transition-opacity duration-200 z-50 flex items-center gap-3 shadow-lg whitespace-nowrap"
-          v-if="imageUrl"
           :class="showActions ? 'opacity-100' : 'opacity-0 pointer-events-none'">
         <!-- Text Actions -->
-        <div class="flex items-center gap-3 pr-3 border-r border-[var(--border-color)]">
+        <div v-if="imageUrl" class="flex items-center gap-3 pr-3 border-r border-[var(--border-color)]">
           <button class="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
             <n-icon :size="14"><CreateOutline /></n-icon>
             <span>重绘</span>
@@ -33,10 +32,10 @@
 
         <!-- Icon Actions -->
         <div class="flex items-center gap-2">
-          <button @click.stop="handleDownload" class="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="下载">
+          <button v-if="imageUrl" @click.stop="handleDownload" class="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="下载">
             <n-icon :size="16"><DownloadOutline /></n-icon>
           </button>
-          <button @click.stop="handlePreview" class="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="放大预览">
+          <button v-if="imageUrl" @click.stop="handlePreview" class="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="放大预览">
             <n-icon :size="16"><EyeOutline /></n-icon>
           </button>
           <button @click.stop="handleDelete" class="p-1 text-[var(--text-secondary)] hover:text-red-500 transition-colors" title="删除">
@@ -170,7 +169,7 @@
         <div class="flex items-center justify-between px-4 py-2 bg-[var(--bg-tertiary)] border-t border-[var(--border-color)]">
           <div class="flex items-center gap-4">
             <!-- Model Select -->
-            <n-dropdown :options="modelOptions" @select="handleModelSelect" trigger="click" placement="top-start">
+            <n-dropdown :options="modelOptions" :render-label="renderDropdownLabel" @select="handleModelSelect" trigger="click" placement="top-start">
               <button class="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
                 <n-icon :size="16"><ImageOutline /></n-icon>
                 <span class="max-w-[120px] truncate font-medium">{{ displayModelName }}</span>
@@ -229,6 +228,10 @@
                <span class="text-sm text-[var(--text-secondary)] w-4 text-center font-medium">{{ generateCount }}</span>
              </div>
 
+             <div v-if="currentModelPoints" class="text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-primary)] px-1.5 py-0.5 rounded border border-[var(--border-color)]">
+               {{ currentModelPoints * generateCount }} 积分
+             </div>
+
              <!-- Generate Button -->
              <button 
                @click="handleGenerate"
@@ -266,7 +269,7 @@ import {
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref } from 'vue'
 import { useChat, useImageGeneration } from '../../hooks'
 import { duplicateNode, removeNode, updateNode } from '../../stores/canvas'
 import { DEFAULT_IMAGE_MODEL, getModelConfig, getModelSizeOptions, imageModelSelectOptions } from '../../stores/models'
@@ -369,6 +372,19 @@ const displayModelName = computed(() => {
   const model = modelOptions.value.find(m => m.value === localModel.value || m.key === localModel.value)
   return model?.label || localModel.value || '选择模型'
 })
+
+const currentModelPoints = computed(() => {
+  const model = modelOptions.value.find(m => m.value === localModel.value || m.key === localModel.value)
+  return model?.imagePoint
+})
+
+const renderDropdownLabel = (option) => {
+  if (option.imagePoint === undefined || option.imagePoint === null) return option.label
+  return h('div', { class: 'flex items-center justify-between gap-4 min-w-[140px]' }, [
+    h('span', option.label),
+    h('span', { class: 'text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded border border-[var(--border-color)]' }, `${option.imagePoint} 积分`)
+  ])
+}
 
 // Methods
 const updateNodeData = () => {
