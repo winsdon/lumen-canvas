@@ -144,11 +144,58 @@
       >
         <!-- Input Header -->
         <div class="flex items-start p-3 gap-3">
-          <!-- Style Button -->
-          <button class="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] transition-colors group">
-            <n-icon :size="18" class="text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] mb-0.5"><AddOutline /></n-icon>
-            <span class="text-[10px] text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]">风格</span>
-          </button>
+          <!-- Reference Image Upload | 参考图上传 -->
+          <div class="relative w-12 h-12">
+            <div
+              class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] transition-colors overflow-hidden group relative flex flex-col items-center justify-center"
+            >
+              <img v-if="referenceImageUrl" :src="referenceImageUrl" class="absolute inset-0 w-full h-full object-cover" />
+              <div v-if="referenceImageUrl" class="absolute inset-0 bg-black/30"></div>
+
+              <n-spin v-if="isReferenceUploading" :size="18" class="relative z-10" />
+              <template v-else>
+                <n-icon :size="18" class="text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] mb-0.5 relative z-10">
+                  <AddOutline />
+                </n-icon>
+                <span class="text-[10px] text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] relative z-10">参考图</span>
+              </template>
+
+              <input
+                type="file"
+                accept="image/*"
+                class="absolute inset-0 opacity-0 cursor-pointer z-20"
+                :disabled="isReferenceUploading"
+                @change="handleReferenceUpload"
+              />
+            </div>
+
+            <button
+              v-if="referenceImageUrl"
+              class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-30 hover:bg-[var(--bg-primary)]"
+              @click.stop="handleRemoveReference"
+              title="移除参考图"
+            >
+              <n-icon :size="12" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
+            </button>
+
+            <button
+              v-if="referenceImageUrl"
+              class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-30 hover:bg-[var(--bg-primary)]"
+              @click.stop="handleReferencePreview"
+              title="预览参考图"
+            >
+              <n-icon :size="12" class="text-[var(--text-secondary)]"><EyeOutline /></n-icon>
+            </button>
+
+            <n-image
+              v-if="referenceImageUrl"
+              ref="referencePreviewImageRef"
+              :src="referenceImageUrl"
+              class="fixed -left-[9999px] -top-[9999px] w-0 h-0 opacity-0 pointer-events-none"
+              object-fit="cover"
+              :preview-disabled="false"
+            />
+          </div>
           
           <!-- Magic Button -->
           <button 
@@ -278,6 +325,7 @@ import {
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
 import { computed, h, onMounted, onUnmounted, ref } from 'vue'
+import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useChat, useImageGeneration } from '../../hooks'
 import { duplicateNode, removeNode, updateNode } from '../../stores/canvas'
 import { DEFAULT_IMAGE_MODEL, getModelConfig, imageModelSelectOptions } from '../../stores/models'
@@ -317,8 +365,12 @@ const isPolishing = ref(false)
 const isInputExpanded = ref(false)
 const selectedRatio = ref('auto')
 const previewImageRef = ref(null)
+const referencePreviewImageRef = ref(null)
+const isReferenceUploading = ref(false)
 const nodeWrapperRef = ref(null)
 let hideTimer = null
+
+const referenceImageUrl = computed(() => props.data?.referenceImageUrl)
 
 const handleMouseEnter = () => {
   if (hideTimer) {
@@ -456,7 +508,8 @@ const handleGenerate = async () => {
       prompt: content.value,
       n: generateCount.value,
       size,
-      quality
+      quality,
+      image: referenceImageUrl.value
     })
 
     if (result && result.length > 0) {
@@ -475,6 +528,53 @@ const handleGenerate = async () => {
     })
     window.$message?.error(err.message || '生成失败')
   }
+}
+
+const handleReferenceUpload = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  try {
+    isReferenceUploading.value = true
+
+    const res = await getFilePresignedUrl(file.name)
+    const { uploadUrl, url } = res
+    await uploadFileToUrl(uploadUrl, file)
+
+    updateNode(props.id, {
+      referenceImageUrl: url,
+      referenceImageFileName: file.name,
+      referenceImageFileType: file.type,
+      updatedAt: Date.now()
+    })
+
+    window.$message?.success('参考图上传成功')
+  } catch (err) {
+    window.$message?.error('参考图上传失败')
+  } finally {
+    isReferenceUploading.value = false
+  }
+}
+
+const handleReferencePreview = () => {
+  if (!referenceImageUrl.value) return
+
+  const el = referencePreviewImageRef.value?.$el || referencePreviewImageRef.value
+  const imgEl = el?.querySelector?.('img')
+  if (imgEl) {
+    imgEl.click()
+    return
+  }
+}
+
+const handleRemoveReference = () => {
+  updateNode(props.id, {
+    referenceImageUrl: null,
+    referenceImageFileName: null,
+    referenceImageFileType: null,
+    updatedAt: Date.now()
+  })
 }
 
 const handleDownload = () => {
