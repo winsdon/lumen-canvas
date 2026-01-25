@@ -84,6 +84,14 @@
             object-fit="cover"
             :preview-disabled="true"
           />
+
+          <n-image
+            ref="previewImageRef"
+            :src="imageUrl"
+            class="fixed -left-[9999px] -top-[9999px] w-0 h-0 opacity-0 pointer-events-none"
+            object-fit="cover"
+            :preview-disabled="false"
+          />
         </div>
 
         <!-- Empty State (Menu Style) -->
@@ -272,7 +280,7 @@ import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
 import { computed, h, onMounted, onUnmounted, ref } from 'vue'
 import { useChat, useImageGeneration } from '../../hooks'
 import { duplicateNode, removeNode, updateNode } from '../../stores/canvas'
-import { DEFAULT_IMAGE_MODEL, getModelConfig, getModelSizeOptions, imageModelSelectOptions } from '../../stores/models'
+import { DEFAULT_IMAGE_MODEL, getModelConfig, imageModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -308,6 +316,7 @@ const generateCount = ref(props.data?.n || 1)
 const isPolishing = ref(false)
 const isInputExpanded = ref(false)
 const selectedRatio = ref('auto')
+const previewImageRef = ref(null)
 const nodeWrapperRef = ref(null)
 let hideTimer = null
 
@@ -326,15 +335,15 @@ const handleMouseLeave = () => {
 }
 
 const ratioOptions = [
-  { label: '1:1', value: '1:1', w: 12, h: 12 },
-  { label: '9:16', value: '9:16', w: 9, h: 16 },
-  { label: '16:9', value: '16:9', w: 16, h: 9 },
-  { label: '3:4', value: '3:4', w: 10, h: 14 },
-  { label: '4:3', value: '4:3', w: 14, h: 10 },
-  { label: '3:2', value: '3:2', w: 14, h: 9 },
-  { label: '2:3', value: '2:3', w: 9, h: 14 },
-  { label: '5:4', value: '5:4', w: 13, h: 11 },
-  { label: '21:9', value: '21:9', w: 21, h: 9 }
+  { label: '1:1', value: '1:1', size: '2048x2048', w: 12, h: 12 },
+  { label: '9:16', value: '9:16', size: '1440x2560', w: 9, h: 16 },
+  { label: '16:9', value: '16:9', size: '2560x1440', w: 16, h: 9 },
+  { label: '3:4', value: '3:4', size: '1728x2304', w: 10, h: 14 },
+  { label: '4:3', value: '4:3', size: '2304x1728', w: 14, h: 10 },
+  { label: '3:2', value: '3:2', size: '2496x1664', w: 14, h: 9 },
+  { label: '2:3', value: '2:3', size: '1664x2496', w: 9, h: 14 },
+  { label: '21:9', value: '21:9', size: '3024x1296', w: 21, h: 9 },
+  { label: '9:21', value: '9:21', size: '1296x3024', w: 9, h: 21 }
 ]
 
 const displayRatio = computed(() => {
@@ -437,31 +446,9 @@ const handleGenerate = async () => {
     let size = config?.defaultParams?.size || '1024x1024'
     const quality = config?.defaultParams?.quality || 'standard'
 
-    // Calculate size based on ratio if not auto
     if (selectedRatio.value !== 'auto') {
-      const [rW, rH] = selectedRatio.value.split(':').map(Number)
-      const targetRatio = rW / rH
-      
-      // Get available sizes for this model
-      const availableSizes = getModelSizeOptions(localModel.value, quality)
-      
-      if (availableSizes && availableSizes.length > 0) {
-        // Find closest aspect ratio
-        let bestSize = availableSizes[0].key
-        let minDiff = Number.MAX_VALUE
-        
-        for (const option of availableSizes) {
-          const [w, h] = option.key.split('x').map(Number)
-          const currentRatio = w / h
-          const diff = Math.abs(currentRatio - targetRatio)
-          
-          if (diff < minDiff) {
-            minDiff = diff
-            bestSize = option.key
-          }
-        }
-        size = bestSize
-      }
+      const matched = ratioOptions.find(r => r.value === selectedRatio.value)
+      if (matched?.size) size = matched.size
     }
 
     const result = await generate({
@@ -502,9 +489,16 @@ const handleDownload = () => {
 }
 
 const handlePreview = () => {
-  if (imageUrl.value) {
-    window.open(imageUrl.value, '_blank')
+  if (!imageUrl.value) return
+
+  const el = previewImageRef.value?.$el || previewImageRef.value
+  const imgEl = el?.querySelector?.('img')
+  if (imgEl) {
+    imgEl.click()
+    return
   }
+
+  window.open(imageUrl.value, '_blank')
 }
 
 const handleDelete = () => {

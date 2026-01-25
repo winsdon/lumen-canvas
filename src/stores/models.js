@@ -4,21 +4,21 @@
  */
 
 import {
-    DEFAULT_CHAT_MODEL,
-    DEFAULT_IMAGE_MODEL,
-    DEFAULT_IMAGE_SIZE,
-    DEFAULT_VIDEO_DURATION,
-    DEFAULT_VIDEO_MODEL,
-    DEFAULT_VIDEO_RATIO,
-    SEEDREAM_4K_SIZE_OPTIONS,
-    SEEDREAM_QUALITY_OPTIONS,
-    SEEDREAM_SIZE_OPTIONS,
-    CHAT_MODEL_CAPABILITIES as STATIC_CHAT_CAPABILITIES,
-    IMAGE_MODEL_CAPABILITIES as STATIC_IMAGE_CAPABILITIES,
-    VIDEO_MODEL_CAPABILITIES as STATIC_VIDEO_CAPABILITIES,
-    VIDEO_DURATION_OPTIONS,
-    VIDEO_RATIO_LIST,
-    VIDEO_RATIO_OPTIONS
+  DEFAULT_CHAT_MODEL,
+  DEFAULT_IMAGE_MODEL,
+  DEFAULT_IMAGE_SIZE,
+  DEFAULT_VIDEO_DURATION,
+  DEFAULT_VIDEO_MODEL,
+  DEFAULT_VIDEO_RATIO,
+  SEEDREAM_4K_SIZE_OPTIONS,
+  SEEDREAM_QUALITY_OPTIONS,
+  SEEDREAM_SIZE_OPTIONS,
+  CHAT_MODEL_CAPABILITIES as STATIC_CHAT_CAPABILITIES,
+  IMAGE_MODEL_CAPABILITIES as STATIC_IMAGE_CAPABILITIES,
+  VIDEO_MODEL_CAPABILITIES as STATIC_VIDEO_CAPABILITIES,
+  VIDEO_DURATION_OPTIONS,
+  VIDEO_RATIO_LIST,
+  VIDEO_RATIO_OPTIONS
 } from '@/config/models'
 import { aiModels as dynamicAiModels, fetchModels, isLoading as isModelsLoading } from '@/stores/aiModels'
 import { computed, ref } from 'vue'
@@ -119,21 +119,8 @@ export const getModelConfig = (modelKey) => {
  * Returns options based on model's sizes array and quality
  */
 export const getModelSizeOptions = (modelKey, quality = 'standard') => {
-  const model = imageModels.value.find(m => m.key === modelKey)
-  
-  // If model has getSizesByQuality function, use it | 如果模型有 getSizesByQuality 函数，使用它
-  if (model?.getSizesByQuality) {
-    return model.getSizesByQuality(quality)
-  }
-  
-  if (!model?.sizes || model.sizes.length === 0) return SEEDREAM_SIZE_OPTIONS
-  
-  // Convert sizes array to dropdown options | 转换 sizes 数组为下拉选项
-  const sizeOptions = quality === '4k' ? SEEDREAM_4K_SIZE_OPTIONS : SEEDREAM_SIZE_OPTIONS
-  return model.sizes.map(size => {
-    const option = sizeOptions.find(o => o.key === size)
-    return option || { label: size, key: size }
-  })
+  const baseOptions = quality === '4k' ? SEEDREAM_4K_SIZE_OPTIONS : SEEDREAM_SIZE_OPTIONS
+  return baseOptions.map(o => ({ label: `${o.key} (${o.label})`, key: o.key }))
 }
 
 /**
@@ -199,7 +186,7 @@ export { chatModels, imageModels, videoModels }
 
 // Export defaults | 导出默认值
 export {
-    DEFAULT_CHAT_MODEL, DEFAULT_IMAGE_MODEL, DEFAULT_IMAGE_SIZE, DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RATIO
+  DEFAULT_CHAT_MODEL, DEFAULT_IMAGE_MODEL, DEFAULT_IMAGE_SIZE, DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RATIO
 }
 
 // Export options | 导出选项
