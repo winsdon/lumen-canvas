@@ -2,24 +2,12 @@
   <!-- Home page | 首页 -->
   <div class="min-h-screen h-screen overflow-y-auto bg-[var(--bg-primary)]">
     <!-- Header | 顶部导航 -->
-    <header class="flex items-center justify-between px-4 md:px-8 py-4 border-b border-[var(--border-color)]">
-      <div class="flex items-center gap-2">
+    <AppHeader @login="handleShowLogin">
+      <template #left>
         <!-- <img src="../assets/logo.png" alt="Logo" class="w-8 h-8" /> -->
         <!-- <span class="text-lg font-bold text-[var(--text-primary)]">火宝无限画布</span> -->
-      </div>
-      <div class="flex items-center gap-4">
-        <button 
-          @click="toggleTheme"
-          class="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
-        >
-          <n-icon :size="20">
-            <SunnyOutline v-if="isDark" />
-            <MoonOutline v-else />
-          </n-icon>
-        </button>
-        <UserAvatar @login="handleShowLogin" />
-      </div>
-    </header>
+      </template>
+    </AppHeader>
 
     <!-- Main content | 主要内容 -->
     <main class="max-w-5xl mx-auto px-4 py-8 md:py-16">
@@ -209,16 +197,14 @@ import {
     DocumentOutline,
     EllipsisHorizontalOutline,
     FolderOutline,
-    MoonOutline,
     RefreshOutline,
     SendOutline,
-    SunnyOutline,
     TrashOutline
 } from '@vicons/ionicons5'
 import { NButton, NDropdown, NIcon, NInput, NModal, useDialog } from 'naive-ui'
 import { h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import UserAvatar from '../components/UserAvatar.vue'
+import AppHeader from '../components/AppHeader.vue'
 import {
     createProject,
     deleteProject,
@@ -227,7 +213,6 @@ import {
     projects,
     renameProject
 } from '../stores/projects'
-import { isDark, toggleTheme } from '../stores/theme'
 
 const router = useRouter()
 const dialog = useDialog()

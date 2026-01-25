@@ -36,11 +36,13 @@
 
 <script setup>
 import { h, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { NButton, NAvatar, NDropdown, NIcon } from 'naive-ui'
 import { PersonOutline, LogOutOutline, DiamondOutline } from '@vicons/ionicons5'
 import { useAuth } from '@/hooks'
 
 const emit = defineEmits(['login'])
+const router = useRouter()
 
 const { isLoggedIn, userInfo, logout } = useAuth()
 
@@ -83,7 +85,7 @@ const handleMenuSelect = async (key) => {
   if (key === 'logout') {
     await logout()
   } else if (key === 'profile') {
-    window.$message?.info('个人中心功能开发中')
+    router.push('/profile')
   }
 }
 </script>
