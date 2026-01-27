@@ -3,7 +3,7 @@
     <template v-if="isLoggedIn">
       <div class="user-info-container">
         <!-- Points Display | 积分展示 -->
-        <div class="points-badge" v-if="userInfo?.point !== undefined">
+        <div class="points-badge" v-if="userInfo?.point !== undefined" @click="goToRecharge">
           <n-icon size="16" color="#f59e0b">
             <DiamondOutline />
           </n-icon>
@@ -38,7 +38,7 @@
 import { h, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NAvatar, NDropdown, NIcon } from 'naive-ui'
-import { PersonOutline, LogOutOutline, DiamondOutline } from '@vicons/ionicons5'
+import { PersonOutline, LogOutOutline, DiamondOutline, WalletOutline } from '@vicons/ionicons5'
 import { useAuth } from '@/hooks'
 
 const emit = defineEmits(['login'])
@@ -67,6 +67,11 @@ const menuOptions = [
     icon: renderIcon(PersonOutline)
   },
   {
+    label: '积分充值',
+    key: 'recharge',
+    icon: renderIcon(WalletOutline)
+  },
+  {
     type: 'divider',
     key: 'd1'
   },
@@ -86,7 +91,13 @@ const handleMenuSelect = async (key) => {
     await logout()
   } else if (key === 'profile') {
     router.push('/profile')
+  } else if (key === 'recharge') {
+    router.push('/recharge')
   }
+}
+
+const goToRecharge = () => {
+  router.push('/recharge')
 }
 </script>
 
@@ -112,6 +123,13 @@ const handleMenuSelect = async (key) => {
   font-size: 13px;
   color: var(--text-primary);
   border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.points-badge:hover {
+  background-color: var(--bg-tertiary, rgba(0, 0, 0, 0.1));
+  border-color: #f59e0b;
 }
 
 .points-value {

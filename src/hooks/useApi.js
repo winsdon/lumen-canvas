@@ -7,11 +7,10 @@ import { ref, reactive, onUnmounted } from 'vue'
 import {
   aiImageDraw,
   getAiImageListByIds,
-  createVideoTask,
-  getVideoTaskStatus,
+  aiVideoGenerate,
+  getAiVideoMy,
   streamChatCompletions
 } from '@/api'
-import { getModelByName } from '@/config/models'
 import { fetchModels, getModelId } from '@/stores/aiModels'
 
 /**
@@ -252,7 +251,7 @@ export const useVideoGeneration = () => {
 
   /**
    * Generate video with fixed params | 固定参数生成视频
-   * @param {Object} params - { model, prompt, first_frame_image, last_frame_image, ratio, duration }
+   * @param {Object} params
    */
   const generate = async (params) => {
     setLoading(true)
@@ -262,46 +261,62 @@ export const useVideoGeneration = () => {
     progress.percentage = 0
 
     try {
-      const modelConfig = getModelByName(params.model)
-      
-      // Build request data | 构建请求数据
+      await fetchModels(4)
+
+      const modelKey = params?.model
+      const modelId = params?.modelId || getModelId(modelKey)
+
+      if (!modelId) {
+        throw new Error('未找到模型 ID，请刷新模型列表后重试')
+      }
+
+      const imgUrl = params?.imgUrl || ''
+      const type = params?.type || (imgUrl ? 2 : 1)
+      const duration = params?.duration ?? params?.dur
+
+      if (!params?.prompt) {
+        throw new Error('请输入提示词')
+      }
+
+      if (type === 2 && !imgUrl) {
+        throw new Error('图生视频需要首帧图片 URL')
+      }
+
+      if (!duration) {
+        throw new Error('请选择时长')
+      }
+
+      if (!params?.resolution) {
+        throw new Error('请选择分辨率')
+      }
+
       const requestData = {
-        model: params.model,
-        prompt: params.prompt || ''
-      }
-      // Add optional params | 添加可选参数
-      if (params.first_frame_image) requestData.first_frame_image = params.first_frame_image
-      if (params.last_frame_image) requestData.last_frame_image = params.last_frame_image
-      if (params.ratio) requestData.size = params.ratio
-      if (params.dur) requestData.seconds = params.dur
-
-      // Call API | 调用 API
-      const task = await createVideoTask(requestData, {
-        requestType: 'json',
-        endpoint: modelConfig?.endpoint || '/videos'
-      })
-
-      // Check if async (need polling) | 检查是否异步
-      const isAsync = modelConfig?.async !== false
-
-      // If has video URL directly, return | 如果直接有视频 URL，返回
-      if (!isAsync || task.data?.url || task.url) {
-        const videoUrl = task.data?.url || task.url || task.data?.[0]?.url
-        video.value = { url: videoUrl, ...task }
-        setSuccess()
-        return video.value
+        modelId,
+        type,
+        prompt: params.prompt,
+        duration,
+        resolution: params.resolution
       }
 
-      // Get task ID for polling | 获取任务 ID 用于轮询
-      const id = task.id || task.task_id || task.taskId
+      if (imgUrl) requestData.imgUrl = imgUrl
+      if (params.negativePrompt) requestData.negativePrompt = params.negativePrompt
+      if (params.audioUrl) requestData.audioUrl = params.audioUrl
+      if (params.promptExtend !== undefined) requestData.promptExtend = params.promptExtend
+      if (params.watermark !== undefined) requestData.watermark = params.watermark
+      if (params.seed !== undefined) requestData.seed = params.seed
+      if (params.shotType) requestData.shotType = params.shotType
+      if (params.audio !== undefined) requestData.audio = params.audio
+      if (params.options) requestData.options = params.options
+
+      const id = await aiVideoGenerate(requestData)
+
       if (!id) {
-        throw new Error('未获取到任务 ID')
+        throw new Error('未获取到视频记录 ID')
       }
 
       taskId.value = id
       status.value = 'polling'
 
-      // Poll for result | 轮询获取结果
       const maxAttempts = 120
       const interval = 5000
 
@@ -309,23 +324,28 @@ export const useVideoGeneration = () => {
         progress.attempt = i + 1
         progress.percentage = Math.min(Math.round((i / maxAttempts) * 100), 99)
 
-        const result = await getVideoTaskStatus(id)
+        const record = await getAiVideoMy(id)
+        const recordStatus = record?.status
 
-        // Check for completion | 检查是否完成
-        if (result.status === 'completed' || result.status === 'succeeded' || result.data) {
+        if (recordStatus === 30) {
+          if (!record?.videoUrl) {
+            throw new Error('已完成但未返回视频地址')
+          }
+
           progress.percentage = 100
-          const videoUrl = result.data?.url || result.data?.[0]?.url || result.url || result.video_url
-          video.value = { url: videoUrl, ...result }
+          video.value = { url: record.videoUrl, id, ...record }
           setSuccess()
           return video.value
         }
 
-        // Check for failure | 检查是否失败
-        if (result.status === 'failed' || result.status === 'error') {
-          throw new Error(result.error?.message || result.message || '视频生成失败')
+        if (recordStatus === 40) {
+          throw new Error(record?.errorMessage || '视频生成失败')
         }
 
-        // Wait before next poll | 等待下次轮询
+        if (recordStatus === 50) {
+          throw new Error('视频生成已取消')
+        }
+
         await new Promise(resolve => setTimeout(resolve, interval))
       }
 

@@ -17,6 +17,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/recharge',
+    name: 'PointRecharge',
+    component: () => import('../views/PointRecharge.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/auth/callback',
     name: 'AuthCallback',
     component: () => import('../views/AuthCallback.vue')

@@ -2,41 +2,30 @@
  * Video API | 视频生成 API
  */
 
-import { request } from '@/utils'
+import { authRequest } from '@/utils/request'
 
-// 创建视频任务
-export const createVideoTask = (data, options = {}) => {
-  const { endpoint = '/videos' } = options
-  return request({
-    url: endpoint,
-    method: 'post',
-    data,
-    headers: { 'Content-Type': 'multipart/form-data' }
+export const aiVideoGenerate = (data) => {
+  return authRequest.post('/ai/video/generate', data)
+}
+
+export const getAiVideoMy = (id) => {
+  return authRequest.get('/ai/video/get-my', { params: { id } })
+}
+
+export const getAiVideoListMyByIds = (ids = []) => {
+  return authRequest.get('/ai/video/my-list-by-ids', {
+    params: { ids: ids.join(',') }
   })
 }
 
-// 查询视频任务状态
-export const getVideoTaskStatus = (taskId) =>
-  request({
-    url: `/videos/${taskId}`,
-    method: 'get'
-  })
+export const getAiVideoPageMy = (params = {}) => {
+  return authRequest.get('/ai/video/my-page', { params })
+}
 
-// 轮询视频任务直到完成
-export const pollVideoTask = async (taskId, maxAttempts = 120, interval = 5000) => {
-  for (let i = 0; i < maxAttempts; i++) {
-    const result = await getVideoTaskStatus(taskId)
+export const getAiVideoPagePublic = (params = {}) => {
+  return authRequest.get('/ai/video/public-page', { params })
+}
 
-    if (result.status === 'completed' || result.data) {
-      return result
-    }
-
-    if (result.status === 'failed') {
-      throw new Error(result.error?.message || '视频生成失败')
-    }
-
-    await new Promise(resolve => setTimeout(resolve, interval))
-  }
-
-  throw new Error('视频生成超时')
+export const deleteAiVideoMy = (id) => {
+  return authRequest.delete('/ai/video/delete-my', { params: { id } })
 }
