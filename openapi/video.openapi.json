@@ -683,6 +683,12 @@
         "type": "object",
         "description": "管理后台 - AI 视频生成请求 VO",
         "properties": {
+          "modelId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "模型编号",
+            "example": 1024
+          },
           "type": {
             "type": "integer",
             "format": "int32",
@@ -714,38 +720,10 @@
             "description": "音频URL（支持 mp3/wav 格式，时长3-30秒，大小不超过15MB）",
             "example": "https://example.com/audio.mp3"
           },
-          "platform": {
-            "type": "string",
-            "description": "平台",
-            "enum": [
-              "wanx",
-              "runway",
-              "vidu",
-              "seedance",
-              "sora"
-            ],
-            "minLength": 1,
-            "example": "wanx"
-          },
-          "model": {
-            "type": "string",
-            "description": "模型",
-            "enum": [
-              "wan2.6-i2v-flash",
-              "wan2.6-i2v",
-              "wan2.5-i2v-preview",
-              "wan2.2-i2v-flash",
-              "wan2.2-i2v-plus",
-              "wanx2.1-i2v-plus",
-              "wanx2.1-i2v-turbo"
-            ],
-            "minLength": 1,
-            "example": "wan2.6-i2v-flash"
-          },
           "duration": {
             "type": "integer",
             "format": "int32",
-            "description": "视频时长（秒）",
+            "description": "视频时长（秒）：wan2.6支持2-15秒 wan2.5支持5/10秒 wan2.2支持5秒 wan2.1支持3/4/5秒",
             "enum": [
               "2",
               "3",
@@ -812,8 +790,7 @@
           }
         },
         "required": [
-          "model",
-          "platform",
+          "modelId",
           "prompt",
           "type"
         ]
