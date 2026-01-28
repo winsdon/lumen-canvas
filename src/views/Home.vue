@@ -5,7 +5,7 @@
     <AppHeader @login="handleShowLogin">
       <template #left>
         <!-- <img src="../assets/logo.png" alt="Logo" class="w-8 h-8" /> -->
-        <!-- <span class="text-lg font-bold text-[var(--text-primary)]">火宝无限画布</span> -->
+        <!-- <span class="text-lg font-bold text-[var(--text-primary)]">Lumen Canvas</span> -->
       </template>
     </AppHeader>
 
@@ -15,7 +15,7 @@
       <section class="text-center mb-12">
         <div class="flex items-center justify-center gap-4 mb-8">
           <img src="https://ai.xmlumen.com/logo.png" alt="Logo" class="w-12 h-12 md:w-16 md:h-16" />
-          <h1 class="text-2xl md:text-4xl font-bold text-[var(--text-primary)]">欢迎来到火宝无限画布</h1>
+          <h1 class="text-2xl md:text-4xl font-bold text-[var(--text-primary)]">欢迎来到 Lumen Canvas</h1>
         </div>
         
         <!-- Input area | 输入区域 -->

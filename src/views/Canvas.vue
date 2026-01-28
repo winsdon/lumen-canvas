@@ -54,6 +54,9 @@
         :max-zoom="2"
         :snap-to-grid="true"
         :snap-grid="[20, 20]"
+        select-nodes-on-drag
+        selection-key-code="Control"
+        :delete-key-code="['Backspace', 'Delete']"
         :zoom-on-double-click="false"
         @connect="onConnect"
         @node-click="onNodeClick"
@@ -161,76 +164,7 @@
         </div>
       </div>
 
-      <!-- Bottom input panel (floating) | 底部输入面板（悬浮） -->
-      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20">
-        <!-- Processing indicator | 处理中指示器 -->
-        <div 
-          v-if="isProcessing" 
-          class="mb-3 p-3 bg-[var(--bg-primary)] rounded-xl border border-[var(--accent-color)] animate-pulse"
-        >
-          <div class="flex items-center gap-2 text-sm text-[var(--accent-color)] mb-2">
-            <n-spin :size="14" />
-            <span>正在生成提示词...</span>
-          </div>
-          <div v-if="currentResponse" class="text-sm text-[var(--text-primary)] whitespace-pre-wrap">
-            {{ currentResponse }}
-          </div>
-        </div>
 
-        <div class="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-3">
-          <textarea
-            v-model="chatInput"
-            :placeholder="inputPlaceholder"
-            :disabled="isProcessing"
-            class="w-full bg-transparent resize-none outline-none text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] min-h-[40px] max-h-[120px] disabled:opacity-50"
-            rows="1"
-            @keydown.enter.exact="handleEnterKey"
-            @keydown.enter.ctrl="sendMessage"
-          />
-          <div class="flex items-center justify-between mt-2">
-            <div class="flex items-center gap-2">
-              <button 
-                @click="handlePolish"
-                :disabled="isProcessing || !chatInput.trim()"
-                class="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="AI 润色提示词"
-              >
-                ✨ AI 润色
-              </button>
-            </div>
-            <div class="flex items-center gap-3">
-              <label class="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                <n-switch v-model:value="autoExecute" size="small" />
-                自动执行
-              </label>
-              <button 
-                @click="sendMessage"
-                :disabled="isProcessing"
-                class="w-8 h-8 rounded-xl bg-[var(--accent-color)] hover:bg-[var(--accent-hover)] flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <n-spin v-if="isProcessing" :size="16" />
-                <n-icon v-else :size="20" color="white"><SendOutline /></n-icon>
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Quick suggestions | 快捷建议 -->
-        <div class="flex flex-wrap items-center justify-center gap-2 mt-2">
-          <span class="text-xs text-[var(--text-secondary)]">推荐：</span>
-          <button 
-            v-for="tag in suggestions" 
-            :key="tag"
-            @click="chatInput = tag"
-            class="px-2 py-0.5 text-xs rounded-full bg-[var(--bg-secondary)]/80 border border-[var(--border-color)] hover:border-[var(--accent-color)] transition-colors"
-          >
-            {{ tag }}
-          </button>
-          <button class="p-1 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors">
-            <n-icon :size="14"><RefreshOutline /></n-icon>
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- Rename Modal | 重命名弹窗 -->
@@ -276,9 +210,7 @@ import {
     ImageOutline,
     LocateOutline,
     MoonOutline,
-    RefreshOutline,
     RemoveOutline,
-    SendOutline,
     SunnyOutline,
     TextOutline,
     VideocamOutline
@@ -286,10 +218,10 @@ import {
 import { Background } from '@vue-flow/background'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
-import { NButton, NDropdown, NIcon, NInput, NModal, NSpin, NSwitch } from 'naive-ui'
+import { NButton, NDropdown, NIcon, NInput, NModal } from 'naive-ui'
 import { computed, markRaw, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useChat, useWorkflowOrchestrator } from '../hooks'
+import { useWorkflowOrchestrator } from '../hooks'
 import { addEdge, addNode, canRedo, canUndo, canvasViewport, clearCanvas, edges, loadProject, manualSaveHistory, nodes, redo, saveProject, undo, updateNode, updateViewport } from '../stores/canvas'
 import { loadAllModels } from '../stores/models'
 import { deleteProject, initProjectsStore, projects, renameProject } from '../stores/projects'
@@ -302,34 +234,6 @@ import WorkflowPanel from '../components/WorkflowPanel.vue'
 // Initialize models on page load | 页面加载时初始化模型
 onMounted(() => {
   loadAllModels()
-})
-
-// Chat templates | 问答模板
-const CHAT_TEMPLATES = {
-  imagePrompt: {
-    name: '生图提示词',
-    systemPrompt: '你是一个专业的AI绘画提示词专家。将用户输入的内容美化成高质量的生图提示词，包含风格、光线、構图、细节等要素。直接返回提示词，不要其他解释。',
-    model: 'gpt-4o-mini'
-  },
-  videoPrompt: {
-    name: '视频提示词',
-    systemPrompt: '你是一个专业的AI视频提示词专家。将用户输入的内容美化成高质量的视频生成提示词，包含运动、场景、镜头等要素。直接返回提示词，不要其他解释。',
-    model: 'gpt-4o-mini'
-  }
-}
-
-// Current template | 当前模板
-const currentTemplate = ref('imagePrompt')
-
-// Chat hook with image prompt template | 问答 hook
-const { 
-  loading: chatLoading, 
-  status: chatStatus, 
-  currentResponse, 
-  send: sendChat 
-} = useChat({
-  systemPrompt: CHAT_TEMPLATES.imagePrompt.systemPrompt,
-  model: CHAT_TEMPLATES.imagePrompt.model
 })
 
 // Workflow orchestrator hook | 工作流编排 hook
@@ -459,21 +363,10 @@ const tools = [
 const nodeTypeOptions = [
   { type: 'textToImage', name: '文生图(组合)', icon: ImageOutline, color: '#ec4899' },
   { type: 'text', name: '文本节点', icon: TextOutline, color: '#3b82f6' },
-  { type: 'imageConfig', name: '文生图配置', icon: ColorPaletteOutline, color: '#22c55e' },
+  { type: 'imageConfig', name: '文生图配置', icon: ColorPaletteOutline, color: '#32F08C' },
   { type: 'videoConfig', name: '视频生成配置', icon: VideocamOutline, color: '#f59e0b' },
   { type: 'image', name: '图片节点', icon: ImageOutline, color: '#8b5cf6' },
   { type: 'video', name: '视频节点', icon: VideocamOutline, color: '#ef4444' }
-]
-
-// Input placeholder | 输入占位符
-const inputPlaceholder = '你可以试着说"帮我生成一个二次元的卡通角色"'
-
-// Quick suggestions | 快捷建议
-const suggestions = [
-  '像个魔法森林',
-  '三只不同的小猫',
-  '生成多角度分镜',
-  '夏日田野环绕漫步'
 ]
 
 // Add new node | 添加新节点
@@ -664,37 +557,6 @@ const confirmDelete = async () => {
   showDeleteModal.value = false
   window.$message?.success('项目已删除')
   router.push('/')
-}
-
-// Handle Enter key | 处理回车键
-const handleEnterKey = (e) => {
-  e.preventDefault()
-  sendMessage()
-}
-
-// Handle AI polish | 处理 AI 润色
-const handlePolish = async () => {
-  const input = chatInput.value.trim()
-  if (!input) return
-  
-  isProcessing.value = true
-  const originalInput = chatInput.value
-
-  try {
-    // Call chat API to polish the prompt | 调用 AI 润色提示词
-    const result = await sendChat(input, true)
-    
-    if (result) {
-      chatInput.value = result
-      window.$message?.success('提示词已润色')
-    }
-  } catch (err) {
-    chatInput.value = originalInput
-    // Global error handler will show the message | 全局错误处理会显示消息
-    console.error('Polish failed:', err)
-  } finally {
-    isProcessing.value = false
-  }
 }
 
 // Send message | 发送消息

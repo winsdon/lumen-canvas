@@ -26,7 +26,11 @@ window.$handleSessionExpire = () => {
 const themeOverrides = {
   common: {
     borderRadius: '12px',
-    borderRadiusSmall: '8px'
+    borderRadiusSmall: '8px',
+    primaryColor: '#32F08C',
+    primaryColorHover: '#32F08C',
+    primaryColorPressed: '#32F08C',
+    primaryColorSuppl: '#32F08C'
   },
   Dialog: {
     borderRadius: '16px',
