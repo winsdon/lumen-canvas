@@ -214,7 +214,7 @@
               v-model="content"
               @blur="updateNodeData"
               @keydown.enter.exact.prevent="handleGenerate"
-              class="w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-12 leading-5"
+              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-12 leading-5"
               placeholder="输入描述或按 '/' 呼出指令（Enter 发送）"
             ></textarea>
           </div>
@@ -250,10 +250,10 @@
                   <div 
                     @click="handleRatioSelect('auto')"
                     class="w-20 h-24 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] rounded-lg flex flex-col items-center justify-center gap-2 cursor-pointer border border-transparent transition-all"
-                    :class="{ '!border-blue-500 !bg-blue-500/10': selectedRatio === 'auto' }"
+                    :class="{ '!border-[var(--accent-color)] !bg-[var(--accent-color)]/10': selectedRatio === 'auto' }"
                   >
-                    <n-icon :size="24" :class="selectedRatio === 'auto' ? 'text-blue-500' : 'text-[var(--text-tertiary)]'"><ScanOutline /></n-icon>
-                    <span class="text-xs" :class="selectedRatio === 'auto' ? 'text-blue-500' : 'text-[var(--text-tertiary)]'">自适应</span>
+                    <n-icon :size="24" :class="selectedRatio === 'auto' ? 'text-[var(--accent-color)]' : 'text-[var(--text-tertiary)]'"><ScanOutline /></n-icon>
+                    <span class="text-xs" :class="selectedRatio === 'auto' ? 'text-[var(--accent-color)]' : 'text-[var(--text-tertiary)]'">自适应</span>
                   </div>
                   
                   <div class="flex-1 grid grid-cols-4 gap-2">
@@ -265,10 +265,10 @@
                     >
                       <div 
                         class="border rounded-sm transition-colors"
-                        :class="selectedRatio === ratio.value ? 'border-blue-500 bg-blue-500/20' : 'border-[var(--text-tertiary)] group-hover:border-[var(--text-secondary)]'"
+                        :class="selectedRatio === ratio.value ? 'border-[var(--accent-color)] bg-[var(--accent-color)]/20' : 'border-[var(--text-tertiary)] group-hover:border-[var(--text-secondary)]'"
                         :style="{ width: ratio.w + 'px', height: ratio.h + 'px' }"
                       ></div>
-                      <span class="text-[10px]" :class="selectedRatio === ratio.value ? 'text-blue-500' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'">{{ ratio.label }}</span>
+                      <span class="text-[10px]" :class="selectedRatio === ratio.value ? 'text-[var(--accent-color)]' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'">{{ ratio.label }}</span>
                     </div>
                   </div>
                 </div>
@@ -444,7 +444,7 @@ const renderDropdownLabel = (option) => {
   if (option.imagePoint === undefined || option.imagePoint === null) return option.label
   return h('div', { class: 'flex items-center justify-between gap-4 min-w-[140px]' }, [
     h('span', option.label),
-    h('span', { class: 'text-sm font-medium text-[var(--accent-color)] bg-black px-2 py-0.5 rounded' }, `${option.imagePoint} 积分`)
+    h('span', { class: 'text-xs font-medium text-[var(--accent-color)] px-2 py-0.5 rounded' }, `${option.imagePoint} 积分`)
   ])
 }
 
