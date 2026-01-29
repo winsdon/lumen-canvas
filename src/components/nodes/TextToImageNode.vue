@@ -47,13 +47,13 @@
     <!-- Top Panel: Image Display Area | 顶部：图片展示区域 -->
     <div
       class="text-to-image-node bg-[var(--bg-secondary)] rounded-2xl border w-[320px] transition-all duration-200 flex flex-col overflow-hidden relative z-10"
-      :class="selected ? 'border-2 border-blue-500 shadow-xl shadow-blue-500/20' : 'border border-[var(--border-color)] shadow-md'"
+      :class="selected ? 'border-2 border-[var(--accent-color)] shadow-xl shadow-[var(--accent-color)]/20' : 'border border-[var(--border-color)] shadow-md'"
       @click="toggleInputPanel"
     >
       
       <!-- Image Header -->
       <div class="absolute top-3 left-3 z-20 pointer-events-none">
-        <span class="text-xs font-semibold text-[var(--text-primary)] drop-shadow-md">图片</span>
+        <span class="text-sm font-semibold text-[var(--text-primary)] drop-shadow-md">图片</span>
       </div>
 
       <div 
@@ -66,14 +66,14 @@
           <div class="w-full h-full bg-gradient-to-br from-purple-500/20 via-blue-500/20 to-pink-500/20 animate-pulse absolute inset-0"></div>
           <div class="relative z-10 flex flex-col items-center gap-3">
              <img src="../../assets/loading.webp" alt="Loading" class="w-14 h-12" />
-             <span class="text-xs text-[var(--text-secondary)] font-medium">AI 正在绘图中...</span>
+             <span class="text-sm text-[var(--text-secondary)] font-medium">AI 正在绘图中...</span>
           </div>
         </div>
 
         <!-- Error State -->
         <div v-else-if="error" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-10 bg-red-900/20">
           <n-icon :size="32" class="text-red-500 mb-2"><CloseCircleOutline /></n-icon>
-          <span class="text-xs text-red-500 break-words w-full">{{ error.message || '生成失败' }}</span>
+          <span class="text-sm text-red-500 break-words w-full">{{ error.message || '生成失败' }}</span>
         </div>
 
         <!-- Image Result -->
@@ -96,18 +96,18 @@
 
         <!-- Empty State (Menu Style) -->
         <div v-else class="absolute inset-0 flex flex-col justify-center px-8 text-[var(--text-secondary)] gap-4">
-           <div class="text-xs text-[var(--text-tertiary)] mb-1">尝试:</div>
+           <div class="text-sm text-[var(--text-tertiary)] mb-1">尝试:</div>
            
            <div class="flex flex-col gap-3">
-             <div class="flex items-center gap-2 text-sm hover:text-[var(--text-primary)] transition-colors">
+             <div class="flex items-center gap-2 text-base hover:text-[var(--text-primary)] transition-colors">
                <n-icon :size="16"><ImageOutline /></n-icon>
                <span>图生图</span>
              </div>
-             <div class="flex items-center gap-2 text-sm hover:text-[var(--text-primary)] transition-colors">
+             <div class="flex items-center gap-2 text-base hover:text-[var(--text-primary)] transition-colors">
                <n-icon :size="16"><VideocamOutline /></n-icon>
                <span>图生视频</span>
              </div>
-             <div class="flex items-center gap-2 text-sm hover:text-[var(--text-primary)] transition-colors">
+             <div class="flex items-center gap-2 text-base hover:text-[var(--text-primary)] transition-colors">
                <n-icon :size="16"><ColorWandOutline /></n-icon>
                <span>图片换背景</span>
              </div>
@@ -214,7 +214,7 @@
               v-model="content"
               @blur="updateNodeData"
               @keydown.enter.exact.prevent="handleGenerate"
-              class="w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-12 leading-5"
+              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-12 leading-5"
               placeholder="输入描述或按 '/' 呼出指令（Enter 发送）"
             ></textarea>
           </div>
@@ -224,7 +224,7 @@
         <div class="flex items-center justify-between px-4 py-2 bg-[var(--bg-tertiary)] border-t border-[var(--border-color)]">
           <div class="flex items-center gap-4">
             <!-- Model Select -->
-            <n-dropdown :options="modelOptions" :render-label="renderDropdownLabel" @select="handleModelSelect" trigger="click" placement="top-start">
+            <n-dropdown :options="modelOptions" :render-label="renderDropdownLabel" :menu-props="getModelMenuProps" @select="handleModelSelect" trigger="click" placement="top-start">
               <button class="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
                 <n-icon :size="16"><ImageOutline /></n-icon>
                 <span class="max-w-[120px] truncate font-medium">{{ displayModelName }}</span>
@@ -250,10 +250,10 @@
                   <div 
                     @click="handleRatioSelect('auto')"
                     class="w-20 h-24 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] rounded-lg flex flex-col items-center justify-center gap-2 cursor-pointer border border-transparent transition-all"
-                    :class="{ '!border-blue-500 !bg-blue-500/10': selectedRatio === 'auto' }"
+                    :class="{ '!border-[var(--accent-color)] !bg-[var(--accent-color)]/10': selectedRatio === 'auto' }"
                   >
-                    <n-icon :size="24" :class="selectedRatio === 'auto' ? 'text-blue-500' : 'text-[var(--text-tertiary)]'"><ScanOutline /></n-icon>
-                    <span class="text-xs" :class="selectedRatio === 'auto' ? 'text-blue-500' : 'text-[var(--text-tertiary)]'">自适应</span>
+                    <n-icon :size="24" :class="selectedRatio === 'auto' ? 'text-[var(--accent-color)]' : 'text-[var(--text-tertiary)]'"><ScanOutline /></n-icon>
+                    <span class="text-xs" :class="selectedRatio === 'auto' ? 'text-[var(--accent-color)]' : 'text-[var(--text-tertiary)]'">自适应</span>
                   </div>
                   
                   <div class="flex-1 grid grid-cols-4 gap-2">
@@ -265,10 +265,10 @@
                     >
                       <div 
                         class="border rounded-sm transition-colors"
-                        :class="selectedRatio === ratio.value ? 'border-blue-500 bg-blue-500/20' : 'border-[var(--text-tertiary)] group-hover:border-[var(--text-secondary)]'"
+                        :class="selectedRatio === ratio.value ? 'border-[var(--accent-color)] bg-[var(--accent-color)]/20' : 'border-[var(--text-tertiary)] group-hover:border-[var(--text-secondary)]'"
                         :style="{ width: ratio.w + 'px', height: ratio.h + 'px' }"
                       ></div>
-                      <span class="text-[10px]" :class="selectedRatio === ratio.value ? 'text-blue-500' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'">{{ ratio.label }}</span>
+                      <span class="text-[10px]" :class="selectedRatio === ratio.value ? 'text-[var(--accent-color)]' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'">{{ ratio.label }}</span>
                     </div>
                   </div>
                 </div>
@@ -277,13 +277,7 @@
           </div>
 
           <div class="flex items-center gap-3">
-             <!-- Count Selector -->
-             <div class="flex items-center gap-1 bg-[var(--bg-primary)] rounded-full px-2 py-0.5 border border-[var(--border-color)]">
-               <n-icon :size="14" class="text-[var(--text-tertiary)]"><PeopleOutline /></n-icon>
-               <span class="text-sm text-[var(--text-secondary)] w-4 text-center font-medium">{{ generateCount }}</span>
-             </div>
-
-             <div v-if="currentModelPoints" class="text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-primary)] px-1.5 py-0.5 rounded border border-[var(--border-color)]">
+             <div v-if="currentModelPoints" class="text-sm text-[var(--accent-color)] font-medium px-1.5 py-0.5 rounded">
                {{ currentModelPoints * generateCount }} 积分
              </div>
 
@@ -291,7 +285,8 @@
              <button 
                @click="handleGenerate"
                :disabled="loading || !content.trim()"
-               class="w-7 h-7 rounded-full bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+               :class="(loading || !content.trim()) ? 'bg-[var(--text-primary)]' : 'bg-[var(--accent-color)]'"
+               class="w-7 h-7 rounded-full text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
              >
                <n-icon v-if="loading" :size="14"><div class="animate-spin rounded-full h-3 w-3 border-b-2 border-[var(--bg-primary)]"></div></n-icon>
                <n-icon v-else :size="16"><ArrowUpOutline /></n-icon>
@@ -316,7 +311,6 @@ import {
   ExpandOutline,
   EyeOutline,
   ImageOutline,
-  PeopleOutline,
   ScanOutline,
   SparklesOutline,
   TrashOutline,
@@ -439,11 +433,18 @@ const currentModelPoints = computed(() => {
   return model?.imagePoint
 })
 
+const getModelMenuProps = () => ({
+  style: {
+    border: '1px solid var(--border-color)',
+    '--n-color': 'var(--bg-secondary)'
+  }
+})
+
 const renderDropdownLabel = (option) => {
   if (option.imagePoint === undefined || option.imagePoint === null) return option.label
   return h('div', { class: 'flex items-center justify-between gap-4 min-w-[140px]' }, [
     h('span', option.label),
-    h('span', { class: 'text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded border border-[var(--border-color)]' }, `${option.imagePoint} 积分`)
+    h('span', { class: 'text-xs font-medium text-[var(--accent-color)] px-2 py-0.5 rounded' }, `${option.imagePoint} 积分`)
   ])
 }
 

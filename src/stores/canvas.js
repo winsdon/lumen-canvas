@@ -99,8 +99,8 @@ const getDefaultNodeData = (type) => {
     case 'videoConfig':
       return {
         prompt: '',
-        ratio: '16:9',
-        duration: '5秒',
+        resolution: '720P',
+        dur: 5,
         model: 'doubao-seedance-1-5-pro_720p',
         label: '图生视频'
       }

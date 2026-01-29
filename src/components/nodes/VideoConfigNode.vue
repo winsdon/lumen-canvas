@@ -29,12 +29,12 @@
           </n-dropdown>
         </div>
 
-        <!-- Aspect ratio selector | 宽高比选择 -->
+        <!-- Resolution selector | 分辨率选择 -->
         <div class="flex items-center justify-between">
-          <span class="text-xs text-[var(--text-secondary)]">比例</span>
-          <n-dropdown :options="ratioOptions" @select="handleRatioSelect">
+          <span class="text-xs text-[var(--text-secondary)]">分辨率</span>
+          <n-dropdown :options="resolutionOptions" @select="handleResolutionSelect">
             <button class="flex items-center gap-1 text-sm text-[var(--text-primary)] hover:text-[var(--accent-color)]">
-              {{ localRatio }}
+              {{ localResolution }}
               <n-icon :size="12">
                 <ChevronForwardOutline />
               </n-icon>
@@ -142,7 +142,7 @@ import { NIcon, NDropdown, NSpin } from 'naive-ui'
 import { ChevronForwardOutline, ChevronDownOutline, TrashOutline, VideocamOutline, CopyOutline } from '@vicons/ionicons5'
 import { useVideoGeneration } from '../../hooks'
 import { updateNode, removeNode, duplicateNode, addNode, addEdge, nodes, edges } from '../../stores/canvas'
-import { videoModelOptions, getModelRatioOptions, getModelDurationOptions, getModelConfig, DEFAULT_VIDEO_MODEL } from '../../stores/models'
+import { videoModelOptions, VIDEO_RESOLUTION_OPTIONS, getModelDurationOptions, getModelConfig, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_RESOLUTION } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -160,8 +160,8 @@ const showActions = ref(false)
 
 // Local state | 本地状态
 const localModel = ref(props.data?.model || DEFAULT_VIDEO_MODEL)
-const localRatio = ref(props.data?.ratio || '16:9')
-const localDuration = ref(props.data?.dur || 5)
+const localResolution = ref(props.data?.resolution || DEFAULT_VIDEO_RESOLUTION)
+const localDuration = ref(props.data?.dur || parseInt(String(props.data?.duration || ''), 10) || DEFAULT_VIDEO_DURATION)
 
 // Get connected images with roles | 获取连接的图片及其角色
 const connectedImages = computed(() => {
@@ -170,7 +170,7 @@ const connectedImages = computed(() => {
 
   for (const edge of connectedEdges) {
     const sourceNode = nodes.value.find(n => n.id === edge.source)
-    if (sourceNode?.type === 'image' && sourceNode.data?.url) {
+    if (sourceNode?.type === 'image' && (sourceNode.data?.url || sourceNode.data?.base64)) {
       images.push({
         nodeId: sourceNode.id,
         edgeId: edge.id,
@@ -209,26 +209,21 @@ const displayModelName = computed(() => {
   return model?.label || localModel.value || '选择模型'
 })
 
-// Ratio options based on model | 基于模型的比例选项
-const ratioOptions = computed(() => {
-  return getModelRatioOptions(localModel.value)
-})
-
 // Duration options based on model | 基于模型的时长选项
 const durationOptions = computed(() => {
   return getModelDurationOptions(localModel.value)
 })
 
+const resolutionOptions = computed(() => {
+  return VIDEO_RESOLUTION_OPTIONS
+})
+
 // Handle model selection | 处理模型选择
 const handleModelSelect = (key) => {
   localModel.value = key
-  // Update ratio and duration to model's default | 更新为模型默认比例和时长
+  // Update duration to model's default | 更新为模型默认时长
   const config = getModelConfig(key)
   const updates = { model: key }
-  if (config?.defaultParams?.ratio) {
-    localRatio.value = config.defaultParams.ratio
-    updates.ratio = config.defaultParams.ratio
-  }
   if (config?.defaultParams?.duration) {
     localDuration.value = config.defaultParams.duration
     updates.dur = config.defaultParams.duration
@@ -247,10 +242,9 @@ const handleDuplicate = () => {
   }
 }
 
-// Handle ratio selection | 处理比例选择
-const handleRatioSelect = (key) => {
-  localRatio.value = key
-  updateNode(props.id, { ratio: key })
+const handleResolutionSelect = (key) => {
+  localResolution.value = key
+  updateNode(props.id, { resolution: key })
 }
 
 // Handle duration selection | 处理时长选择
@@ -264,9 +258,8 @@ const getConnectedInputs = () => {
   const connectedEdges = edges.value.filter(e => e.target === props.id)
 
   let prompt = ''
-  let first_frame_image = ''
-  let last_frame_image = ''
-  const images = [] // input_reference images | 参考图
+  let imgUrl = ''
+  let hasUnsupportedImage = false
 
   for (const edge of connectedEdges) {
     const sourceNode = nodes.value.find(n => n.id === edge.source)
@@ -274,21 +267,20 @@ const getConnectedInputs = () => {
 
     if (sourceNode.type === 'text') {
       prompt = sourceNode.data?.content || ''
-    } else if (sourceNode.type === 'image' && sourceNode.data?.url) {
-      const imageData = sourceNode.data.base64 || sourceNode.data.url
+    } else if (sourceNode.type === 'image') {
       const role = edge.data?.imageRole || 'first_frame_image'
 
       if (role === 'first_frame_image') {
-        first_frame_image = imageData
-      } else if (role === 'last_frame_image') {
-        last_frame_image = imageData
-      } else if (role === 'input_reference') {
-        images.push(imageData)
+        if (sourceNode.data?.url) {
+          imgUrl = sourceNode.data.url
+        } else if (sourceNode.data?.base64) {
+          hasUnsupportedImage = true
+        }
       }
     }
   }
 
-  return { prompt, first_frame_image, last_frame_image, images }
+  return { prompt, imgUrl, hasUnsupportedImage }
 }
 
 // Computed connected prompt | 计算连接的提示词
@@ -301,11 +293,16 @@ const createdVideoNodeId = ref(null)
 
 // Handle generate action | 处理生成操作
 const handleGenerate = async () => {
-  const { prompt, first_frame_image, last_frame_image, images } = getConnectedInputs()
+  const { prompt, imgUrl, hasUnsupportedImage } = getConnectedInputs()
 
-  const hasInput = prompt || first_frame_image || last_frame_image || images.length > 0
+  const hasInput = prompt || imgUrl
   if (!hasInput) {
     window.$message?.warning('请先连接文本节点或图片节点')
+    return
+  }
+
+  if (hasUnsupportedImage) {
+    window.$message?.warning('当前仅支持图片 URL，请使用带 URL 的图片')
     return
   }
 
@@ -339,7 +336,9 @@ const handleGenerate = async () => {
     // Build request params (raw form data) | 构建请求参数（原始表单数据）
     // These will be transformed by inputTransform | 这些会被 inputTransform 转换
     const params = {
-      model: localModel.value
+      model: localModel.value,
+      resolution: localResolution.value,
+      duration: localDuration.value
     }
 
     // Add prompt if provided | 如果有提示词则添加
@@ -347,30 +346,7 @@ const handleGenerate = async () => {
       params.prompt = prompt
     }
 
-    // Add first frame image | 添加首帧图片
-    if (first_frame_image) {
-      params.first_frame_image = first_frame_image
-    }
-
-    // Add last frame image | 添加尾帧图片
-    if (last_frame_image) {
-      params.last_frame_image = last_frame_image
-    }
-
-    // Add reference images (input_reference) | 添加参考图
-    if (images.length > 0) {
-      params.images = images
-    }
-
-    // Add ratio/size | 添加比例参数
-    if (localRatio.value) {
-      params.ratio = localRatio.value
-    }
-
-    // Add duration | 添加时长
-    if (localDuration.value) {
-      params.dur = localDuration.value
-    }
+    if (imgUrl) params.imgUrl = imgUrl
 
     const result = await generate(params)
 

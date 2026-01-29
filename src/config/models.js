@@ -118,6 +118,12 @@ export const VIDEO_RATIO_LIST = [
     { label: '9:16 (竖版)', key: '9:16' }
 ]
 
+export const VIDEO_RESOLUTION_OPTIONS = [
+    { label: '480P', key: '480P' },
+    { label: '720P', key: '720P' },
+    { label: '1080P', key: '1080P' }
+]
+
 // Video generation model capabilities | 视频生成模型能力配置
 export const VIDEO_MODEL_CAPABILITIES = [
     {
@@ -172,6 +178,7 @@ export const DEFAULT_CHAT_MODEL = 'gpt-4o-mini'
 export const DEFAULT_IMAGE_SIZE = '2048x2048'
 export const DEFAULT_VIDEO_RATIO = '16:9'
 export const DEFAULT_VIDEO_DURATION = 5
+export const DEFAULT_VIDEO_RESOLUTION = '720P'
 
 // Get model by key | 根据 key 获取模型
 export const getModelByName = (key) => {
