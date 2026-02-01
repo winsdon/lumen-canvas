@@ -123,6 +123,18 @@ const getDefaultNodeData = (type) => {
         url: '',
         label: '文生图(组合)'
       }
+    case 'textToVideo':
+      return {
+        content: '',
+        model: 'doubao-seedance-1-5-pro_720p',
+        resolution: '720P',
+        dur: 5,
+        referenceImageUrl: null,
+        referenceImageFileName: null,
+        referenceImageFileType: null,
+        url: '',
+        label: '文生视频(组合)'
+      }
     default:
       return {}
   }
@@ -173,6 +185,7 @@ export const addEdge = (params) => {
     id: `edge_${params.source}_${params.target}`,
     ...params
   }
+  if (!newEdge.type) newEdge.type = 'deletable'
   edges.value = [...edges.value, newEdge]
   saveToHistory() // Save after adding edge | 添加连线后保存
 }
@@ -239,7 +252,10 @@ export const loadProject = async (projectId) => {
   if (canvasData) {
     // Restore nodes | 恢复节点
     nodes.value = canvasData.nodes || []
-    edges.value = canvasData.edges || []
+    edges.value = (canvasData.edges || []).map(edge => ({
+      ...edge,
+      type: edge?.type || 'deletable'
+    }))
     canvasViewport.value = canvasData.viewport || { x: 100, y: 50, zoom: 0.8 }
     
     // Update node ID counter | 更新节点ID计数器

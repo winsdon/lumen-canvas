@@ -1,5 +1,14 @@
 <template>
   <!-- Custom edge with prompt order selector | 带提示词顺序选择器的自定义边 -->
+  <path
+    :d="path"
+    fill="none"
+    stroke="transparent"
+    :stroke-width="interactionWidth"
+    class="edge-interaction"
+    @mouseenter="hovered = true"
+    @mouseleave="hovered = false"
+  />
   <BaseEdge :path="path" :style="edgeStyle" />
   
   <!-- Edge label with order selector | 带顺序选择器的边标签 -->
@@ -25,13 +34,34 @@
       </n-dropdown>
     </div>
   </EdgeLabelRenderer>
+
+  <EdgeLabelRenderer>
+    <div
+      v-show="hovered"
+      :style="{
+        position: 'absolute',
+        transform: `translate(-50%, -50%) translate(${deleteX}px, ${deleteY}px)`,
+        pointerEvents: 'all'
+      }"
+      class="nodrag nopan"
+    >
+      <button
+        @click.stop="handleDelete"
+        class="w-6 h-6 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow transition-shadow flex items-center justify-center"
+        title="删除连线"
+      >
+        <n-icon :size="14" class="text-red-500"><CloseOutline /></n-icon>
+      </button>
+    </div>
+  </EdgeLabelRenderer>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, useVueFlow } from '@vue-flow/core'
-import { NDropdown } from 'naive-ui'
-import { edges } from '../../stores/canvas'
+import { NDropdown, NIcon } from 'naive-ui'
+import { CloseOutline } from '@vicons/ionicons5'
+import { edges, removeEdge } from '../../stores/canvas'
 
 // Get VueFlow instance | 获取 VueFlow 实例
 const { updateEdgeData } = useVueFlow()
@@ -67,6 +97,9 @@ const props = defineProps({
   targetHandleId: String,
   interactionWidth: Number
 })
+
+const hovered = ref(false)
+const interactionWidth = 28
 
 // Order labels | 顺序标签
 const orderLabels = [
@@ -107,6 +140,8 @@ const path = computed(() => {
 // Label position (center of edge) | 标签位置（边的中心）
 const labelX = computed(() => (props.sourceX + props.targetX) / 2)
 const labelY = computed(() => (props.sourceY + props.targetY) / 2)
+const deleteX = computed(() => labelX.value + 32)
+const deleteY = computed(() => labelY.value - 26)
 
 // Edge style | 边样式
 const edgeStyle = computed(() => ({
@@ -137,4 +172,14 @@ const handleOrderSelect = (newOrder) => {
   // Update current edge order | 更新当前边顺序
   updateEdgeData(props.id, { promptOrder: newOrder })
 }
+
+const handleDelete = () => {
+  removeEdge(props.id)
+}
 </script>
+
+<style scoped>
+.edge-interaction {
+  pointer-events: stroke;
+}
+</style>

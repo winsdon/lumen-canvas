@@ -124,11 +124,10 @@
 
       </div>
 
-      <!-- Vue Flow Handles -->
-      <Handle type="target" :position="Position.Left" id="left" class="!bg-[var(--accent-color)] !w-3 !h-3" />
-      <Handle type="source" :position="Position.Right" id="right" class="!bg-[var(--accent-color)] !w-3 !h-3" />
-
     </div>
+
+    <Handle type="target" :position="Position.Left" id="left" class="t2i-handle !bg-[var(--accent-color)] !w-3 !h-3 !z-[9999]" />
+    <Handle type="source" :position="Position.Right" id="right" class="t2i-handle !bg-[var(--accent-color)] !w-3 !h-3 !z-[9999]" />
 
     <!-- Hover Actions (Delete/Copy) -->
     <div v-show="showActions" class="absolute -top-10 right-0 flex gap-2 z-50">
@@ -640,6 +639,17 @@ onUnmounted(() => {
 <style scoped>
 .text-to-image-node-wrapper {
   /* Ensure z-index handling for overlapping */
+}
+
+:deep(.t2i-handle) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.text-to-image-node-wrapper:hover :deep(.t2i-handle) {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Custom scrollbar for textarea */
