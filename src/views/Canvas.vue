@@ -226,6 +226,7 @@ import { addEdge, addNode, canRedo, canUndo, canvasViewport, clearCanvas, edges,
 import { loadAllModels } from '../stores/models'
 import { deleteProject, initProjectsStore, projects, renameProject } from '../stores/projects'
 import { isDark, toggleTheme } from '../stores/theme'
+import { getAiVideoMy, getAiVideoPageMy } from '@/api/video'
 
 import DownloadModal from '../components/DownloadModal.vue'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -647,6 +648,281 @@ const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
 }
 
+const videoResumeDebugEnabled = new URLSearchParams(window.location.search).get('videoDebug') === '1'
+const debugVideoResume = (...args) => {
+  if (!videoResumeDebugEnabled && !import.meta.env.DEV) return
+  console.log('[video-resume]', ...args)
+}
+
+let videoStatusResumeToken = 0
+
+const resumePendingVideoTasks = () => {
+  const token = ++videoStatusResumeToken
+  const videoNodes = nodes.value.filter((n) => n.type === 'video')
+  const videoNodesById = new Map(videoNodes.map((n) => [n.id, n]))
+  const videoConfigNodes = nodes.value.filter((n) => n.type === 'videoConfig')
+  const usedTaskIds = new Set()
+
+  const parseRecordTime = (record) => {
+    const raw = record?.createTime ?? record?.createdAt ?? record?.createAt ?? record?.create_time
+    if (!raw) return 0
+    if (typeof raw === 'number') return raw
+    const t = Date.parse(raw)
+    return Number.isFinite(t) ? t : 0
+  }
+
+  const getRecordId = (record) => {
+    const raw = record?.id ?? record?.taskId ?? record?.videoId ?? record?.recordId
+    if (raw === null || raw === undefined) return ''
+    return String(raw)
+  }
+
+  const getListFromPage = (pageRes) => {
+    if (!pageRes) return []
+    if (Array.isArray(pageRes)) return pageRes
+    if (Array.isArray(pageRes.list)) return pageRes.list
+    if (Array.isArray(pageRes.records)) return pageRes.records
+    if (Array.isArray(pageRes.data?.list)) return pageRes.data.list
+    if (Array.isArray(pageRes.data?.records)) return pageRes.data.records
+    return []
+  }
+
+  const candidateVideoNodeIds = new Set(
+    videoNodes
+      .filter((n) => !n.data?.url && !n.data?.error && (n.data?.loading || n.data?.taskId))
+      .map((n) => n.id)
+  )
+
+  for (const configNode of videoConfigNodes) {
+    const outputNodeId = configNode.data?.outputNodeId
+    const hasTaskId = !!configNode.data?.taskId
+    if (outputNodeId && hasTaskId && videoNodesById.has(outputNodeId)) {
+      candidateVideoNodeIds.add(outputNodeId)
+    }
+  }
+
+  const pendingVideoNodes = Array.from(candidateVideoNodeIds)
+    .map((id) => videoNodesById.get(id))
+    .filter(Boolean)
+  debugVideoResume('resume called', {
+    routeId: route.params.id,
+    token,
+    nodes: nodes.value.length,
+    edges: edges.value.length,
+    pendingVideos: pendingVideoNodes.length,
+    videoConfigs: videoConfigNodes.length
+  })
+  if (videoResumeDebugEnabled) {
+    window.__videoResumeDebug = {
+      token,
+      resume: resumePendingVideoTasks,
+      snapshot: () => ({
+        routeId: route.params.id,
+        nodes: nodes.value,
+        edges: edges.value
+      })
+    }
+    if (import.meta.env.DEV) debugger
+  }
+
+  let inProgressRecordsPromise = null
+  const getInProgressRecords = async () => {
+    if (inProgressRecordsPromise) return inProgressRecordsPromise
+    inProgressRecordsPromise = (async () => {
+      try {
+        const res = await getAiVideoPageMy({ pageNo: 1, pageSize: 20 })
+        const list = getListFromPage(res)
+        return list.filter((r) => r?.status === 10 || r?.status === 20)
+      } catch (err) {
+        debugVideoResume('fetch in-progress list failed', { message: err?.message })
+        return []
+      }
+    })()
+    return inProgressRecordsPromise
+  }
+  for (const videoNode of pendingVideoNodes) {
+    let resolvedTaskId = videoNode.data?.taskId
+    let configNodeId = null
+
+
+    if (!resolvedTaskId) {
+      const incomingEdge = edges.value.find((e) => e.target === videoNode.id)
+      const sourceNode = incomingEdge ? nodes.value.find((n) => n.id === incomingEdge.source) : null
+      if (sourceNode?.type === 'videoConfig') {
+        configNodeId = sourceNode.id
+        resolvedTaskId = sourceNode.data?.taskId
+        if (resolvedTaskId) {
+          updateNode(videoNode.id, { taskId: resolvedTaskId })
+        }
+      }
+    }
+
+    if (!resolvedTaskId) {
+      const connectedConfigNode = configNodeId ? nodes.value.find((n) => n.id === configNodeId) : null
+      const nodeTime = videoNode.data?.createdAt || videoNode.data?.updatedAt || 0
+      const configTime = connectedConfigNode?.data?.createdAt || connectedConfigNode?.data?.updatedAt || 0
+      const anchorTime = Math.max(nodeTime, configTime, 0)
+
+      ;(async () => {
+        const inProgress = await getInProgressRecords()
+        if (token !== videoStatusResumeToken) return
+        if (!inProgress.length) return
+
+        const candidates = inProgress
+          .map((r) => {
+            const rid = getRecordId(r)
+            const t = parseRecordTime(r)
+            return { rid, t, r }
+          })
+          .filter((x) => x.rid && !usedTaskIds.has(x.rid))
+
+        if (!candidates.length) return
+
+        candidates.sort((a, b) => {
+          const da = Math.abs((a.t || 0) - anchorTime)
+          const db = Math.abs((b.t || 0) - anchorTime)
+          return da - db
+        })
+
+        const best = candidates[0]
+        if (!best?.rid) return
+
+        usedTaskIds.add(best.rid)
+        debugVideoResume('resolved missing taskId via recent list', {
+          videoNodeId: videoNode.id,
+          taskId: best.rid,
+          recordStatus: best.r?.status,
+          recordTime: best.t,
+          anchorTime
+        })
+
+        updateNode(videoNode.id, { taskId: best.rid, loading: true, label: videoNode.data?.label || '视频生成中...' })
+        if (configNodeId) {
+          updateNode(configNodeId, { taskId: best.rid, outputNodeId: videoNode.id })
+        }
+
+        resumePendingVideoTasks()
+      })()
+
+      debugVideoResume('skip video node: missing taskId', { videoNodeId: videoNode.id })
+      continue
+    }
+    debugVideoResume('start polling', { videoNodeId: videoNode.id, taskId: resolvedTaskId, configNodeId })
+
+    usedTaskIds.add(String(resolvedTaskId))
+
+    const incomingEdge = edges.value.find((e) => e.target === videoNode.id)
+    const sourceNode = incomingEdge ? nodes.value.find((n) => n.id === incomingEdge.source) : null
+    if (sourceNode?.type === 'videoConfig') {
+      configNodeId = sourceNode.id
+      if (!sourceNode.data?.outputNodeId) {
+        updateNode(configNodeId, { outputNodeId: videoNode.id, taskId: resolvedTaskId })
+      } else if (!sourceNode.data?.taskId) {
+        updateNode(configNodeId, { taskId: resolvedTaskId })
+      }
+    }
+
+    updateNode(videoNode.id, {
+      loading: true,
+      taskId: resolvedTaskId,
+      label: videoNode.data?.label || '视频生成中...'
+    })
+
+    ;(async () => {
+      const maxAttempts = 120
+      const interval = 5000
+      let lastStatus = null
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (token !== videoStatusResumeToken) return
+
+        const latestVideoNode = nodes.value.find((n) => n.id === videoNode.id)
+        if (!latestVideoNode || latestVideoNode.data?.url || latestVideoNode.data?.error) return
+
+        let record
+        try {
+          record = await getAiVideoMy(resolvedTaskId)
+        } catch (err) {
+          debugVideoResume('poll error', { videoNodeId: videoNode.id, taskId: resolvedTaskId, attempt: attempt + 1, message: err?.message })
+          await new Promise((resolve) => setTimeout(resolve, interval))
+          continue
+        }
+
+        const recordStatus = record?.status
+        if (recordStatus !== lastStatus) {
+          lastStatus = recordStatus
+          debugVideoResume('status changed', { videoNodeId: videoNode.id, taskId: resolvedTaskId, attempt: attempt + 1, status: recordStatus })
+        }
+
+        if (recordStatus === 30) {
+          if (record?.videoUrl) {
+            updateNode(videoNode.id, {
+              url: record.videoUrl,
+              loading: false,
+              label: '视频生成',
+              taskId: resolvedTaskId,
+              updatedAt: Date.now()
+            })
+            if (configNodeId) {
+              updateNode(configNodeId, { executed: true, outputNodeId: videoNode.id, taskId: resolvedTaskId, updatedAt: Date.now() })
+            }
+          } else {
+            updateNode(videoNode.id, {
+              loading: false,
+              error: '已完成但未返回视频地址',
+              label: '生成失败',
+              taskId: resolvedTaskId,
+              updatedAt: Date.now()
+            })
+          }
+          return
+        }
+
+        if (recordStatus === 40) {
+          updateNode(videoNode.id, {
+            loading: false,
+            error: record?.errorMessage || '视频生成失败',
+            label: '生成失败',
+            taskId: resolvedTaskId,
+            updatedAt: Date.now()
+          })
+          return
+        }
+
+        if (recordStatus === 50) {
+          updateNode(videoNode.id, {
+            loading: false,
+            error: '视频生成已取消',
+            label: '已取消',
+            taskId: resolvedTaskId,
+            updatedAt: Date.now()
+          })
+          return
+        }
+
+        const desiredLabel = recordStatus === 10 ? '视频排队中...' : '视频生成中...'
+        if (latestVideoNode.data?.label !== desiredLabel || latestVideoNode.data?.taskId !== resolvedTaskId) {
+          updateNode(videoNode.id, {
+            loading: true,
+            taskId: resolvedTaskId,
+            label: desiredLabel
+          })
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, interval))
+      }
+
+      updateNode(videoNode.id, {
+        loading: false,
+        error: '视频生成超时',
+        label: '生成失败',
+        taskId: resolvedTaskId,
+        updatedAt: Date.now()
+      })
+    })()
+  }
+}
+
 // Load project by ID | 根据ID加载项目
 const loadProjectById = async (projectId) => {
   // Update flow key to force VueFlow re-render | 更新 key 强制 VueFlow 重新渲染
@@ -671,6 +947,7 @@ watch(
       }
       // Load new project | 加载新项目
       await loadProjectById(newId)
+      resumePendingVideoTasks()
     }
   }
 )
@@ -685,6 +962,7 @@ onMounted(async () => {
   
   // Load project data | 加载项目数据
   await loadProjectById(route.params.id)
+  resumePendingVideoTasks()
   
   // Check for initial prompt from home page | 检查来自首页的初始提示词
   const initialPrompt = sessionStorage.getItem('ai-canvas-initial-prompt')
@@ -701,6 +979,7 @@ onMounted(async () => {
 // Cleanup on unmount | 卸载时清理
 onUnmounted(async () => {
   window.removeEventListener('resize', checkMobile)
+  videoStatusResumeToken += 1
   // Save project before leaving | 离开前保存项目
   await saveProject()
 })

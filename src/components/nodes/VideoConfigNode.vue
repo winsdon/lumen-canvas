@@ -153,7 +153,7 @@ const props = defineProps({
 const { updateNodeInternals } = useVueFlow()
 
 // Video generation hook | 视频生成 hook
-const { loading, error, status, video: generatedVideo, progress, generate } = useVideoGeneration()
+const { loading, error, status, video: generatedVideo, taskId, progress, generate } = useVideoGeneration()
 
 // Hover state | 悬浮状态
 const showActions = ref(false)
@@ -318,6 +318,7 @@ const handleGenerate = async () => {
     label: '视频生成中...'
   })
   createdVideoNodeId.value = videoNodeId
+  updateNode(props.id, { outputNodeId: videoNodeId })
 
   // Auto-connect videoConfig → video | 自动连接 视频配置 → 视频
   addEdge({
@@ -348,7 +349,12 @@ const handleGenerate = async () => {
 
     if (imgUrl) params.imgUrl = imgUrl
 
-    const result = await generate(params)
+    const result = await generate(params, {
+      onTaskId: (id) => {
+        updateNode(videoNodeId, { taskId: id, updatedAt: Date.now() })
+        updateNode(props.id, { taskId: id, outputNodeId: videoNodeId, updatedAt: Date.now() })
+      }
+    })
 
     // Update video node with generated URL | 更新视频节点 URL
     if (result && result.url) {
@@ -357,6 +363,7 @@ const handleGenerate = async () => {
         loading: false,
         label: '视频生成',
         model: localModel.value,
+        taskId: result.id || taskId.value || props.data?.taskId,
         updatedAt: Date.now()
       })
       
@@ -370,6 +377,7 @@ const handleGenerate = async () => {
       loading: false,
       error: err.message || '生成失败',
       label: '生成失败',
+      taskId: taskId.value || props.data?.taskId,
       updatedAt: Date.now()
     })
     window.$message?.error(err.message || '视频生成失败')

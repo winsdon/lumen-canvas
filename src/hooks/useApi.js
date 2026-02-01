@@ -253,7 +253,7 @@ export const useVideoGeneration = () => {
    * Generate video with fixed params | 固定参数生成视频
    * @param {Object} params
    */
-  const generate = async (params) => {
+  const generate = async (params, options = {}) => {
     setLoading(true)
     video.value = null
     taskId.value = null
@@ -315,6 +315,9 @@ export const useVideoGeneration = () => {
       }
 
       taskId.value = id
+      if (typeof options?.onTaskId === 'function') {
+        options.onTaskId(id)
+      }
       status.value = 'polling'
 
       const maxAttempts = 120
