@@ -164,6 +164,7 @@
           <div class="flex items-center gap-4">
             <n-dropdown
               :options="modelOptions"
+              :render-label="renderDropdownLabel"
               :menu-props="getModelMenuProps"
               @select="handleModelSelect"
               trigger="click"
@@ -204,6 +205,9 @@
           </div>
 
           <div class="flex items-center gap-3">
+            <div v-if="currentModelPoints" class="text-sm text-[var(--accent-color)] font-medium px-1.5 py-0.5 rounded">
+              {{ currentModelPoints }} 积分
+            </div>
             <button
               @click="handleGenerate"
               :disabled="nodeLoading || !content.trim()"
@@ -234,7 +238,7 @@ import {
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NSpin } from 'naive-ui'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useChat, useVideoGeneration } from '../../hooks'
 import { duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
@@ -269,6 +273,7 @@ const content = ref(props.data?.content || '')
 const localModel = ref(props.data?.model || DEFAULT_VIDEO_MODEL)
 const localResolution = ref(props.data?.resolution || DEFAULT_VIDEO_RESOLUTION)
 const localDuration = ref(props.data?.dur || DEFAULT_VIDEO_DURATION)
+const hasManualModelSelection = ref(false)
 const isPolishing = ref(false)
 const isInputExpanded = ref(false)
 const nodeWrapperRef = ref(null)
@@ -285,6 +290,20 @@ const { send: sendChat } = useChat({
 const modelOptions = videoModelSelectOptions
 const resolutionOptions = computed(() => VIDEO_RESOLUTION_OPTIONS)
 const durationOptions = computed(() => getModelDurationOptions(localModel.value))
+
+const currentModelPoints = computed(() => {
+  const model = modelOptions.value.find(m => m.value === localModel.value || m.key === localModel.value)
+  return model?.point ?? model?.imagePoint
+})
+
+const renderDropdownLabel = (option) => {
+  const points = option?.point ?? option?.imagePoint
+  if (points === undefined || points === null) return option.label
+  return h('div', { class: 'flex items-center justify-between gap-4 min-w-[140px]' }, [
+    h('span', option.label),
+    h('span', { class: 'text-xs font-medium text-[var(--accent-color)] px-2 py-0.5 rounded' }, `${points} 积分`)
+  ])
+}
 
 const referenceImageUrl = computed(() => props.data?.referenceImageUrl)
 const isSyncingReference = ref(false)
@@ -337,13 +356,18 @@ const toggleInputPanel = () => {
   isInputExpanded.value = !isInputExpanded.value
 }
 
-const handleModelSelect = (key) => {
+const applyModelSelection = (key) => {
   localModel.value = key
   const config = getModelConfig(key)
   if (config?.defaultParams?.duration) {
     localDuration.value = config.defaultParams.duration
   }
   updateNodeData()
+}
+
+const handleModelSelect = (key) => {
+  hasManualModelSelection.value = true
+  applyModelSelection(key)
 }
 
 const handleResolutionSelect = (key) => {
@@ -583,11 +607,44 @@ onUnmounted(() => {
 })
 
 watch(
-  () => [edges.value.length, nodes.value.length, nodes.value.map(n => `${n.id}:${n.data?.url || ''}:${n.data?.base64 ? 'b64' : ''}`).join('|')].join('::'),
+  () => [
+    edges.value.length,
+    edges.value.map(e => `${e.id}:${e.source}->${e.target}:${e.sourceHandle || ''}:${e.targetHandle || ''}`).join('|'),
+    nodes.value.length,
+    nodes.value.map(n => `${n.id}:${n.data?.url || ''}:${n.data?.base64 ? 'b64' : ''}`).join('|')
+  ].join('::'),
   () => {
     const source = getConnectedReferenceSource()
-    if (!source) return
+    if (!source) {
+      if (referenceImageUrl.value) {
+        updateNode(props.id, {
+          referenceImageUrl: null,
+          referenceImageFileName: null,
+          referenceImageFileType: null,
+          updatedAt: Date.now()
+        })
+      }
+      return
+    }
     syncReferenceFromSource(source)
+  },
+  { immediate: true }
+)
+
+watch(
+  () => modelOptions.value.map(o => o?.key || o?.value).join('|'),
+  () => {
+    if (hasManualModelSelection.value) return
+    const options = modelOptions.value || []
+    if (options.length === 0) return
+
+    const selected = localModel.value
+    const exists = options.some(o => (o?.key || o?.value) === selected)
+    if (exists && props.data?.model) return
+
+    const firstKey = options[0]?.key || options[0]?.value
+    if (!firstKey) return
+    applyModelSelection(firstKey)
   },
   { immediate: true }
 )

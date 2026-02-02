@@ -78,8 +78,27 @@ const props = defineProps({
   sourcePosition: String,
   targetPosition: String,
   data: Object,
+  sourceNode: Object,
+  targetNode: Object,
+  type: String,
+  updatable: Boolean,
+  selected: Boolean,
+  animated: Boolean,
+  label: String,
+  labelStyle: Object,
+  labelShowBg: Boolean,
+  labelBgStyle: Object,
+  labelBgPadding: [Array, Number],
+  labelBgBorderRadius: Number,
+  events: Object,
+  markerStart: String,
   markerEnd: String,
-  style: Object
+  style: Object,
+  sourceHandleId: String,
+  targetHandleId: String,
+  sourceHandle: String,
+  targetHandle: String,
+  interactionWidth: Number
 })
 
 const hovered = ref(false)

@@ -112,14 +112,6 @@
                <span>图片换背景</span>
              </div>
            </div>
-           
-           <!-- Side Add Buttons (Visual Only) -->
-           <div class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] transition-colors cursor-pointer" title="添加输入">
-             <n-icon :size="14"><AddOutline /></n-icon>
-           </div>
-           <div class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] transition-colors cursor-pointer" title="添加输出">
-             <n-icon :size="14"><AddOutline /></n-icon>
-           </div>
         </div>
 
       </div>
@@ -317,10 +309,10 @@ import {
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
-import { computed, h, onMounted, onUnmounted, ref } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useChat, useImageGeneration } from '../../hooks'
-import { duplicateNode, removeNode, updateNode } from '../../stores/canvas'
+import { duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
 import { DEFAULT_IMAGE_MODEL, getModelConfig, imageModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
@@ -364,6 +356,9 @@ const nodeWrapperRef = ref(null)
 let hideTimer = null
 
 const referenceImageUrl = computed(() => props.data?.referenceImageUrl)
+const isSyncingReference = ref(false)
+const lastSyncedSourceId = ref(null)
+const lastSyncedSourceSignature = ref(null)
 
 const handleMouseEnter = () => {
   if (hideTimer) {
@@ -557,6 +552,80 @@ const handleReferenceUpload = async (event) => {
   }
 }
 
+const getConnectedReferenceSource = () => {
+  const incoming = edges.value.filter(e => e.target === props.id)
+  for (let i = incoming.length - 1; i >= 0; i--) {
+    const edge = incoming[i]
+    const sourceNode = nodes.value.find(n => n.id === edge.source)
+    if (!sourceNode) continue
+
+    if (sourceNode.type === 'textToImage' || sourceNode.type === 'image') {
+      const url = sourceNode.data?.url
+      const base64 = sourceNode.data?.base64
+      if (url || base64) {
+        return { nodeId: sourceNode.id, url, base64, fileName: sourceNode.data?.fileName }
+      }
+    }
+  }
+  return null
+}
+
+const syncReferenceFromSource = async (source) => {
+  if (!source) return
+  if (isSyncingReference.value) return
+
+  const signature = source.url || `${String(source.base64 || '').slice(0, 64)}|${String(source.base64 || '').slice(-64)}`
+  if (lastSyncedSourceId.value === source.nodeId && lastSyncedSourceSignature.value === signature) return
+
+  isSyncingReference.value = true
+  try {
+    if (source.url) {
+      if (source.url !== referenceImageUrl.value) {
+        updateNode(props.id, {
+          referenceImageUrl: source.url,
+          referenceImageFileName: source.fileName || null,
+          referenceImageFileType: null,
+          updatedAt: Date.now()
+        })
+      }
+    } else if (source.base64) {
+      if (isReferenceUploading.value) return
+      isReferenceUploading.value = true
+      try {
+        const base64String = source.base64
+        const matches = String(base64String).match(/^data:(.+?);base64,(.+)$/)
+        const mime = matches?.[1] || 'image/png'
+        const raw = matches?.[2] || base64String
+
+        const bytes = atob(raw)
+        const array = new Uint8Array(bytes.length)
+        for (let i = 0; i < bytes.length; i++) array[i] = bytes.charCodeAt(i)
+
+        const ext = mime.includes('jpeg') ? 'jpg' : (mime.includes('webp') ? 'webp' : 'png')
+        const name = `reference_${Date.now()}.${ext}`
+        const blob = new Blob([array], { type: mime })
+
+        const res = await getFilePresignedUrl(name)
+        const { uploadUrl, url } = res
+        await uploadFileToUrl(uploadUrl, blob)
+
+        updateNode(props.id, {
+          referenceImageUrl: url,
+          referenceImageFileName: name,
+          referenceImageFileType: mime,
+          updatedAt: Date.now()
+        })
+      } finally {
+        isReferenceUploading.value = false
+      }
+    }
+  } finally {
+    lastSyncedSourceId.value = source.nodeId
+    lastSyncedSourceSignature.value = signature
+    isSyncingReference.value = false
+  }
+}
+
 const handleReferencePreview = () => {
   if (!referenceImageUrl.value) return
 
@@ -633,6 +702,31 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
 })
+
+watch(
+  () => [
+    edges.value.length,
+    edges.value.map(e => `${e.id}:${e.source}->${e.target}:${e.sourceHandle || ''}:${e.targetHandle || ''}`).join('|'),
+    nodes.value.length,
+    nodes.value.map(n => `${n.id}:${n.data?.url || ''}:${n.data?.base64 ? 'b64' : ''}`).join('|')
+  ].join('::'),
+  () => {
+    const source = getConnectedReferenceSource()
+    if (!source) {
+      if (referenceImageUrl.value) {
+        updateNode(props.id, {
+          referenceImageUrl: null,
+          referenceImageFileName: null,
+          referenceImageFileType: null,
+          updatedAt: Date.now()
+        })
+      }
+      return
+    }
+    syncReferenceFromSource(source)
+  },
+  { immediate: true }
+)
 
 </script>
 

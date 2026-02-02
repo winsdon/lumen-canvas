@@ -94,6 +94,7 @@ const computeModels = (type, staticCapabilities, defaultLabelFn) => {
         id: m.id,
         platform: m.platform,
         imagePoint: m.imagePoint,
+        point: m.imagePoint ?? m.point ?? m.videoPoint ?? null,
         // Ensure defaults
         sizes: config.sizes || [],
         qualities: config.qualities || [],
@@ -176,7 +177,13 @@ export const imageModelSelectOptions = computed(() =>
 )
 
 export const videoModelSelectOptions = computed(() => 
-  videoModels.value.map(m => ({ label: m.label, value: m.key, key: m.key }))
+  videoModels.value.map(m => ({ 
+    label: m.label, 
+    value: m.key, 
+    key: m.key,
+    imagePoint: m.imagePoint,
+    point: m.point
+  }))
 )
 
 export const chatModelSelectOptions = computed(() => 

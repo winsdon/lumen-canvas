@@ -16,6 +16,36 @@ export const currentProjectId = ref(null)
 export const nodes = ref([])
 export const edges = ref([])
 
+let isPropagating = false
+
+const propagateReferenceToTarget = (sourceNodeId, targetNodeId) => {
+  const sourceNode = nodes.value.find(n => n.id === sourceNodeId)
+  const targetNode = nodes.value.find(n => n.id === targetNodeId)
+  if (!sourceNode || !targetNode) return
+
+  if (targetNode.type !== 'textToImage' && targetNode.type !== 'textToVideo') return
+
+  const url = sourceNode.data?.url
+  const base64 = sourceNode.data?.base64
+  const reference = url || base64
+  if (!reference) return
+
+  const current = targetNode.data?.referenceImageUrl
+  if (current === reference) return
+
+  isPropagating = true
+  try {
+    updateNode(targetNodeId, {
+      referenceImageUrl: reference,
+      referenceImageFileName: sourceNode.data?.fileName || null,
+      referenceImageFileType: null,
+      updatedAt: Date.now()
+    })
+  } finally {
+    isPropagating = false
+  }
+}
+
 // Viewport state | 视口状态
 export const canvasViewport = ref({ x: 100, y: 50, zoom: 0.8 })
 
@@ -145,6 +175,16 @@ export const updateNode = (id, data) => {
   nodes.value = nodes.value.map(node => 
     node.id === id ? { ...node, data: { ...node.data, ...data } } : node
   )
+
+  if (isPropagating) return
+
+  const hasOutputImage = Boolean(data?.url) || Boolean(data?.base64)
+  if (!hasOutputImage) return
+
+  const outgoing = edges.value.filter(e => e.source === id)
+  for (const edge of outgoing) {
+    propagateReferenceToTarget(id, edge.target)
+  }
 }
 
 // Remove node | 删除节点
@@ -188,6 +228,8 @@ export const addEdge = (params) => {
   if (!newEdge.type) newEdge.type = 'deletable'
   edges.value = [...edges.value, newEdge]
   saveToHistory() // Save after adding edge | 添加连线后保存
+
+  propagateReferenceToTarget(params.source, params.target)
 }
 
 // Update edge data | 更新边数据

@@ -59,6 +59,8 @@
         :delete-key-code="['Backspace', 'Delete']"
         :zoom-on-double-click="false"
         @connect="onConnect"
+        @connect-start="onConnectStart"
+        @connect-end="onConnectEnd"
         @node-click="onNodeClick"
         @pane-click="onPaneClick"
         @viewport-change="handleViewportChange"
@@ -185,6 +187,31 @@
       </template>
     </n-modal>
 
+    <div
+      v-if="showConnectNodeModal"
+      ref="connectNodeMenuRef"
+      class="fixed bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] shadow-lg p-2 z-50 transition-all duration-200 min-w-[180px]"
+      :style="{ left: connectMenuPosition.x + 'px', top: connectMenuPosition.y + 'px' }"
+    >
+      <div class="px-2 py-1 text-xs text-[var(--text-secondary)] font-medium">选择节点</div>
+      <button
+        v-for="nodeType in connectNodeTypeOptions"
+        :key="nodeType.type"
+        @click="confirmConnectNode(nodeType.type)"
+        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+      >
+        <n-icon :size="20" :color="nodeType.color"><component :is="nodeType.icon" /></n-icon>
+        <span class="text-sm">{{ nodeType.name }}</span>
+      </button>
+      <div class="w-full h-px bg-[var(--border-color)] my-1"></div>
+      <button
+        @click="cancelConnectNode"
+        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left text-[var(--text-secondary)]"
+      >
+        <span class="text-sm">取消</span>
+      </button>
+    </div>
+
     <!-- Download Modal | 下载弹窗 -->
     <DownloadModal v-model:show="showDownloadModal" />
 
@@ -222,7 +249,7 @@ import { NButton, NDropdown, NIcon, NInput, NModal } from 'naive-ui'
 import { computed, markRaw, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkflowOrchestrator } from '../hooks'
-import { addEdge, addNode, canRedo, canUndo, canvasViewport, clearCanvas, edges, loadProject, manualSaveHistory, nodes, redo, saveProject, undo, updateNode, updateViewport } from '../stores/canvas'
+import { addEdge, addNode, canRedo, canUndo, canvasViewport, clearCanvas, edges, loadProject, manualSaveHistory, nodes, redo, removeNode, saveProject, undo, updateNode, updateViewport } from '../stores/canvas'
 import { loadAllModels } from '../stores/models'
 import { deleteProject, initProjectsStore, projects, renameProject } from '../stores/projects'
 import { isDark, toggleTheme } from '../stores/theme'
@@ -255,6 +282,7 @@ const {
 import DeletableEdge from '../components/edges/DeletableEdge.vue'
 import ImageRoleEdge from '../components/edges/ImageRoleEdge.vue'
 import PromptOrderEdge from '../components/edges/PromptOrderEdge.vue'
+import ConnectPlaceholderNode from '../components/nodes/ConnectPlaceholderNode.vue'
 import ImageConfigNode from '../components/nodes/ImageConfigNode.vue'
 import ImageNode from '../components/nodes/ImageNode.vue'
 import TextToImageNode from '../components/nodes/TextToImageNode.vue'
@@ -277,7 +305,8 @@ const nodeTypes = {
   image: markRaw(ImageNode),
   videoConfig: markRaw(VideoConfigNode),
   textToImage: markRaw(TextToImageNode),
-  textToVideo: markRaw(TextToVideoNode)
+  textToVideo: markRaw(TextToVideoNode),
+  connectPlaceholder: markRaw(ConnectPlaceholderNode)
 }
 
 // Register custom edge types | 注册自定义边类型
@@ -332,7 +361,14 @@ const showRenameModal = ref(false)
 const showDeleteModal = ref(false)
 const showDownloadModal = ref(false)
 const showWorkflowPanel = ref(false)
+const showConnectNodeModal = ref(false)
 const renameValue = ref('')
+
+const connectNodeMenuRef = ref(null)
+const connectMenuPosition = ref({ x: 80, y: 300 })
+
+const connectStart = ref(null)
+const pendingConnection = ref(null)
 
 // Check if has downloadable assets | 检查是否有可下载素材
 const hasDownloadableAssets = computed(() => {
@@ -374,6 +410,10 @@ const nodeTypeOptions = [
   { type: 'image', name: '图片节点', icon: ImageOutline, color: '#8b5cf6' },
   { type: 'video', name: '视频节点', icon: VideocamOutline, color: '#ef4444' }
 ]
+
+const connectNodeTypeOptions = computed(() =>
+  nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'text', 'imageConfig', 'videoConfig', 'image', 'video'].includes(n.type))
+)
 
 // Add new node | 添加新节点
 const addNewNode = async (type) => {
@@ -482,6 +522,100 @@ const onConnect = (params) => {
   }
 }
 
+const cleanupPendingConnection = () => {
+  const pending = pendingConnection.value
+  pendingConnection.value = null
+  if (!pending?.placeholderNodeId) return
+  removeNode(pending.placeholderNodeId)
+}
+
+const cancelConnectNode = () => {
+  cleanupPendingConnection()
+  showConnectNodeModal.value = false
+}
+
+const confirmConnectNode = async (type) => {
+  const pending = pendingConnection.value
+  if (!pending) {
+    showConnectNodeModal.value = false
+    return
+  }
+
+  pendingConnection.value = null
+  showConnectNodeModal.value = false
+
+  const newNodeId = addNode(type, pending.position)
+  setTimeout(() => updateNodeInternals(newNodeId), 50)
+
+  removeNode(pending.placeholderNodeId)
+
+  if (pending.direction === 'reverse') {
+    onConnect({
+      source: newNodeId,
+      target: pending.nodeId,
+      sourceHandle: 'right',
+      targetHandle: pending.handleId || 'left'
+    })
+    return
+  }
+
+  onConnect({
+    source: pending.nodeId,
+    target: newNodeId,
+    sourceHandle: pending.handleId || 'right',
+    targetHandle: 'left'
+  })
+}
+
+const onConnectStart = (payload) => {
+  cleanupPendingConnection()
+  showConnectNodeModal.value = false
+
+  if (!payload) return
+  const event = payload.event || null
+  const nodeId = payload.nodeId
+  const handleId = payload.handleId
+  const handleType = payload.handleType
+  connectStart.value = { event, nodeId, handleId, handleType }
+}
+
+const onConnectEnd = (payload) => {
+  const event = payload?.event || payload
+  const start = connectStart.value
+  connectStart.value = null
+
+  if (!event || !start?.nodeId) return
+
+  const targetEl = event.target
+  const isHandle = Boolean(targetEl?.closest?.('.vue-flow__handle') || targetEl?.classList?.contains?.('vue-flow__handle'))
+  if (isHandle) return
+
+  const isPane = Boolean(targetEl?.closest?.('.vue-flow__pane') || targetEl?.classList?.contains?.('vue-flow__pane'))
+  if (!isPane) return
+
+  const safeX = Math.min(event.clientX, window.innerWidth - 220)
+  const safeY = Math.min(event.clientY, window.innerHeight - 360)
+  connectMenuPosition.value = { x: Math.max(8, safeX), y: Math.max(8, safeY) }
+
+  const position = project({ x: event.clientX, y: event.clientY })
+  const placeholderNodeId = addNode('connectPlaceholder', position)
+
+  const direction = start.handleType === 'target' ? 'reverse' : 'forward'
+  const edgeParams = direction === 'reverse'
+    ? { source: placeholderNodeId, target: start.nodeId, sourceHandle: 'right', targetHandle: start.handleId || 'left' }
+    : { source: start.nodeId, target: placeholderNodeId, sourceHandle: start.handleId || 'right', targetHandle: 'left' }
+
+  addEdge(edgeParams)
+
+  pendingConnection.value = {
+    ...start,
+    direction,
+    position,
+    placeholderNodeId
+  }
+  showConnectNodeModal.value = true
+}
+
 // Handle node click | 处理节点点击
 const onNodeClick = (event) => {
   showNodeMenu.value = false
@@ -528,6 +662,38 @@ const onPaneClick = (event) => {
     lastClickTime = now
   }
 }
+
+watch(
+  () => showConnectNodeModal.value,
+  (show) => {
+    if (show) return
+    cleanupPendingConnection()
+  }
+)
+
+const handleConnectNodeMenuGlobalMouseDown = (event) => {
+  if (!showConnectNodeModal.value) return
+  const el = connectNodeMenuRef.value
+  if (!el) return
+  if (el.contains(event.target)) return
+  cancelConnectNode()
+}
+
+watch(
+  () => showConnectNodeModal.value,
+  (show) => {
+    if (show) {
+      document.addEventListener('mousedown', handleConnectNodeMenuGlobalMouseDown, true)
+      return
+    }
+    document.removeEventListener('mousedown', handleConnectNodeMenuGlobalMouseDown, true)
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  document.removeEventListener('mousedown', handleConnectNodeMenuGlobalMouseDown, true)
+})
 
 // Handle project action | 处理项目操作
 const handleProjectAction = (key) => {
