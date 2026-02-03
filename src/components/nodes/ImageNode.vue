@@ -157,8 +157,12 @@
       </div>
 
       <!-- Handles | 连接点 -->
-      <Handle type="source" :position="Position.Right" id="right" class="!bg-[var(--accent-color)]" />
-      <Handle type="target" :position="Position.Left" id="left" class="!bg-[var(--accent-color)]" />
+      <Handle type="source" :position="Position.Right" id="right" class="custom-handle">
+        <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+      </Handle>
+      <Handle type="target" :position="Position.Left" id="left" class="custom-handle">
+        <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+      </Handle>
     </div>
 
     <!-- Hover action buttons | 悬浮操作按钮 -->
@@ -250,7 +254,8 @@ import {
   ImageOutline,
   RefreshOutline,
   TrashOutline,
-  VideocamOutline
+  VideocamOutline,
+  AddCircle
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NImage, NModal, NSpin } from 'naive-ui'
@@ -696,5 +701,20 @@ const handleVideoGen = () => {
 /* Inpaint mode cursor | 涂抹模式光标 */
 .cursor-none {
   cursor: none;
+}
+
+.image-node-wrapper:hover .custom-handle {
+  opacity: 1;
+}
+
+.custom-handle {
+  opacity: 0;
+  transition: opacity 0.2s;
+  width: auto;
+  height: auto;
+  background: transparent;
+  border: none;
+  min-width: 0;
+  min-height: 0;
 }
 </style>

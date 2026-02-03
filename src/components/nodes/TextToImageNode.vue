@@ -118,8 +118,12 @@
 
     </div>
 
-    <Handle type="target" :position="Position.Left" id="left" class="t2i-handle !bg-[var(--accent-color)] !w-3 !h-3 !z-[9999]" />
-    <Handle type="source" :position="Position.Right" id="right" class="t2i-handle !bg-[var(--accent-color)] !w-3 !h-3 !z-[9999]" />
+    <Handle type="target" :position="Position.Left" id="left" class="t2i-handle custom-handle">
+      <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+    </Handle>
+    <Handle type="source" :position="Position.Right" id="right" class="t2i-handle custom-handle">
+      <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+    </Handle>
 
     <!-- Hover Actions (Delete/Copy) -->
     <div v-show="showActions" class="absolute -top-10 right-0 flex gap-2 z-50">
@@ -305,7 +309,8 @@ import {
   ScanOutline,
   SparklesOutline,
   TrashOutline,
-  VideocamOutline
+  VideocamOutline,
+  AddCircle
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
@@ -739,6 +744,13 @@ watch(
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
+  width: auto;
+  height: auto;
+  background: transparent;
+  border: none;
+  min-width: 0;
+  min-height: 0;
+  z-index: 9999;
 }
 
 .text-to-image-node-wrapper:hover :deep(.t2i-handle) {

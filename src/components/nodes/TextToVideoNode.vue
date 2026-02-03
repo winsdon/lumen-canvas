@@ -77,8 +77,12 @@
 
     </div>
 
-    <Handle type="target" :position="Position.Left" id="left" class="t2v-handle !bg-[var(--accent-color)] !w-3 !h-3 !z-[9999]" />
-    <Handle type="source" :position="Position.Right" id="right" class="t2v-handle !bg-[var(--accent-color)] !w-3 !h-3 !z-[9999]" />
+    <Handle type="target" :position="Position.Left" id="left" class="t2v-handle custom-handle">
+      <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+    </Handle>
+    <Handle type="source" :position="Position.Right" id="right" class="t2v-handle custom-handle">
+      <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+    </Handle>
 
     <Transition name="slide-fade">
       <div
@@ -234,7 +238,8 @@ import {
   EyeOutline,
   SparklesOutline,
   TrashOutline,
-  VideocamOutline
+  VideocamOutline,
+  AddCircle
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NSpin } from 'naive-ui'
@@ -655,6 +660,13 @@ watch(
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
+  width: auto;
+  height: auto;
+  background: transparent;
+  border: none;
+  min-width: 0;
+  min-height: 0;
+  z-index: 9999;
 }
 
 .text-to-video-node-wrapper:hover :deep(.t2v-handle) {
