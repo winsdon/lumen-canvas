@@ -119,10 +119,14 @@
     </div>
 
     <Handle type="target" :position="Position.Left" id="left" class="t2i-handle custom-handle">
-      <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+      <div class="w-6 h-6 rounded-full bg-[var(--accent-color)] flex items-center justify-center shadow-sm">
+        <n-icon :size="16" class="text-black"><AddOutline /></n-icon>
+      </div>
     </Handle>
     <Handle type="source" :position="Position.Right" id="right" class="t2i-handle custom-handle">
-      <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+      <div class="w-6 h-6 rounded-full bg-[var(--accent-color)] flex items-center justify-center shadow-sm">
+        <n-icon :size="16" class="text-black"><AddOutline /></n-icon>
+      </div>
     </Handle>
 
     <!-- Hover Actions (Delete/Copy) -->
@@ -208,8 +212,9 @@
             <textarea
               v-model="content"
               @blur="updateNodeData"
+              @wheel.stop
               @keydown.enter.exact.prevent="handleGenerate"
-              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-12 leading-5"
+              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto"
               placeholder="输入描述或按 '/' 呼出指令（Enter 发送）"
             ></textarea>
           </div>

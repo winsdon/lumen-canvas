@@ -25,7 +25,7 @@
       <!-- Content | 内容 -->
       <div class="p-3">
         <textarea v-model="content" @blur="updateContent" @wheel.stop @mousedown.stop
-          class="w-full bg-transparent resize-none outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] min-h-[80px]"
+          class="w-full bg-transparent resize-none outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] min-h-[80px] overflow-y-auto"
           placeholder="请输入文本内容..." />
         <!-- Polish button | 润色按钮 -->
         <button 
@@ -41,10 +41,14 @@
 
       <!-- Handles | 连接点 -->
       <Handle type="source" :position="Position.Right" id="right" class="custom-handle">
-        <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+        <div class="w-6 h-6 rounded-full bg-[var(--accent-color)] flex items-center justify-center shadow-sm">
+          <n-icon :size="16" class="text-black"><AddOutline /></n-icon>
+        </div>
       </Handle>
       <Handle type="target" :position="Position.Left" id="left" class="custom-handle">
-        <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+        <div class="w-6 h-6 rounded-full bg-[var(--accent-color)] flex items-center justify-center shadow-sm">
+          <n-icon :size="16" class="text-black"><AddOutline /></n-icon>
+        </div>
       </Handle>
 
     </div>

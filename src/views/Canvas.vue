@@ -65,6 +65,10 @@
         @pane-click="onPaneClick"
         @viewport-change="handleViewportChange"
         @edges-change="onEdgesChange"
+        @selection-change="handleSelectionChange"
+        @selection-end="handleSelectionEnd"
+        @node-drag="handleNodeDrag"
+        @node-drag-stop="handleNodeDragStop"
         class="canvas-flow"
       >
         <Background v-if="showGrid" :gap="20" :size="1" />
@@ -83,7 +87,7 @@
           class="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--accent-color)] text-white hover:bg-[var(--accent-hover)] transition-colors"
           title="添加节点"
         >
-          <n-icon :size="20"><AddOutline /></n-icon>
+          <n-icon :size="20" class="text-black"><AddOutline /></n-icon>
         </button>
         <button 
           @click="showWorkflowPanel = true"
@@ -135,6 +139,21 @@
         >
           <n-icon :size="20" :color="nodeType.color"><component :is="nodeType.icon" /></n-icon>
           <span class="text-sm">{{ nodeType.name }}</span>
+        </button>
+      </div>
+
+      <!-- Group Button Overlay | 组合按钮覆盖层 -->
+      <div 
+        v-if="showGroupButton"
+        class="absolute z-50 -translate-x-1/2 -translate-y-full pb-4 pointer-events-none"
+        :style="{ left: groupButtonPosition.x + 'px', top: groupButtonPosition.y + 'px' }"
+      >
+        <button 
+          @click="handleGroupNodes"
+          class="pointer-events-auto flex items-center gap-1 px-3 py-1.5 bg-[var(--accent-color)] text-white shadow-lg rounded-full hover:bg-[var(--accent-hover)] transition-all transform hover:scale-105"
+        >
+          <n-icon><LinkOutline /></n-icon>
+          <span class="text-xs font-medium">组合</span>
         </button>
       </div>
 
@@ -235,6 +254,7 @@ import {
     ColorPaletteOutline,
     DownloadOutline,
     ImageOutline,
+    LinkOutline,
     LocateOutline,
     MoonOutline,
     RemoveOutline,
@@ -249,7 +269,7 @@ import { NButton, NDropdown, NIcon, NInput, NModal } from 'naive-ui'
 import { computed, markRaw, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkflowOrchestrator } from '../hooks'
-import { addEdge, addNode, canRedo, canUndo, canvasViewport, clearCanvas, edges, loadProject, manualSaveHistory, nodes, redo, removeNode, saveProject, undo, updateNode, updateViewport } from '../stores/canvas'
+import { addEdge, addNode, canRedo, canUndo, canvasViewport, clearCanvas, edges, groupNodes, loadProject, manualSaveHistory, nodes, redo, removeNode, saveProject, undo, updateNode, updateViewport } from '../stores/canvas'
 import { loadAllModels } from '../stores/models'
 import { deleteProject, initProjectsStore, projects, renameProject } from '../stores/projects'
 import { isDark, toggleTheme } from '../stores/theme'
@@ -283,6 +303,7 @@ import DeletableEdge from '../components/edges/DeletableEdge.vue'
 import ImageRoleEdge from '../components/edges/ImageRoleEdge.vue'
 import PromptOrderEdge from '../components/edges/PromptOrderEdge.vue'
 import ConnectPlaceholderNode from '../components/nodes/ConnectPlaceholderNode.vue'
+import GroupNode from '../components/nodes/GroupNode.vue'
 import ImageConfigNode from '../components/nodes/ImageConfigNode.vue'
 import ImageNode from '../components/nodes/ImageNode.vue'
 import TextToImageNode from '../components/nodes/TextToImageNode.vue'
@@ -295,7 +316,7 @@ const router = useRouter()
 const route = useRoute()
 
 // Vue Flow instance | Vue Flow 实例
-const { viewport, zoomIn, zoomOut, fitView, updateNodeInternals, project } = useVueFlow()
+const { viewport, zoomIn, zoomOut, fitView, updateNodeInternals, project, removeSelectedElements, findNode, updateNode: updateFlowNode } = useVueFlow()
 
 // Register custom node types | 注册自定义节点类型
 const nodeTypes = {
@@ -306,7 +327,8 @@ const nodeTypes = {
   videoConfig: markRaw(VideoConfigNode),
   textToImage: markRaw(TextToImageNode),
   textToVideo: markRaw(TextToVideoNode),
-  connectPlaceholder: markRaw(ConnectPlaceholderNode)
+  connectPlaceholder: markRaw(ConnectPlaceholderNode),
+  group: markRaw(GroupNode)
 }
 
 // Register custom edge types | 注册自定义边类型
@@ -363,6 +385,110 @@ const showDownloadModal = ref(false)
 const showWorkflowPanel = ref(false)
 const showConnectNodeModal = ref(false)
 const renameValue = ref('')
+
+// Grouping UI state | 组合 UI 状态
+const showGroupButton = ref(false)
+const groupButtonPosition = ref({ x: 0, y: 0 })
+const selectedNodesForGroup = ref([])
+
+const updateGroupButton = (selectedNodes) => {
+  // Filter out nodes that are already in a group (as children) to simplify logic
+  // Also filter out connection lines or other non-groupable things if any
+  const candidates = selectedNodes.filter(n => !n.parentNode)
+  
+  if (candidates.length < 2) {
+    showGroupButton.value = false
+    selectedNodesForGroup.value = []
+    return
+  }
+  
+  selectedNodesForGroup.value = candidates
+  
+  // Calculate bounding box in graph coordinates
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  candidates.forEach(node => {
+    const x = node.position.x
+    const y = node.position.y
+    const w = node.width || node.dimensions?.width || 200
+    const h = node.height || node.dimensions?.height || 100
+    if (x < minX) minX = x
+    if (y < minY) minY = y
+    if (x + w > maxX) maxX = x + w
+    if (y + h > maxY) maxY = y + h
+  })
+  
+  // Center Top of the bounding box
+  const centerX = minX + (maxX - minX) / 2
+  const topY = minY
+  
+  // Project to screen/viewport coordinates
+  // ScreenX = GraphX * zoom + viewportX
+  const screenX = centerX * viewport.value.zoom + viewport.value.x
+  const screenY = topY * viewport.value.zoom + viewport.value.y
+  
+  groupButtonPosition.value = { x: screenX, y: screenY }
+  showGroupButton.value = true
+}
+
+const handleGroupNodes = () => {
+  const groupId = groupNodes(selectedNodesForGroup.value)
+  showGroupButton.value = false
+  selectedNodesForGroup.value = []
+  if (!groupId) return
+  nextTick(() => {
+    updateNodeInternals(groupId)
+    removeSelectedElements()
+  })
+}
+
+// Handle selection change | 处理选择变化
+const handleSelectionChange = (params) => {
+  updateGroupButton(params.nodes)
+}
+
+const handleSelectionEnd = () => {
+  nextTick(() => {
+    const selected = nodes.value.filter(n => n.selected)
+    updateGroupButton(selected)
+  })
+}
+
+// Handle node drag | 处理节点拖拽
+const clampNodeInsideGroup = (node) => {
+  const parentId = node?.parentNode
+  if (!parentId) return
+  const parent = findNode(parentId)
+  if (!parent || parent.type !== 'group') return
+
+  const parentW = parent.dimensions?.width || parent.width || 0
+  const parentH = parent.dimensions?.height || parent.height || 0
+  const nodeW = node.dimensions?.width || node.width || 0
+  const nodeH = node.dimensions?.height || node.height || 0
+  if (!parentW || !parentH || !nodeW || !nodeH) return
+
+  const maxX = Math.max(0, parentW - nodeW)
+  const maxY = Math.max(0, parentH - nodeH)
+  const nextX = Math.min(Math.max(node.position.x, 0), maxX)
+  const nextY = Math.min(Math.max(node.position.y, 0), maxY)
+
+  if (nextX === node.position.x && nextY === node.position.y) return
+  updateFlowNode(node.id, { position: { x: nextX, y: nextY } })
+}
+
+const clampDraggedNodes = (payload) => {
+  const dragged = payload?.nodes?.length ? payload.nodes : payload?.node ? [payload.node] : []
+  dragged.forEach(clampNodeInsideGroup)
+}
+
+const handleNodeDrag = (payload) => {
+  const selected = nodes.value.filter(n => n.selected)
+  updateGroupButton(selected)
+  clampDraggedNodes(payload)
+}
+
+const handleNodeDragStop = (payload) => {
+  clampDraggedNodes(payload)
+}
 
 const connectNodeMenuRef = ref(null)
 const connectMenuPosition = ref({ x: 80, y: 300 })
@@ -619,6 +745,8 @@ const onConnectEnd = (payload) => {
 // Handle node click | 处理节点点击
 const onNodeClick = (event) => {
   showNodeMenu.value = false
+  showGroupButton.value = false
+  selectedNodesForGroup.value = []
   // nodes.value.forEach(node => {
   //   updateNode(node.id, { selected: false })
   // })
@@ -633,6 +761,8 @@ const onNodeClick = (event) => {
 // Handle viewport change | 处理视口变化
 const handleViewportChange = (newViewport) => {
   updateViewport(newViewport)
+  const selected = nodes.value.filter(n => n.selected)
+  updateGroupButton(selected)
 }
 
 // Handle edges change | 处理边变化
@@ -659,6 +789,8 @@ const onPaneClick = (event) => {
   } else {
     // Single click | 单击
     showNodeMenu.value = false
+    showGroupButton.value = false
+    selectedNodesForGroup.value = []
     lastClickTime = now
   }
 }

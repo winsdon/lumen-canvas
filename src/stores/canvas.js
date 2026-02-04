@@ -165,6 +165,10 @@ const getDefaultNodeData = (type) => {
         url: '',
         label: '文生视频(组合)'
       }
+    case 'group':
+      return {
+        label: '组合'
+      }
     default:
       return {}
   }
@@ -251,6 +255,121 @@ export const clearCanvas = () => {
   nodes.value = []
   edges.value = []
   nodeId = 0
+}
+
+/**
+ * Group nodes | 组合节点
+ * @param {Array} nodesToGroup - Nodes to group (must include dimensions)
+ */
+export const groupNodes = (nodesToGroup) => {
+  if (nodesToGroup.length < 2) return null
+
+  const absById = new Map()
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  let minZIndex = Infinity
+
+  nodesToGroup.forEach(node => {
+    const absPos = node.computedPosition || node.positionAbsolute || node.position || { x: 0, y: 0 }
+    const x = absPos.x
+    const y = absPos.y
+    const w = node.dimensions?.width || node.width || 200
+    const h = node.dimensions?.height || node.height || 100
+    const z = typeof node.zIndex === 'number' ? node.zIndex : 0
+
+    absById.set(String(node.id), { x, y, w, h, z })
+    
+    if (x < minX) minX = x
+    if (y < minY) minY = y
+    if (x + w > maxX) maxX = x + w
+    if (y + h > maxY) maxY = y + h
+    if (z < minZIndex) minZIndex = z
+  })
+  
+  const padding = 20
+  const groupWidth = Math.max(100, maxX - minX + padding * 2)
+  const groupHeight = Math.max(100, maxY - minY + padding * 2)
+  const groupNodeId = getNodeId()
+  const groupX = minX - padding
+  const groupY = minY - padding
+  const groupNode = {
+    id: groupNodeId,
+    type: 'group',
+    position: { x: groupX, y: groupY },
+    width: groupWidth,
+    height: groupHeight,
+    style: { 
+      width: `${groupWidth}px`, 
+      height: `${groupHeight}px` 
+    },
+    data: { label: '组合' },
+    zIndex: Number.isFinite(minZIndex) ? minZIndex - 1 : -1,
+    selected: true
+  }
+  
+  // Add group node | 添加组合节点
+  nodes.value = [...nodes.value, groupNode]
+  
+  // Update children | 更新子节点
+  const nodeIds = new Set(nodesToGroup.map(n => n.id))
+  nodes.value = nodes.value.map(node => {
+    if (nodeIds.has(node.id)) {
+      const absPos = absById.get(String(node.id)) || null
+      const absX = absPos?.x ?? node.position?.x ?? 0
+      const absY = absPos?.y ?? node.position?.y ?? 0
+      return {
+        ...node,
+        parentNode: groupNodeId,
+        selected: false,
+        position: {
+          x: absX - groupX,
+          y: absY - groupY
+        },
+        positionAbsolute: undefined
+      }
+    }
+    if (node.id === groupNodeId) {
+      return { ...node, selected: true, positionAbsolute: undefined }
+    }
+    return { ...node, selected: false, positionAbsolute: undefined }
+  })
+  
+  saveToHistory()
+  return groupNodeId
+}
+
+/**
+ * Ungroup nodes | 解组节点
+ * @param {string} groupId - Group node ID
+ */
+export const ungroupNodes = (groupId) => {
+  const groupNode = nodes.value.find(n => n.id === groupId)
+  if (!groupNode) return
+
+  // Update children | 更新子节点
+  nodes.value = nodes.value.map(node => {
+    if (node.parentNode === groupId) {
+      // Calculate absolute position | 计算绝对位置
+      return {
+        ...node,
+        parentNode: undefined,
+        extent: undefined,
+        selected: false,
+        position: {
+          x: groupNode.position.x + node.position.x,
+          y: groupNode.position.y + node.position.y
+        },
+        positionAbsolute: undefined
+      }
+    }
+    return { ...node, selected: false, positionAbsolute: undefined }
+  })
+
+  // Remove group node | 删除组合节点
+  nodes.value = nodes.value.filter(n => n.id !== groupId)
+  saveToHistory()
 }
 
 // Initialize with sample data | 使用示例数据初始化
