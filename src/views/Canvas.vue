@@ -145,16 +145,23 @@
       <!-- Group Button Overlay | 组合按钮覆盖层 -->
       <div 
         v-if="showGroupButton"
-        class="absolute z-50 -translate-x-1/2 -translate-y-full pb-4 pointer-events-none"
+        class="absolute z-50 pointer-events-none"
         :style="{ left: groupButtonPosition.x + 'px', top: groupButtonPosition.y + 'px' }"
       >
-        <button 
-          @click="handleGroupNodes"
-          class="pointer-events-auto flex items-center gap-1 px-3 py-1.5 bg-[var(--accent-color)] text-white shadow-lg rounded-full hover:bg-[var(--accent-hover)] transition-all transform hover:scale-105"
+        <div
+          class="pointer-events-auto"
+          :style="{ transform: `translateX(-50%) scale(${viewport.zoom})`, transformOrigin: 'center top' }"
         >
-          <n-icon><LinkOutline /></n-icon>
-          <span class="text-xs font-medium">组合</span>
-        </button>
+          <div class="pt-2 pb-2 px-4">
+            <button 
+              @click="handleGroupNodes"
+              class="flex items-center gap-2 bg-[var(--bg-secondary)]/90 backdrop-blur-md rounded-full px-4 py-2 border border-[var(--border-color)] shadow-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
+            >
+              <n-icon :size="16"><LinkOutline /></n-icon>
+              <span>组合</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Bottom controls | 底部控制 -->
@@ -424,7 +431,8 @@ const updateGroupButton = (selectedNodes) => {
   // Project to screen/viewport coordinates
   // ScreenX = GraphX * zoom + viewportX
   const screenX = centerX * viewport.value.zoom + viewport.value.x
-  const screenY = topY * viewport.value.zoom + viewport.value.y
+  const groupButtonOffset = 48
+  const screenY = (topY - groupButtonOffset) * viewport.value.zoom + viewport.value.y
   
   groupButtonPosition.value = { x: screenX, y: screenY }
   showGroupButton.value = true
@@ -581,24 +589,21 @@ const handleAddWorkflow = ({ workflow, options }) => {
   // Create nodes from workflow template | 从工作流模板创建节点
   const startPosition = { x: viewportCenterX - 300, y: viewportCenterY - 200 }
   const { nodes: newNodes, edges: newEdges } = workflow.createNodes(startPosition, options)
-  
-  // Add nodes to canvas | 将节点添加到画布
+
+  const nodeIdMap = new Map()
+  const createdNodeIds = []
   newNodes.forEach(node => {
     const nodeId = addNode(node.type, node.position, node.data)
-    // Update the node ID in edges | 更新边中的节点ID
-    newEdges.forEach(edge => {
-      if (edge.source === node.id) edge.source = nodeId
-      if (edge.target === node.id) edge.target = nodeId
-    })
-    node.newId = nodeId
+    nodeIdMap.set(node.id, nodeId)
+    createdNodeIds.push(nodeId)
   })
   
   // Add edges to canvas | 将边添加到画布
   setTimeout(() => {
     newEdges.forEach(edge => {
       addEdge({
-        source: edge.source,
-        target: edge.target,
+        source: nodeIdMap.get(edge.source) || edge.source,
+        target: nodeIdMap.get(edge.target) || edge.target,
         sourceHandle: edge.sourceHandle || 'right',
         targetHandle: edge.targetHandle || 'left',
         type: edge.type,  // Preserve edge type (e.g., promptOrder) | 保留边类型
@@ -607,11 +612,19 @@ const handleAddWorkflow = ({ workflow, options }) => {
     })
     
     // Update node internals | 更新节点内部
-    newNodes.forEach(node => {
-      if (node.newId) {
-        updateNodeInternals(node.newId)
-      }
-    })
+    createdNodeIds.forEach(nodeId => updateNodeInternals(nodeId))
+
+    setTimeout(() => {
+      const nodesToGroup = createdNodeIds
+        .map(id => findNode(id) || nodes.value.find(n => n.id === id))
+        .filter(Boolean)
+
+      if (nodesToGroup.length < 2) return
+      const groupId = groupNodes(nodesToGroup)
+      if (!groupId) return
+      updateNode(groupId, { label: workflow.name, workflowId: workflow.id })
+      nextTick(() => updateNodeInternals(groupId))
+    }, 80)
   }, 100)
   
   window.$message?.success(`已添加工作流: ${workflow.name}`)

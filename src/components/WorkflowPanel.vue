@@ -42,11 +42,29 @@
         </div>
         
         <!-- My workflows | 我的工作流 -->
-        <div v-else class="empty-state">
-          <n-icon :size="36" class="text-gray-500">
-            <FolderOpenOutline />
-          </n-icon>
-          <p class="text-gray-500 text-sm mt-2">暂无自定义工作流</p>
+        <div v-else>
+          <div v-if="myWorkflowTemplates.length > 0" class="workflow-grid">
+            <div
+              v-for="workflow in myWorkflowTemplates"
+              :key="workflow.id"
+              class="workflow-card"
+              @click="handleAddWorkflow(workflow)"
+            >
+              <div class="card-cover">
+                <img v-if="workflow.cover" :src="workflow.cover" :alt="workflow.name" class="cover-img" />
+                <n-icon v-else :size="36" class="cover-icon">
+                  <FolderOpenOutline />
+                </n-icon>
+              </div>
+              <div class="card-title">{{ workflow.name }}</div>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <n-icon :size="36" class="text-gray-500">
+              <FolderOpenOutline />
+            </n-icon>
+            <p class="text-gray-500 text-sm mt-2">暂无自定义工作流</p>
+          </div>
         </div>
       </div>
     </div>
@@ -68,6 +86,7 @@ import {
   FolderOpenOutline 
 } from '@vicons/ionicons5'
 import { WORKFLOW_TEMPLATES } from '../config/workflows'
+import { myWorkflows } from '@/stores/workflows'
 
 const props = defineProps({
   show: Boolean
@@ -86,6 +105,44 @@ const visible = computed({
 
 // Public workflows | 公共工作流
 const publicWorkflows = computed(() => WORKFLOW_TEMPLATES)
+
+const myWorkflowTemplates = computed(() => {
+  const workflows = myWorkflows.value || []
+  return workflows.map(workflow => {
+    const nodes = Array.isArray(workflow.nodes) ? workflow.nodes : []
+    const edges = Array.isArray(workflow.edges) ? workflow.edges : []
+    const tempIds = nodes.map((_, idx) => `mywf_${workflow.id}_${idx}`)
+
+    return {
+      ...workflow,
+      createNodes: (startPosition) => {
+        const newNodes = nodes.map((n, idx) => ({
+          id: tempIds[idx],
+          type: n.type,
+          position: {
+            x: (startPosition?.x || 0) + (n.position?.x || 0),
+            y: (startPosition?.y || 0) + (n.position?.y || 0)
+          },
+          data: n.data || {}
+        }))
+
+        const newEdges = edges
+          .filter(e => Number.isInteger(e.sourceIndex) && Number.isInteger(e.targetIndex))
+          .map((e, idx) => ({
+            id: `edge_${tempIds[e.sourceIndex]}_${tempIds[e.targetIndex]}_${idx}`,
+            source: tempIds[e.sourceIndex],
+            target: tempIds[e.targetIndex],
+            sourceHandle: e.sourceHandle || 'right',
+            targetHandle: e.targetHandle || 'left',
+            type: e.type,
+            data: e.data
+          }))
+
+        return { nodes: newNodes, edges: newEdges }
+      }
+    }
+  })
+})
 
 // Icon mapping | 图标映射
 const iconMap = {
