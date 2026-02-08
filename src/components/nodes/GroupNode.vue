@@ -146,7 +146,8 @@ const coverPreview = ref('')
 const groupNode = computed(() => (nodes.value || []).find(n => n.id === props.id))
 const groupWorkflowId = computed(() => props.data?.workflowId || groupNode.value?.data?.workflowId || '')
 const existingWorkflow = computed(() => (myWorkflows.value || []).find(w => w.id === groupWorkflowId.value) || null)
-const isEditingExisting = computed(() => Boolean(existingWorkflow.value))
+const editingWorkflowId = computed(() => existingWorkflow.value?.id || groupWorkflowId.value || '')
+const isEditingExisting = computed(() => Boolean(editingWorkflowId.value))
 const groupRect = computed(() => {
   const g = groupNode.value
   if (!g) return null
@@ -357,24 +358,26 @@ const handleSaveWorkflow = () => {
     return
   }
 
-  const now = Date.now()
-  const existing = existingWorkflow.value
-  const wf = {
-    id: existing?.id || `mywf_${now.toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+  const isEditing = Boolean(editingWorkflowId.value)
+  const payload = {
+    ...(isEditing ? { id: String(editingWorkflowId.value) } : {}),
     name,
     tags: [...(tags.value || [])],
     remark: String(remark.value || ''),
     cover: coverPreview.value || '',
     nodes: content.nodes,
-    edges: content.edges,
-    createdAt: existing?.createdAt || now,
-    updatedAt: now
+    edges: content.edges
   }
 
-  upsertMyWorkflow(wf)
-  updateNode(props.id, { workflowId: wf.id, label: name })
-  showCreateWorkflowModal.value = false
-  window.$message?.success(existing ? '工作流已更新' : '工作流已保存')
+  Promise.resolve()
+    .then(() => upsertMyWorkflow(payload))
+    .then((saved) => {
+      const savedId = saved?.id ? String(saved.id) : (payload.id || '')
+      if (savedId) updateNode(props.id, { workflowId: savedId, label: name })
+      showCreateWorkflowModal.value = false
+      window.$message?.success(isEditing ? '工作流已更新' : '工作流已保存')
+    })
+    .catch(() => {})
 }
 </script>
 
