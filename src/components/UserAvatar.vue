@@ -12,15 +12,12 @@
         
         <n-dropdown :options="menuOptions" @select="handleMenuSelect">
           <div class="avatar-wrapper">
-            <n-avatar
-              round
-              :size="32"
+            <img
               :src="userAvatar"
-              :fallback-src="defaultAvatar"
-              object-fit="cover"
-            >
-              {{ userInfo?.nickname?.charAt(0) || 'U' }}
-            </n-avatar>
+              @error="handleAvatarError"
+              class="w-8 h-8 rounded-full object-cover"
+              alt="avatar"
+            />
             <span class="nickname">{{ userInfo?.nickname || '用户' }}</span>
           </div>
         </n-dropdown>
@@ -35,9 +32,9 @@
 </template>
 
 <script setup>
-import { h, computed } from 'vue'
+import { h, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NAvatar, NDropdown, NIcon } from 'naive-ui'
+import { NButton, NDropdown, NIcon } from 'naive-ui'
 import { PersonOutline, LogOutOutline, DiamondOutline, WalletOutline } from '@vicons/ionicons5'
 import { useAuth } from '@/hooks'
 
@@ -47,14 +44,19 @@ const router = useRouter()
 const { isLoggedIn, userInfo, logout } = useAuth()
 
 const defaultAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
+const avatarError = ref(false)
 
 const userAvatar = computed(() => {
-  if (!userInfo.value?.avatar) return undefined
+  if (avatarError.value || !userInfo.value?.avatar) return defaultAvatar
   // Clean up avatar URL (remove backticks and whitespace if present) | 清理头像 URL（移除可能存在的反引号和空格）
   const cleanUrl = userInfo.value.avatar.replace(/[`\s]/g, '')
   // console.log('Raw avatar:', userInfo.value.avatar, 'Cleaned:', cleanUrl)
-  return cleanUrl
+  return cleanUrl || defaultAvatar
 })
+
+const handleAvatarError = () => {
+  avatarError.value = true
+}
 
 const renderIcon = (icon) => {
   return () => h(NIcon, null, { default: () => h(icon) })
