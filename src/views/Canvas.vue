@@ -2,46 +2,35 @@
   <!-- Canvas page | 画布页面 -->
   <div class="h-screen w-screen flex flex-col bg-[var(--bg-primary)]">
     <!-- Header | 顶部导航 -->
-    <header class="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
+    <header
+      class="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
       <div class="flex items-center gap-3">
-        <button 
-          @click="goBack"
-          class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
-          aria-label="返回"
-          title="返回"
-        >
-          <n-icon :size="20"><ChevronBackOutline /></n-icon>
+        <button @click="goBack" class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors">
+          <n-icon :size="20">
+            <ChevronBackOutline />
+          </n-icon>
         </button>
         <n-dropdown :options="projectOptions" @select="handleProjectAction">
-          <button 
-            class="flex items-center gap-1 hover:bg-[var(--bg-tertiary)] px-2 py-1 rounded-lg transition-colors"
-            aria-label="切换项目"
-          >
+          <button class="flex items-center gap-1 hover:bg-[var(--bg-tertiary)] px-2 py-1 rounded-lg transition-colors">
             <span class="font-medium">{{ projectName }}</span>
-            <n-icon :size="16"><ChevronDownOutline /></n-icon>
+            <n-icon :size="16">
+              <ChevronDownOutline />
+            </n-icon>
           </button>
         </n-dropdown>
       </div>
       <div class="flex items-center gap-2">
-        <button 
-          @click="toggleTheme"
-          class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
-          :aria-label="isDark ? '切换到浅色模式' : '切换到深色模式'"
-          :title="isDark ? '切换到浅色模式' : '切换到深色模式'"
-        >
+        <button @click="toggleTheme" class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors">
           <n-icon :size="20">
             <SunnyOutline v-if="isDark" />
             <MoonOutline v-else />
           </n-icon>
         </button>
-        <button 
-          @click="showDownloadModal = true"
-          class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
-          :class="{ 'text-[var(--accent-color)]': hasDownloadableAssets }"
-          title="批量下载素材"
-          aria-label="批量下载素材"
-        >
-          <n-icon :size="20"><DownloadOutline /></n-icon>
+        <button @click="showDownloadModal = true" class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+          :class="{ 'text-[var(--accent-color)]': hasDownloadableAssets }" title="批量下载素材">
+          <n-icon :size="20">
+            <DownloadOutline />
+          </n-icon>
         </button>
         <UserAvatar @login="handleLogin" />
       </div>
@@ -50,125 +39,84 @@
     <!-- Main canvas area | 主画布区域 -->
     <div class="flex-1 relative overflow-hidden">
       <!-- Vue Flow canvas | Vue Flow 画布 -->
-      <VueFlow
-        :key="flowKey"
-        v-model:nodes="nodes"
-        v-model:edges="edges"
-        v-model:viewport="viewport"
-        :node-types="nodeTypes"
-        :edge-types="edgeTypes"
-        :default-viewport="canvasViewport"
-        :min-zoom="0.1"
-        :max-zoom="2"
-        :snap-to-grid="true"
-        :snap-grid="[20, 20]"
-        select-nodes-on-drag
-        selection-key-code="Control"
-        :delete-key-code="['Backspace', 'Delete']"
-        :zoom-on-double-click="false"
-        @connect="onConnect"
-        @connect-start="onConnectStart"
-        @connect-end="onConnectEnd"
-        @node-click="onNodeClick"
-        @pane-click="onPaneClick"
-        @viewport-change="handleViewportChange"
-        @edges-change="onEdgesChange"
-        @selection-change="handleSelectionChange"
-        @selection-end="handleSelectionEnd"
-        @node-drag="handleNodeDrag"
-        @node-drag-stop="handleNodeDragStop"
-        class="canvas-flow"
-      >
+      <VueFlow :key="flowKey" v-model:nodes="nodes" v-model:edges="edges" v-model:viewport="viewport"
+        :node-types="nodeTypes" :edge-types="edgeTypes" :default-viewport="canvasViewport" :min-zoom="0.1" :max-zoom="2"
+        :snap-to-grid="true" :snap-grid="[20, 20]" select-nodes-on-drag selection-key-code="Control"
+        :delete-key-code="['Backspace', 'Delete']" :zoom-on-double-click="false" @connect="onConnect"
+        @connect-start="onConnectStart" @connect-end="onConnectEnd" @node-click="onNodeClick" @pane-click="onPaneClick"
+        @viewport-change="handleViewportChange" @edges-change="onEdgesChange" @selection-change="handleSelectionChange"
+        @selection-end="handleSelectionEnd" @node-drag="handleNodeDrag" @node-drag-stop="handleNodeDragStop"
+        class="canvas-flow">
         <Background v-if="showGrid" :gap="20" :size="1" />
-        <MiniMap 
-          v-if="!isMobile"
-          position="bottom-right"
-          :pannable="true"
-          :zoomable="true"
-        />
+        <MiniMap v-if="!isMobile" position="bottom-right" :pannable="true" :zoomable="true" />
       </VueFlow>
 
       <!-- Left toolbar | 左侧工具栏 -->
-      <aside class="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-1 p-2 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] shadow-lg z-10">
-        <button 
-          @click="toggleNodeMenu"
+      <aside
+        class="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-1 p-2 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] shadow-lg z-10">
+        <button @click="toggleNodeMenu"
           class="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--accent-color)] text-white hover:bg-[var(--accent-hover)] transition-colors"
-          title="添加节点"
-          aria-label="添加节点"
-        >
-          <n-icon :size="20" class="text-black"><AddOutline /></n-icon>
+          title="添加节点">
+          <n-icon :size="20" class="text-black">
+            <AddOutline />
+          </n-icon>
         </button>
-        <button 
-          @click="showWorkflowPanel = true"
+        <button @click="showWorkflowPanel = true"
           class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors"
-          title="工作流模板"
-          aria-label="工作流模板"
-        >
-          <n-icon :size="20"><AppsOutline /></n-icon>
+          title="工作流模板">
+          <n-icon :size="20">
+            <AppsOutline />
+          </n-icon>
         </button>
         <div class="w-full h-px bg-[var(--border-color)] my-1"></div>
-        <button 
-          v-for="tool in tools" 
-          :key="tool.id"
-          @click="tool.action"
-          :disabled="tool.disabled && tool.disabled()"
+        <button v-for="tool in tools" :key="tool.id" @click="tool.action" :disabled="tool.disabled && tool.disabled()"
           class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          :title="tool.name"
-          :aria-label="tool.name"
-        >
-          <n-icon :size="20"><component :is="tool.icon" /></n-icon>
+          :title="tool.name">
+          <n-icon :size="20">
+            <component :is="tool.icon" />
+          </n-icon>
         </button>
       </aside>
 
       <!-- Node menu popup | 节点菜单弹窗 -->
-      <div 
-        v-if="showNodeMenu"
-        ref="nodeMenuRef"
+      <div v-if="showNodeMenu" ref="nodeMenuRef"
         class="fixed bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] shadow-lg p-2 z-50 transition-all duration-200 min-w-[160px]"
-        :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }"
-        @keydown.esc="showNodeMenu = false"
-      >
+        :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }" @keydown.esc="showNodeMenu = false">
         <div class="px-2 py-1 text-xs text-[var(--text-secondary)] font-medium">添加节点</div>
-        <button 
-          v-for="nodeType in nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'text', 'imageConfig', 'videoConfig'].includes(n.type))" 
-          :key="nodeType.type"
-          @click="addNewNode(nodeType.type)"
-          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left"
-        >
-          <n-icon :size="20" :color="nodeType.color"><component :is="nodeType.icon" /></n-icon>
+        <button
+          v-for="nodeType in nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'text', 'imageConfig', 'videoConfig'].includes(n.type))"
+          :key="nodeType.type" @click="addNewNode(nodeType.type)"
+          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left">
+          <n-icon :size="20" :color="nodeType.color">
+            <component :is="nodeType.icon" />
+          </n-icon>
           <span class="text-sm">{{ nodeType.name }}</span>
         </button>
-        
+
         <div class="w-full h-px bg-[var(--border-color)] my-1"></div>
-        
+
         <div class="px-2 py-1 text-xs text-[var(--text-secondary)] font-medium">添加资源</div>
-        <button 
-          v-for="nodeType in nodeTypeOptions.filter(n => ['image', 'video'].includes(n.type))" 
-          :key="nodeType.type"
-          @click="addNewNode(nodeType.type)"
-          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left"
-        >
-          <n-icon :size="20" :color="nodeType.color"><component :is="nodeType.icon" /></n-icon>
+        <button v-for="nodeType in nodeTypeOptions.filter(n => ['image', 'video'].includes(n.type))"
+          :key="nodeType.type" @click="addNewNode(nodeType.type)"
+          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left">
+          <n-icon :size="20" :color="nodeType.color">
+            <component :is="nodeType.icon" />
+          </n-icon>
           <span class="text-sm">{{ nodeType.name }}</span>
         </button>
       </div>
 
       <!-- Group Button Overlay | 组合按钮覆盖层 -->
-      <div 
-        v-if="showGroupButton"
-        class="absolute z-50 pointer-events-none"
-        :style="{ left: groupButtonPosition.x + 'px', top: groupButtonPosition.y + 'px' }"
-      >
-        <div
-          class="pointer-events-auto"
-          :style="{ transform: `translateX(-50%) scale(${viewport.zoom})`, transformOrigin: 'center top' }"
-        >
+      <div v-if="showGroupButton" class="absolute z-50 pointer-events-none"
+        :style="{ left: groupButtonPosition.x + 'px', top: groupButtonPosition.y + 'px' }">
+        <div class="pointer-events-auto"
+          :style="{ transform: `translateX(-50%) scale(${viewport.zoom})`, transformOrigin: 'center top' }">
           <div class="pt-2 pb-2 px-4">
-            <button 
-              @click="handleGroupNodes"
-              class="flex items-center gap-2 bg-[var(--bg-secondary)]/90 backdrop-blur-md rounded-full px-4 py-2 border border-[var(--border-color)] shadow-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
-            >
-              <n-icon :size="16"><LinkOutline /></n-icon>
+            <button @click="handleGroupNodes"
+              class="flex items-center gap-2 bg-[var(--bg-secondary)]/90 backdrop-blur-md rounded-full px-4 py-2 border border-[var(--border-color)] shadow-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap">
+              <n-icon :size="16">
+                <LinkOutline />
+              </n-icon>
               <span>组合</span>
             </button>
           </div>
@@ -176,7 +124,8 @@
       </div>
 
       <!-- Bottom controls | 底部控制 -->
-      <div class="absolute bottom-4 left-4 flex items-center gap-2 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-1">
+      <div
+        class="absolute bottom-4 left-4 flex items-center gap-2 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-1">
         <!-- <button 
           @click="showGrid = !showGrid" 
           :class="showGrid ? 'bg-[var(--accent-color)] text-white' : 'hover:bg-[var(--bg-tertiary)]'"
@@ -185,21 +134,23 @@
         >
           <n-icon :size="16"><GridOutline /></n-icon>
         </button> -->
-        <button 
-          @click="fitView({ padding: 0.2 })" 
-          class="p-2 hover:bg-[var(--bg-tertiary)] rounded transition-colors"
-          title="适应视图"
-          aria-label="适应视图"
-        >
-          <n-icon :size="16"><LocateOutline /></n-icon>
+        <button @click="fitView({ padding: 0.2 })" class="p-2 hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+          title="适应视图">
+          <n-icon :size="16">
+            <LocateOutline />
+          </n-icon>
         </button>
         <div class="flex items-center gap-1 px-2">
-          <button @click="zoomOut" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors" aria-label="缩小" title="缩小">
-            <n-icon :size="14"><RemoveOutline /></n-icon>
+          <button @click="zoomOut" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors">
+            <n-icon :size="14">
+              <RemoveOutline />
+            </n-icon>
           </button>
           <span class="text-xs min-w-[40px] text-center">{{ Math.round(viewport.zoom * 100) }}%</span>
-          <button @click="zoomIn" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors" aria-label="放大" title="放大">
-            <n-icon :size="14"><AddOutline /></n-icon>
+          <button @click="zoomIn" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors">
+            <n-icon :size="14">
+              <AddOutline />
+            </n-icon>
           </button>
         </div>
       </div>
@@ -225,27 +176,20 @@
       </template>
     </n-modal>
 
-    <div
-      v-if="showConnectNodeModal"
-      ref="connectNodeMenuRef"
+    <div v-if="showConnectNodeModal" ref="connectNodeMenuRef"
       class="fixed bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] shadow-lg p-2 z-50 transition-all duration-200 min-w-[180px]"
-      :style="{ left: connectMenuPosition.x + 'px', top: connectMenuPosition.y + 'px' }"
-    >
+      :style="{ left: connectMenuPosition.x + 'px', top: connectMenuPosition.y + 'px' }">
       <div class="px-2 py-1 text-xs text-[var(--text-secondary)] font-medium">选择节点</div>
-      <button
-        v-for="nodeType in connectNodeTypeOptions"
-        :key="nodeType.type"
-        @click="confirmConnectNode(nodeType.type)"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left"
-      >
-        <n-icon :size="20" :color="nodeType.color"><component :is="nodeType.icon" /></n-icon>
+      <button v-for="nodeType in connectNodeTypeOptions" :key="nodeType.type" @click="confirmConnectNode(nodeType.type)"
+        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left">
+        <n-icon :size="20" :color="nodeType.color">
+          <component :is="nodeType.icon" />
+        </n-icon>
         <span class="text-sm">{{ nodeType.name }}</span>
       </button>
       <div class="w-full h-px bg-[var(--border-color)] my-1"></div>
-      <button
-        @click="cancelConnectNode"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left text-[var(--text-secondary)]"
-      >
+      <button @click="cancelConnectNode"
+        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left text-[var(--text-secondary)]">
         <span class="text-sm">取消</span>
       </button>
     </div>
@@ -264,22 +208,22 @@
  * Main infinite canvas with Vue Flow integration
  */
 import {
-    AddOutline,
-    AppsOutline,
-    ArrowRedoOutline,
-    ArrowUndoOutline,
-    ChevronBackOutline,
-    ChevronDownOutline,
-    ColorPaletteOutline,
-    DownloadOutline,
-    ImageOutline,
-    LinkOutline,
-    LocateOutline,
-    MoonOutline,
-    RemoveOutline,
-    SunnyOutline,
-    TextOutline,
-    VideocamOutline
+  AddOutline,
+  AppsOutline,
+  ArrowRedoOutline,
+  ArrowUndoOutline,
+  ChevronBackOutline,
+  ChevronDownOutline,
+  ColorPaletteOutline,
+  DownloadOutline,
+  ImageOutline,
+  LinkOutline,
+  LocateOutline,
+  MoonOutline,
+  RemoveOutline,
+  SunnyOutline,
+  TextOutline,
+  VideocamOutline
 } from '@vicons/ionicons5'
 import { Background } from '@vue-flow/background'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
@@ -384,13 +328,13 @@ const toggleNodeMenu = () => {
 const onPaneDblClick = (e) => {
   const { event } = e
   event.preventDefault()
-  
+
   // Set menu position at click coordinates | 在点击坐标处设置菜单位置
   menuPosition.value = { x: event.clientX, y: event.clientY }
-  
+
   // Store target node position (converted to canvas coordinates) | 存储目标节点位置（转换为画布坐标）
   targetNodePosition.value = project({ x: event.clientX, y: event.clientY })
-  
+
   showNodeMenu.value = true
 }
 
@@ -414,15 +358,15 @@ const updateGroupButton = (selectedNodes) => {
   // Filter out nodes that are already in a group (as children) to simplify logic
   // Also filter out connection lines or other non-groupable things if any
   const candidates = selectedNodes.filter(n => !n.parentNode)
-  
+
   if (candidates.length < 2) {
     showGroupButton.value = false
     selectedNodesForGroup.value = []
     return
   }
-  
+
   selectedNodesForGroup.value = candidates
-  
+
   // Calculate bounding box in graph coordinates
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   candidates.forEach(node => {
@@ -435,17 +379,17 @@ const updateGroupButton = (selectedNodes) => {
     if (x + w > maxX) maxX = x + w
     if (y + h > maxY) maxY = y + h
   })
-  
+
   // Center Top of the bounding box
   const centerX = minX + (maxX - minX) / 2
   const topY = minY
-  
+
   // Project to screen/viewport coordinates
   // ScreenX = GraphX * zoom + viewportX
   const screenX = centerX * viewport.value.zoom + viewport.value.x
   const groupButtonOffset = 48
   const screenY = (topY - groupButtonOffset) * viewport.value.zoom + viewport.value.y
-  
+
   groupButtonPosition.value = { x: screenX, y: screenY }
   showGroupButton.value = true
 }
@@ -518,7 +462,7 @@ const pendingConnection = ref(null)
 
 // Check if has downloadable assets | 检查是否有可下载素材
 const hasDownloadableAssets = computed(() => {
-  return nodes.value.some(n => 
+  return nodes.value.some(n =>
     (n.type === 'image' || n.type === 'video') && n.data?.url
   )
 })
@@ -564,7 +508,7 @@ const connectNodeTypeOptions = computed(() =>
 // Add new node | 添加新节点
 const addNewNode = async (type) => {
   let position
-  
+
   if (targetNodePosition.value) {
     // Use stored target position (from double click) | 使用存储的目标位置（来自双击）
     position = targetNodePosition.value
@@ -576,19 +520,19 @@ const addNewNode = async (type) => {
     const viewportCenterY = -viewport.value.y / viewport.value.zoom + (window.innerHeight / 2) / viewport.value.zoom
     position = { x: viewportCenterX - 100, y: viewportCenterY - 100 }
   }
-  
+
   // Add node | 添加节点
   const nodeId = addNode(type, position)
-  
+
   // Set highest z-index | 设置最高层级
   const maxZIndex = Math.max(0, ...nodes.value.map(n => n.zIndex || 0))
   updateNode(nodeId, { zIndex: maxZIndex + 1 })
-  
+
   // Force Vue Flow to recalculate node dimensions | 强制 Vue Flow 重新计算节点尺寸
   setTimeout(() => {
     updateNodeInternals(nodeId)
   }, 50)
-  
+
   showNodeMenu.value = false
 }
 
@@ -597,7 +541,7 @@ const handleAddWorkflow = ({ workflow, options }) => {
   // Calculate viewport center position | 计算视口中心位置
   const viewportCenterX = -viewport.value.x / viewport.value.zoom + (window.innerWidth / 2) / viewport.value.zoom
   const viewportCenterY = -viewport.value.y / viewport.value.zoom + (window.innerHeight / 2) / viewport.value.zoom
-  
+
   // Create nodes from workflow template | 从工作流模板创建节点
   const startPosition = { x: viewportCenterX - 300, y: viewportCenterY - 200 }
   const { nodes: newNodes, edges: newEdges } = workflow.createNodes(startPosition, options)
@@ -609,7 +553,7 @@ const handleAddWorkflow = ({ workflow, options }) => {
     nodeIdMap.set(node.id, nodeId)
     createdNodeIds.push(nodeId)
   })
-  
+
   // Add edges to canvas | 将边添加到画布
   setTimeout(() => {
     newEdges.forEach(edge => {
@@ -622,7 +566,7 @@ const handleAddWorkflow = ({ workflow, options }) => {
         data: edge.data   // Preserve edge data (e.g., promptOrder number) | 保留边数据
       })
     })
-    
+
     // Update node internals | 更新节点内部
     createdNodeIds.forEach(nodeId => updateNodeInternals(nodeId))
 
@@ -638,7 +582,7 @@ const handleAddWorkflow = ({ workflow, options }) => {
       nextTick(() => updateNodeInternals(groupId))
     }, 80)
   }, 100)
-  
+
   window.$message?.success(`已添加工作流: ${workflow.name}`)
 }
 
@@ -647,7 +591,7 @@ const onConnect = (params) => {
   // Check connection types | 检查连接类型
   const sourceNode = nodes.value.find(n => n.id === params.source)
   const targetNode = nodes.value.find(n => n.id === params.target)
-  
+
   if (sourceNode?.type === 'image' && targetNode?.type === 'videoConfig') {
     // Use imageRole edge type | 使用图片角色边类型
     addEdge({
@@ -658,11 +602,11 @@ const onConnect = (params) => {
   } else if (sourceNode?.type === 'text' && targetNode?.type === 'imageConfig') {
     // Use promptOrder edge type | 使用提示词顺序边类型
     // Calculate next order number | 计算下一个顺序号
-    const existingTextEdges = edges.value.filter(e => 
+    const existingTextEdges = edges.value.filter(e =>
       e.target === params.target && e.type === 'promptOrder'
     )
     const nextOrder = existingTextEdges.length + 1
-    
+
     addEdge({
       ...params,
       type: 'promptOrder',
@@ -775,7 +719,7 @@ const onNodeClick = (event) => {
   // nodes.value.forEach(node => {
   //   updateNode(node.id, { selected: false })
   // })
-  
+
   // // Select clicked node | 选中的节点
   // const clickedNode = nodes.value.find(n => n.id === event.node.id)
   // if (clickedNode) {
@@ -794,7 +738,7 @@ const handleViewportChange = (newViewport) => {
 const onEdgesChange = (changes) => {
   // Check if any edge is being removed | 检查是否有边被删除
   const hasRemoval = changes.some(change => change.type === 'remove')
-  
+
   if (hasRemoval) {
     // Trigger history save after edge removal | 边删除后触发历史保存
     nextTick(() => {
@@ -909,11 +853,11 @@ const sendMessage = async () => {
     if (autoExecute.value) {
       // Auto-execute mode: analyze intent and execute workflow | 自动执行模式：分析意图并执行工作流
       window.$message?.info('正在分析工作流...')
-      
+
       try {
         // Analyze user intent | 分析用户意图
         const result = await analyzeIntent(content)
-        
+
         // Ensure we have valid workflow params | 确保有效的工作流参数
         const workflowParams = {
           workflow_type: result?.workflow_type || WORKFLOW_TYPES.TEXT_TO_IMAGE,
@@ -922,12 +866,12 @@ const sendMessage = async () => {
           character: result?.character,
           shots: result?.shots
         }
-        
+
         window.$message?.info(`执行工作流: ${result?.description || '文生图'}`)
-        
+
         // Execute the workflow | 执行工作流
         await executeWorkflow(workflowParams, { x: baseX, y: baseY })
-        
+
         window.$message?.success('工作流已启动')
       } catch (err) {
         console.error('Workflow error:', err)
@@ -937,15 +881,15 @@ const sendMessage = async () => {
       }
     } else {
       // Manual mode: just create nodes | 手动模式：仅创建节点
-      const textNodeId = addNode('text', { x: baseX, y: baseY }, { 
-        content: content, 
-        label: '提示词' 
+      const textNodeId = addNode('text', { x: baseX, y: baseY }, {
+        content: content,
+        label: '提示词'
       })
-      
+
       const imageConfigNodeId = addNode('imageConfig', { x: baseX + 400, y: baseY }, {
         label: '文生图'
       })
-      
+
       addEdge({
         source: textNodeId,
         target: imageConfigNodeId,
@@ -1091,46 +1035,46 @@ const resumePendingVideoTasks = () => {
       const configTime = connectedConfigNode?.data?.createdAt || connectedConfigNode?.data?.updatedAt || 0
       const anchorTime = Math.max(nodeTime, configTime, 0)
 
-      ;(async () => {
-        const inProgress = await getInProgressRecords()
-        if (token !== videoStatusResumeToken) return
-        if (!inProgress.length) return
+        ; (async () => {
+          const inProgress = await getInProgressRecords()
+          if (token !== videoStatusResumeToken) return
+          if (!inProgress.length) return
 
-        const candidates = inProgress
-          .map((r) => {
-            const rid = getRecordId(r)
-            const t = parseRecordTime(r)
-            return { rid, t, r }
+          const candidates = inProgress
+            .map((r) => {
+              const rid = getRecordId(r)
+              const t = parseRecordTime(r)
+              return { rid, t, r }
+            })
+            .filter((x) => x.rid && !usedTaskIds.has(x.rid))
+
+          if (!candidates.length) return
+
+          candidates.sort((a, b) => {
+            const da = Math.abs((a.t || 0) - anchorTime)
+            const db = Math.abs((b.t || 0) - anchorTime)
+            return da - db
           })
-          .filter((x) => x.rid && !usedTaskIds.has(x.rid))
 
-        if (!candidates.length) return
+          const best = candidates[0]
+          if (!best?.rid) return
 
-        candidates.sort((a, b) => {
-          const da = Math.abs((a.t || 0) - anchorTime)
-          const db = Math.abs((b.t || 0) - anchorTime)
-          return da - db
-        })
+          usedTaskIds.add(best.rid)
+          debugVideoResume('resolved missing taskId via recent list', {
+            videoNodeId: videoNode.id,
+            taskId: best.rid,
+            recordStatus: best.r?.status,
+            recordTime: best.t,
+            anchorTime
+          })
 
-        const best = candidates[0]
-        if (!best?.rid) return
+          updateNode(videoNode.id, { taskId: best.rid, loading: true, label: videoNode.data?.label || '视频生成中...' })
+          if (configNodeId) {
+            updateNode(configNodeId, { taskId: best.rid, outputNodeId: videoNode.id })
+          }
 
-        usedTaskIds.add(best.rid)
-        debugVideoResume('resolved missing taskId via recent list', {
-          videoNodeId: videoNode.id,
-          taskId: best.rid,
-          recordStatus: best.r?.status,
-          recordTime: best.t,
-          anchorTime
-        })
-
-        updateNode(videoNode.id, { taskId: best.rid, loading: true, label: videoNode.data?.label || '视频生成中...' })
-        if (configNodeId) {
-          updateNode(configNodeId, { taskId: best.rid, outputNodeId: videoNode.id })
-        }
-
-        resumePendingVideoTasks()
-      })()
+          resumePendingVideoTasks()
+        })()
 
       debugVideoResume('skip video node: missing taskId', { videoNodeId: videoNode.id })
       continue
@@ -1156,98 +1100,98 @@ const resumePendingVideoTasks = () => {
       label: videoNode.data?.label || '视频生成中...'
     })
 
-    ;(async () => {
-      const maxAttempts = 120
-      const interval = 5000
-      let lastStatus = null
+      ; (async () => {
+        const maxAttempts = 120
+        const interval = 5000
+        let lastStatus = null
 
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        if (token !== videoStatusResumeToken) return
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          if (token !== videoStatusResumeToken) return
 
-        const latestVideoNode = nodes.value.find((n) => n.id === videoNode.id)
-        if (!latestVideoNode || latestVideoNode.data?.url || latestVideoNode.data?.error) return
+          const latestVideoNode = nodes.value.find((n) => n.id === videoNode.id)
+          if (!latestVideoNode || latestVideoNode.data?.url || latestVideoNode.data?.error) return
 
-        let record
-        try {
-          record = await getAiVideoMy(resolvedTaskId)
-        } catch (err) {
-          debugVideoResume('poll error', { videoNodeId: videoNode.id, taskId: resolvedTaskId, attempt: attempt + 1, message: err?.message })
-          await new Promise((resolve) => setTimeout(resolve, interval))
-          continue
-        }
+          let record
+          try {
+            record = await getAiVideoMy(resolvedTaskId)
+          } catch (err) {
+            debugVideoResume('poll error', { videoNodeId: videoNode.id, taskId: resolvedTaskId, attempt: attempt + 1, message: err?.message })
+            await new Promise((resolve) => setTimeout(resolve, interval))
+            continue
+          }
 
-        const recordStatus = record?.status
-        if (recordStatus !== lastStatus) {
-          lastStatus = recordStatus
-          debugVideoResume('status changed', { videoNodeId: videoNode.id, taskId: resolvedTaskId, attempt: attempt + 1, status: recordStatus })
-        }
+          const recordStatus = record?.status
+          if (recordStatus !== lastStatus) {
+            lastStatus = recordStatus
+            debugVideoResume('status changed', { videoNodeId: videoNode.id, taskId: resolvedTaskId, attempt: attempt + 1, status: recordStatus })
+          }
 
-        if (recordStatus === 30) {
-          if (record?.videoUrl) {
-            updateNode(videoNode.id, {
-              url: record.videoUrl,
-              loading: false,
-              label: '视频生成',
-              taskId: resolvedTaskId,
-              updatedAt: Date.now()
-            })
-            if (configNodeId) {
-              updateNode(configNodeId, { executed: true, outputNodeId: videoNode.id, taskId: resolvedTaskId, updatedAt: Date.now() })
+          if (recordStatus === 30) {
+            if (record?.videoUrl) {
+              updateNode(videoNode.id, {
+                url: record.videoUrl,
+                loading: false,
+                label: '视频生成',
+                taskId: resolvedTaskId,
+                updatedAt: Date.now()
+              })
+              if (configNodeId) {
+                updateNode(configNodeId, { executed: true, outputNodeId: videoNode.id, taskId: resolvedTaskId, updatedAt: Date.now() })
+              }
+            } else {
+              updateNode(videoNode.id, {
+                loading: false,
+                error: '已完成但未返回视频地址',
+                label: '生成失败',
+                taskId: resolvedTaskId,
+                updatedAt: Date.now()
+              })
             }
-          } else {
+            return
+          }
+
+          if (recordStatus === 40) {
             updateNode(videoNode.id, {
               loading: false,
-              error: '已完成但未返回视频地址',
+              error: record?.errorMessage || '视频生成失败',
               label: '生成失败',
               taskId: resolvedTaskId,
               updatedAt: Date.now()
             })
+            return
           }
-          return
+
+          if (recordStatus === 50) {
+            updateNode(videoNode.id, {
+              loading: false,
+              error: '视频生成已取消',
+              label: '已取消',
+              taskId: resolvedTaskId,
+              updatedAt: Date.now()
+            })
+            return
+          }
+
+          const desiredLabel = recordStatus === 10 ? '视频排队中...' : '视频生成中...'
+          if (latestVideoNode.data?.label !== desiredLabel || latestVideoNode.data?.taskId !== resolvedTaskId) {
+            updateNode(videoNode.id, {
+              loading: true,
+              taskId: resolvedTaskId,
+              label: desiredLabel
+            })
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, interval))
         }
 
-        if (recordStatus === 40) {
-          updateNode(videoNode.id, {
-            loading: false,
-            error: record?.errorMessage || '视频生成失败',
-            label: '生成失败',
-            taskId: resolvedTaskId,
-            updatedAt: Date.now()
-          })
-          return
-        }
-
-        if (recordStatus === 50) {
-          updateNode(videoNode.id, {
-            loading: false,
-            error: '视频生成已取消',
-            label: '已取消',
-            taskId: resolvedTaskId,
-            updatedAt: Date.now()
-          })
-          return
-        }
-
-        const desiredLabel = recordStatus === 10 ? '视频排队中...' : '视频生成中...'
-        if (latestVideoNode.data?.label !== desiredLabel || latestVideoNode.data?.taskId !== resolvedTaskId) {
-          updateNode(videoNode.id, {
-            loading: true,
-            taskId: resolvedTaskId,
-            label: desiredLabel
-          })
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, interval))
-      }
-
-      updateNode(videoNode.id, {
-        loading: false,
-        error: '视频生成超时',
-        label: '生成失败',
-        taskId: resolvedTaskId,
-        updatedAt: Date.now()
-      })
-    })()
+        updateNode(videoNode.id, {
+          loading: false,
+          error: '视频生成超时',
+          label: '生成失败',
+          taskId: resolvedTaskId,
+          updatedAt: Date.now()
+        })
+      })()
   }
 }
 
@@ -1255,7 +1199,7 @@ const resumePendingVideoTasks = () => {
 const loadProjectById = async (projectId) => {
   // Update flow key to force VueFlow re-render | 更新 key 强制 VueFlow 重新渲染
   flowKey.value = Date.now()
-  
+
   if (projectId && projectId !== 'new') {
     await loadProject(projectId)
   } else {
@@ -1284,14 +1228,14 @@ watch(
 onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
-  
+
   // Initialize projects store | 初始化项目存储
   await initProjectsStore()
-  
+
   // Load project data | 加载项目数据
   await loadProjectById(route.params.id)
   resumePendingVideoTasks()
-  
+
   // Check for initial prompt from home page | 检查来自首页的初始提示词
   const initialPrompt = sessionStorage.getItem('ai-canvas-initial-prompt')
   if (initialPrompt) {

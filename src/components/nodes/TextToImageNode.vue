@@ -32,13 +32,13 @@
 
         <!-- Icon Actions -->
         <div class="flex items-center gap-2">
-          <button v-if="imageUrl" @click.stop="handleDownload" class="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="下载" aria-label="下载">
+          <button v-if="imageUrl" @click.stop="handleDownload" class="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="下载">
             <n-icon :size="16"><DownloadOutline /></n-icon>
           </button>
-          <button v-if="imageUrl" @click.stop="handlePreview" class="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="放大预览" aria-label="放大预览">
+          <button v-if="imageUrl" @click.stop="handlePreview" class="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="放大预览">
             <n-icon :size="16"><EyeOutline /></n-icon>
           </button>
-          <button @click.stop="handleDelete" class="p-1 text-[var(--text-secondary)] hover:text-red-500 transition-colors" title="删除" aria-label="删除">
+          <button @click.stop="handleDelete" class="p-1 text-[var(--text-secondary)] hover:text-red-500 transition-colors" title="删除">
             <n-icon :size="16"><TrashOutline /></n-icon>
           </button>
         </div>
@@ -138,7 +138,7 @@
     <Transition name="slide-fade">
       <div 
         v-show="isInputExpanded"
-        class="absolute top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-[90vw] md:w-[480px] bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] shadow-2xl z-50 flex flex-col overflow-hidden"
+        class="absolute top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-[480px] bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] shadow-2xl z-50 flex flex-col overflow-hidden"
         @click.stop
       >
         <!-- Input Header -->

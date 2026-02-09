@@ -9,12 +9,12 @@
       <div class="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
         <span class="text-sm font-medium text-[var(--text-secondary)]">{{ data.label }}</span>
         <div class="flex items-center gap-1">
-          <button @click="handleDelete" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors" aria-label="删除" title="删除">
+          <button @click="handleDelete" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors">
             <n-icon :size="14">
               <TrashOutline />
             </n-icon>
           </button>
-          <button class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors" aria-label="展开" title="展开">
+          <button class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors">
             <n-icon :size="14">
               <ExpandOutline />
             </n-icon>
