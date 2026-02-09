@@ -7,20 +7,27 @@
         <button 
           @click="goBack"
           class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+          aria-label="返回"
+          title="返回"
         >
           <n-icon :size="20"><ChevronBackOutline /></n-icon>
         </button>
         <n-dropdown :options="projectOptions" @select="handleProjectAction">
-          <button class="flex items-center gap-1 hover:bg-[var(--bg-tertiary)] px-2 py-1 rounded-lg transition-colors">
+          <button 
+            class="flex items-center gap-1 hover:bg-[var(--bg-tertiary)] px-2 py-1 rounded-lg transition-colors"
+            aria-label="切换项目"
+          >
             <span class="font-medium">{{ projectName }}</span>
             <n-icon :size="16"><ChevronDownOutline /></n-icon>
           </button>
         </n-dropdown>
       </div>
-<div class="flex items-center gap-2">
+      <div class="flex items-center gap-2">
         <button 
           @click="toggleTheme"
           class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+          :aria-label="isDark ? '切换到浅色模式' : '切换到深色模式'"
+          :title="isDark ? '切换到浅色模式' : '切换到深色模式'"
         >
           <n-icon :size="20">
             <SunnyOutline v-if="isDark" />
@@ -32,6 +39,7 @@
           class="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
           :class="{ 'text-[var(--accent-color)]': hasDownloadableAssets }"
           title="批量下载素材"
+          aria-label="批量下载素材"
         >
           <n-icon :size="20"><DownloadOutline /></n-icon>
         </button>
@@ -86,6 +94,7 @@
           @click="toggleNodeMenu"
           class="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--accent-color)] text-white hover:bg-[var(--accent-hover)] transition-colors"
           title="添加节点"
+          aria-label="添加节点"
         >
           <n-icon :size="20" class="text-black"><AddOutline /></n-icon>
         </button>
@@ -93,6 +102,7 @@
           @click="showWorkflowPanel = true"
           class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors"
           title="工作流模板"
+          aria-label="工作流模板"
         >
           <n-icon :size="20"><AppsOutline /></n-icon>
         </button>
@@ -104,6 +114,7 @@
           :disabled="tool.disabled && tool.disabled()"
           class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           :title="tool.name"
+          :aria-label="tool.name"
         >
           <n-icon :size="20"><component :is="tool.icon" /></n-icon>
         </button>
@@ -178,15 +189,16 @@
           @click="fitView({ padding: 0.2 })" 
           class="p-2 hover:bg-[var(--bg-tertiary)] rounded transition-colors"
           title="适应视图"
+          aria-label="适应视图"
         >
           <n-icon :size="16"><LocateOutline /></n-icon>
         </button>
         <div class="flex items-center gap-1 px-2">
-          <button @click="zoomOut" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors">
+          <button @click="zoomOut" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors" aria-label="缩小" title="缩小">
             <n-icon :size="14"><RemoveOutline /></n-icon>
           </button>
           <span class="text-xs min-w-[40px] text-center">{{ Math.round(viewport.zoom * 100) }}%</span>
-          <button @click="zoomIn" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors">
+          <button @click="zoomIn" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors" aria-label="放大" title="放大">
             <n-icon :size="14"><AddOutline /></n-icon>
           </button>
         </div>

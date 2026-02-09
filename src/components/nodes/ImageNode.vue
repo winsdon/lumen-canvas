@@ -10,7 +10,7 @@
         <div class="flex items-center justify-between">
           <span class="text-sm font-medium text-[var(--text-primary)]">{{ data.label || '图像生成结果' }}</span>
           <div class="flex items-center gap-1">
-            <button @click="handleDelete" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors">
+            <button @click="handleDelete" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors" aria-label="删除" title="删除">
               <n-icon :size="14">
                 <TrashOutline />
               </n-icon>
@@ -130,6 +130,7 @@
               @click="clearMask"
               class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
               title="清除"
+              aria-label="清除"
             >
               <n-icon :size="12" class="text-gray-400"><RefreshOutline /></n-icon>
             </button>
