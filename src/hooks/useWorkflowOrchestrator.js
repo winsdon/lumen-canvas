@@ -9,6 +9,7 @@
  */
 
 import { streamChatCompletions } from '@/api'
+import { DEFAULT_CHAT_MODEL } from '@/config/models'
 import { fetchModels, getModelId } from '@/stores/aiModels'
 import {
     addEdge,
@@ -267,7 +268,7 @@ export const useWorkflowOrchestrator = () => {
       
       await fetchModels(1)
       // Try to find a strong model for analysis, fallback to first available chat model
-      const modelId = getModelId('gemini-3-flash') || getModelId('gpt-4o') || 
+      const modelId = getModelId(DEFAULT_CHAT_MODEL) || getModelId('gpt-4o') || 
                      (aiModels.value[1] && aiModels.value[1][0]?.id)
       
       if (!modelId) {

@@ -149,6 +149,7 @@ export const VIDEO_MODEL_CAPABILITIES = [
 // Chat/LLM model capabilities | 对话模型能力配置
 // Currently simple list, but can be expanded
 export const CHAT_MODEL_CAPABILITIES = [
+    { key: 'gemini-3-flash-preview' },
     { key: 'gemini-3-flash' },
     { key: 'gpt-4o-mini' },
     { key: 'gpt-4o' },
@@ -175,7 +176,7 @@ export const VIDEO_DURATION_OPTIONS = [
 // Default values | 默认值
 export const DEFAULT_IMAGE_MODEL = 'gemini-2.5-flash-image'
 export const DEFAULT_VIDEO_MODEL = 'doubao-seedance-1-5-pro_720p'
-export const DEFAULT_CHAT_MODEL = 'gemini-3-flash'
+export const DEFAULT_CHAT_MODEL = 'gemini-3-flash-preview'
 export const DEFAULT_IMAGE_SIZE = '2048x2048'
 export const DEFAULT_VIDEO_RATIO = '16:9'
 export const DEFAULT_VIDEO_DURATION = 5

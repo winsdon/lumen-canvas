@@ -11,6 +11,7 @@ import {
   streamChatCompletions
 } from '@/api'
 import { fetchModels, getModelId } from '@/stores/aiModels'
+import { DEFAULT_CHAT_MODEL } from '@/config/models'
 import { onUnmounted, reactive, ref } from 'vue'
 
 /**
@@ -85,7 +86,7 @@ export const useChat = (options = {}) => {
         await fetchModels(1)
         
         // Determine model ID: explicitly passed > options > default
-        const selectedModelKey = modelKey || options.model || 'gemini-3-flash'
+        const selectedModelKey = modelKey || options.model || DEFAULT_CHAT_MODEL
         const modelId = getModelId(selectedModelKey)
         
         if (!modelId) {
