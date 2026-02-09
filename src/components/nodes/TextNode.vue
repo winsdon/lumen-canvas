@@ -157,7 +157,9 @@ const handlePolish = async () => {
     }
   } catch (err) {
     content.value = originalContent
-    window.$message?.error(err.message || '润色失败')
+    if (!err?.__handled) {
+      window.$message?.error(err.message || '润色失败')
+    }
   } finally {
     isPolishing.value = false
   }

@@ -47,8 +47,10 @@ export const streamChatCompletions = async function* (data, signal) {
       // ignore
     }
     const msg = error?.msg || error?.error?.message || error?.message || 'Stream request failed'
+    const streamError = new Error(msg)
+    streamError.__handled = true
     window.$message?.error(msg)
-    throw new Error(msg)
+    throw streamError
   }
 
   const reader = response.body.getReader()
@@ -73,12 +75,19 @@ export const streamChatCompletions = async function* (data, signal) {
 
       try {
         const parsed = JSON.parse(dataStr)
-        // Format: { code: 0, data: "...", msg: "" }
         if (parsed.code === 0 && parsed.data) {
           yield parsed.data
+        } else if (parsed.code && parsed.code !== 0) {
+          const msg = parsed?.msg || parsed?.error?.message || parsed?.message || '文本生成异常'
+          const streamError = new Error(msg)
+          streamError.__handled = true
+          window.$message?.error(msg)
+          throw streamError
         }
       } catch (e) {
-        // Skip invalid JSON
+        if (e?.message) {
+          throw e
+        }
       }
     }
   }

@@ -486,7 +486,9 @@ const handlePolish = async () => {
       window.$message?.success('提示词已润色')
     }
   } catch (err) {
-    window.$message?.error('润色失败: ' + err.message)
+    if (!err?.__handled) {
+      window.$message?.error('润色失败: ' + err.message)
+    }
   } finally {
     isPolishing.value = false
   }
