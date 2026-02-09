@@ -301,21 +301,20 @@
 
 <script setup>
 import {
-  AddOutline,
-  ArrowUpOutline,
-  ChevronDownOutline,
-  CloseCircleOutline,
-  ColorWandOutline,
-  CreateOutline,
-  DownloadOutline,
-  ExpandOutline,
-  EyeOutline,
-  ImageOutline,
-  ScanOutline,
-  SparklesOutline,
-  TrashOutline,
-  VideocamOutline,
-  AddCircle
+    AddOutline,
+    ArrowUpOutline,
+    ChevronDownOutline,
+    CloseCircleOutline,
+    ColorWandOutline,
+    CreateOutline,
+    DownloadOutline,
+    ExpandOutline,
+    EyeOutline,
+    ImageOutline,
+    ScanOutline,
+    SparklesOutline,
+    TrashOutline,
+    VideocamOutline
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
@@ -405,7 +404,7 @@ const displayRatio = computed(() => {
 const { loading, error, images, generate } = useImageGeneration()
 const { send: sendChat } = useChat({
   systemPrompt: '你是一个专业的AI绘画提示词专家。将用户输入的内容美化成高质量的生图提示词，包含风格、光线、構图、细节等要素。直接返回提示词，不要其他解释。',
-  model: 'gpt-4o-mini'
+  model: 'gemini-3-flash'
 })
 
 // Computed

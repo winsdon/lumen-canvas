@@ -3,15 +3,15 @@
  * Simplified hooks for open source version | 开源版简化 hooks
  */
 
-import { ref, reactive, onUnmounted } from 'vue'
 import {
   aiImageDraw,
-  getAiImageListByIds,
   aiVideoGenerate,
+  getAiImageListByIds,
   getAiVideoMy,
   streamChatCompletions
 } from '@/api'
 import { fetchModels, getModelId } from '@/stores/aiModels'
+import { onUnmounted, reactive, ref } from 'vue'
 
 /**
  * Base API state hook | 基础 API 状态 Hook
@@ -57,24 +57,43 @@ export const useChat = (options = {}) => {
   const currentResponse = ref('')
   let abortController = null
 
-  const send = async (content, stream = true) => {
+  const send = async (content, stream = true, modelKey = null) => {
     setLoading(true)
     currentResponse.value = ''
 
     try {
-      const msgList = [
-        ...(options.systemPrompt ? [{ role: 'system', content: options.systemPrompt }] : []),
-        ...messages.value,
-        { role: 'user', content }
-      ]
+      const systemPrompt = options.systemPrompt || ''
+      let userPrompt = ''
+      
+      // Construct context from history
+      if (messages.value.length > 0) {
+        userPrompt = messages.value
+          .filter(m => m.role !== 'system')
+          .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+          .join('\n')
+        userPrompt += `\nUser: ${content}`
+      } else {
+        userPrompt = content
+      }
 
       if (stream) {
         status.value = 'streaming'
         abortController = new AbortController()
         let fullResponse = ''
+        
+        // Ensure models are loaded
+        await fetchModels(1)
+        
+        // Determine model ID: explicitly passed > options > default
+        const selectedModelKey = modelKey || options.model || 'gemini-3-flash'
+        const modelId = getModelId(selectedModelKey)
+        
+        if (!modelId) {
+          throw new Error(`Model not found: ${selectedModelKey}`)
+        }
 
         for await (const chunk of streamChatCompletions(
-          { model: options.model || 'gpt-4o-mini', messages: msgList },
+          { modelId, systemPrompt, userPrompt },
           abortController.signal
         )) {
           fullResponse += chunk

@@ -8,14 +8,14 @@
  * - 串行执行：等待上一步完成后再执行下一步
  */
 
-import { ref, watch } from 'vue'
 import { streamChatCompletions } from '@/api'
-import { 
-  nodes, 
-  addNode, 
-  addEdge, 
-  updateNode 
+import { fetchModels, getModelId } from '@/stores/aiModels'
+import {
+    addEdge,
+    addNode,
+    nodes
 } from '@/stores/canvas'
+import { ref, watch } from 'vue'
 
 // Workflow types | 工作流类型
 const WORKFLOW_TYPES = {
@@ -264,12 +264,20 @@ export const useWorkflowOrchestrator = () => {
     
     try {
       let response = ''
+      
+      await fetchModels(1)
+      // Try to find a strong model for analysis, fallback to first available chat model
+      const modelId = getModelId('gemini-3-flash') || getModelId('gpt-4o') || 
+                     (aiModels.value[1] && aiModels.value[1][0]?.id)
+      
+      if (!modelId) {
+        throw new Error('未找到可用的对话模型')
+      }
+
       for await (const chunk of streamChatCompletions({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: INTENT_ANALYSIS_PROMPT },
-          { role: 'user', content: userInput }
-        ]
+        modelId,
+        systemPrompt: INTENT_ANALYSIS_PROMPT,
+        userPrompt: userInput
       })) {
         response += chunk
       }

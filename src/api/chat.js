@@ -22,14 +22,17 @@ export const chatCompletions = (data) =>
 export const streamChatCompletions = async function* (data, signal) {
   const accessToken = getAccessToken()
   
-  const response = await fetch(joinUrl(AUTH_BASE_URL, '/chat/completions'), {
+  const response = await fetch(joinUrl(AUTH_BASE_URL, '/ai/generate/stream'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
       'tenant-id': TENANT_ID,
       ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
     },
-    body: JSON.stringify({ ...data, stream: true }),
+    body: JSON.stringify(data),
     signal
   })
 
@@ -58,19 +61,22 @@ export const streamChatCompletions = async function* (data, signal) {
 
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
+    // Keep the last incomplete line in buffer
     buffer = lines.pop() || ''
 
     for (const line of lines) {
       const trimmed = line.trim()
       if (!trimmed || !trimmed.startsWith('data:')) continue
 
-      const data = trimmed.slice(5).trim()
-      if (data === '[DONE]') return
+      const dataStr = trimmed.slice(5).trim()
+      if (!dataStr) continue
 
       try {
-        const parsed = JSON.parse(data)
-        const content = parsed.choices?.[0]?.delta?.content
-        if (content) yield content
+        const parsed = JSON.parse(dataStr)
+        // Format: { code: 0, data: "...", msg: "" }
+        if (parsed.code === 0 && parsed.data) {
+          yield parsed.data
+        }
       } catch (e) {
         // Skip invalid JSON
       }

@@ -96,12 +96,12 @@
  * Text node component | 文本节点组件
  * Allows user to input and edit text content
  */
-import { ref, watch, nextTick } from 'vue'
+import { CopyOutline, ExpandOutline, ImageOutline, TrashOutline, VideocamOutline } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NSpin } from 'naive-ui'
-import { TrashOutline, ExpandOutline, CopyOutline, ImageOutline, VideocamOutline, AddCircle } from '@vicons/ionicons5'
-import { updateNode, removeNode, duplicateNode, addNode, addEdge, nodes } from '../../stores/canvas'
+import { ref, watch } from 'vue'
 import { useChat } from '../../hooks'
+import { addEdge, addNode, duplicateNode, nodes, removeNode, updateNode } from '../../stores/canvas'
 
 const props = defineProps({
   id: String,
@@ -114,7 +114,7 @@ const { updateNodeInternals } = useVueFlow()
 // Chat hook for polish | 润色用的 Chat hook
 const { send: sendChat } = useChat({
   systemPrompt: '你是一个专业的AI绘画提示词专家。将用户输入的内容美化成高质量的生图提示词，包含风格、光线、構图、细节等要素。直接返回提示词，不要其他解释。',
-  model: 'gpt-4o-mini'
+  model: 'gemini-3-flash'
 })
 
 // Local content state | 本地内容状态
