@@ -27,16 +27,31 @@
         <textarea v-model="content" @blur="updateContent" @wheel.stop @mousedown.stop
           class="w-full bg-transparent resize-none outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] min-h-[80px] overflow-y-auto"
           placeholder="请输入文本内容..." />
-        <!-- Polish button | 润色按钮 -->
-        <button 
-          @click="handlePolish"
-          :disabled="isPolishing || !content.trim()"
-          class="mt-2 px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--accent-color)] hover:text-white border border-[var(--border-color)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-        >
-          <n-spin v-if="isPolishing" :size="12" />
-          <span v-else>✨</span>
-          AI 润色
-        </button>
+        <!-- Buttons row -->
+        <div class="flex items-center gap-2 mt-2">
+          <!-- Polish button | 润色按钮 -->
+          <button 
+            @click="handlePolish"
+            :disabled="isPolishing || !content.trim()"
+            class="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--accent-color)] hover:text-white border border-[var(--border-color)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+          >
+            <n-spin v-if="isPolishing" :size="12" />
+            <span v-else>✨</span>
+            AI 润色
+          </button>
+
+          <!-- Revert button | 恢复按钮 -->
+          <button 
+            v-if="originalContent"
+            @click="handleRevert"
+            :disabled="isPolishing"
+            class="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--accent-color)] hover:text-white border border-[var(--border-color)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            title="恢复原文"
+          >
+            <n-icon :size="12"><ArrowUndoOutline /></n-icon>
+            恢复
+          </button>
+        </div>
       </div>
 
       <!-- Handles | 连接点 -->
@@ -96,7 +111,7 @@
  * Text node component | 文本节点组件
  * Allows user to input and edit text content
  */
-import { CopyOutline, ExpandOutline, ImageOutline, TrashOutline, VideocamOutline } from '@vicons/ionicons5'
+import { ArrowUndoOutline, CopyOutline, ExpandOutline, ImageOutline, TrashOutline, VideocamOutline } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NSpin } from 'naive-ui'
 import { ref, watch } from 'vue'
@@ -118,6 +133,7 @@ const { send: sendChat } = useChat({
 
 // Local content state | 本地内容状态
 const content = ref(props.data?.content || '')
+const originalContent = ref(props.data?.originalContent || null)
 
 // Hover state | 悬浮状态
 const showActions = ref(false)
@@ -142,8 +158,14 @@ const handlePolish = async () => {
   const input = content.value.trim()
   if (!input) return
   
+  // Save original content before polishing | 润色前保存原文
+  if (!originalContent.value) {
+    originalContent.value = content.value
+    updateNode(props.id, { originalContent: content.value })
+  }
+
   isPolishing.value = true
-  const originalContent = content.value
+  const currentContent = content.value
 
   try {
     // Call chat API to polish the prompt | 调用 AI 润色提示词
@@ -155,12 +177,25 @@ const handlePolish = async () => {
       window.$message?.success('提示词已润色')
     }
   } catch (err) {
-    content.value = originalContent
+    content.value = currentContent
     if (!err?.__handled) {
       window.$message?.error(err.message || '润色失败')
     }
   } finally {
     isPolishing.value = false
+  }
+}
+
+// Handle revert | 处理恢复原文
+const handleRevert = () => {
+  if (originalContent.value) {
+    content.value = originalContent.value
+    originalContent.value = null
+    updateNode(props.id, { 
+      content: content.value,
+      originalContent: null 
+    })
+    window.$message?.success('已恢复原文')
   }
 }
 

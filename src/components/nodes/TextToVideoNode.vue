@@ -163,9 +163,19 @@
               @blur="updateNodeData"
               @wheel.stop
               @keydown.enter.exact.prevent="handleGenerate"
-              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto"
+              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto pr-8"
               placeholder="输入视频描述（Enter 生成）"
             ></textarea>
+
+            <button 
+              v-if="originalContent"
+              @click="handleRevert"
+              :disabled="isPolishing"
+              class="absolute right-0 bottom-0 p-1.5 rounded-lg bg-[var(--bg-secondary)]/80 hover:bg-[var(--accent-color)] hover:text-white border border-[var(--border-color)] transition-all flex items-center justify-center backdrop-blur-sm shadow-sm"
+              title="恢复原文"
+            >
+               <n-icon :size="14"><ArrowUndoOutline /></n-icon>
+            </button>
           </div>
         </div>
 
@@ -235,16 +245,16 @@
 
 <script setup>
 import {
-  AddOutline,
-  ArrowUpOutline,
-  ChevronDownOutline,
-  CloseCircleOutline,
-  DownloadOutline,
-  EyeOutline,
-  SparklesOutline,
-  TrashOutline,
-  VideocamOutline,
-  AddCircle
+    AddOutline,
+    ArrowUndoOutline,
+    ArrowUpOutline,
+    ChevronDownOutline,
+    CloseCircleOutline,
+    DownloadOutline,
+    EyeOutline,
+    SparklesOutline,
+    TrashOutline,
+    VideocamOutline
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NSpin } from 'naive-ui'
@@ -252,7 +262,7 @@ import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useChat, useVideoGeneration } from '../../hooks'
 import { duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
-import { DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RESOLUTION, getModelConfig, getModelDurationOptions, videoModelSelectOptions, VIDEO_RESOLUTION_OPTIONS } from '../../stores/models'
+import { DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RESOLUTION, getModelConfig, getModelDurationOptions, VIDEO_RESOLUTION_OPTIONS, videoModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -280,6 +290,7 @@ const { updateNodeInternals } = useVueFlow()
 
 const showActions = ref(false)
 const content = ref(props.data?.content || '')
+const originalContent = ref(props.data?.originalContent || null)
 const localModel = ref(props.data?.model || DEFAULT_VIDEO_MODEL)
 const localResolution = ref(props.data?.resolution || DEFAULT_VIDEO_RESOLUTION)
 const localDuration = ref(props.data?.dur || DEFAULT_VIDEO_DURATION)
@@ -393,7 +404,14 @@ const handlePolish = async () => {
   const input = content.value.trim()
   if (!input) return
 
+  if (!originalContent.value) {
+    originalContent.value = content.value
+    updateNode(props.id, { originalContent: content.value })
+  }
+
   isPolishing.value = true
+  const currentContent = content.value
+
   try {
     const result = await sendChat(input, true)
     if (result) {
@@ -402,11 +420,24 @@ const handlePolish = async () => {
       window.$message?.success('提示词已润色')
     }
   } catch (err) {
+    content.value = currentContent
     if (!err?.__handled) {
       window.$message?.error('润色失败: ' + err.message)
     }
   } finally {
     isPolishing.value = false
+  }
+}
+
+const handleRevert = () => {
+  if (originalContent.value) {
+    content.value = originalContent.value
+    originalContent.value = null
+    updateNode(props.id, { 
+      content: content.value,
+      originalContent: null 
+    })
+    window.$message?.success('已恢复原文')
   }
 }
 
