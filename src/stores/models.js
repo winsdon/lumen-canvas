@@ -68,10 +68,21 @@ const computeModels = (type, staticCapabilities, defaultLabelFn) => {
     // Let's stick to: "Show what backend returns, enriched with capabilities".
     
     if (backendModels.length === 0) {
-        // Fallback: If no backend data, maybe return empty? 
-        // Or if we really want to support offline mode, we'd need the labels back in config.
-        // Given the prompt "don't use hardcoded", empty is correct behavior if backend is down/empty.
-        return []
+        // Fallback: Use static capabilities if backend returns nothing
+        // 回退：如果后端没有返回数据，使用静态配置
+        return staticCapabilities.map(c => ({
+            ...c,
+            label: c.label || c.key,
+            value: c.key,
+            key: c.key,
+            id: c.key, // Fallback ID
+            platform: 'unknown',
+            imagePoint: 0,
+            point: 0,
+            sizes: c.sizes || [],
+            qualities: c.qualities || [],
+            defaultParams: c.defaultParams || {}
+        }))
     }
 
     return backendModels.map(m => {

@@ -84,8 +84,8 @@
         :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }" @keydown.esc="showNodeMenu = false">
         <div class="px-2 py-1 text-xs text-[var(--text-secondary)] font-medium">添加节点</div>
         <button
-          v-for="nodeType in nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'text', 'imageConfig', 'videoConfig'].includes(n.type))"
-          :key="nodeType.type" @click="addNewNode(nodeType.type)"
+          v-for="nodeType in nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'textCombination', 'text', 'imageConfig', 'videoConfig'].includes(n.type))"
+  :key="nodeType.type" @click="addNewNode(nodeType.type)"
           class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left">
           <n-icon :size="20" :color="nodeType.color">
             <component :is="nodeType.icon" />
@@ -271,6 +271,7 @@ import ImageConfigNode from '../components/nodes/ImageConfigNode.vue'
 import ImageNode from '../components/nodes/ImageNode.vue'
 import TextToImageNode from '../components/nodes/TextToImageNode.vue'
 import TextToVideoNode from '../components/nodes/TextToVideoNode.vue'
+import TextCombinationNode from '../components/nodes/TextCombinationNode.vue'
 import TextNode from '../components/nodes/TextNode.vue'
 import VideoConfigNode from '../components/nodes/VideoConfigNode.vue'
 import VideoNode from '../components/nodes/VideoNode.vue'
@@ -290,6 +291,7 @@ const nodeTypes = {
   videoConfig: markRaw(VideoConfigNode),
   textToImage: markRaw(TextToImageNode),
   textToVideo: markRaw(TextToVideoNode),
+  textCombination: markRaw(TextCombinationNode),
   connectPlaceholder: markRaw(ConnectPlaceholderNode),
   group: markRaw(GroupNode)
 }
@@ -494,6 +496,7 @@ const tools = [
 const nodeTypeOptions = [
   { type: 'textToImage', name: '文生图(组合)', icon: ImageOutline, color: '#ec4899' },
   { type: 'textToVideo', name: '文生视频(组合)', icon: VideocamOutline, color: '#f97316' },
+  { type: 'textCombination', name: '文本(组合)', icon: TextOutline, color: '#8b5cf6' },
   { type: 'text', name: '文本节点', icon: TextOutline, color: '#3b82f6' },
   { type: 'imageConfig', name: '文生图配置', icon: ColorPaletteOutline, color: '#32F08C' },
   { type: 'videoConfig', name: '视频生成配置', icon: VideocamOutline, color: '#f59e0b' },
@@ -502,7 +505,7 @@ const nodeTypeOptions = [
 ]
 
 const connectNodeTypeOptions = computed(() =>
-  nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'text', 'imageConfig', 'videoConfig', 'image', 'video'].includes(n.type))
+  nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'textCombination', 'text', 'imageConfig', 'videoConfig', 'image', 'video'].includes(n.type))
 )
 
 // Add new node | 添加新节点

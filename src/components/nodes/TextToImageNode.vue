@@ -44,17 +44,17 @@
         </div>
     </div>
     
+    <!-- Node Label (Outside Top-Left) -->
+    <div class="absolute -top-7 left-0 z-20 pointer-events-none">
+      <span class="text-sm text-[var(--text-tertiary)] select-none">图片</span>
+    </div>
+    
     <!-- Top Panel: Image Display Area | 顶部：图片展示区域 -->
     <div
       class="text-to-image-node bg-[var(--bg-secondary)] rounded-2xl border w-[320px] transition-all duration-200 flex flex-col overflow-hidden relative z-10"
       :class="selected ? 'border-2 border-[var(--accent-color)] shadow-xl shadow-[var(--accent-color)]/20' : 'border border-[var(--border-color)] shadow-md'"
       @click="toggleInputPanel"
     >
-      
-      <!-- Image Header -->
-      <div class="absolute top-3 left-3 z-20 pointer-events-none">
-        <span class="text-sm font-semibold text-[var(--text-primary)] drop-shadow-md">图片</span>
-      </div>
 
       <div 
         class="relative bg-[var(--bg-tertiary)] group/image cursor-pointer transition-all duration-300" 

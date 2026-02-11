@@ -55,6 +55,10 @@
                 <n-icon v-else :size="36" class="cover-icon">
                   <FolderOpenOutline />
                 </n-icon>
+                <div class="my-workflow-mask"></div>
+                <button class="my-workflow-delete-btn" @click.stop="openDeleteConfirm(workflow)" title="删除">
+                  <n-icon :size="22"><TrashOutline /></n-icon>
+                </button>
               </div>
               <div class="card-title">{{ workflow.name }}</div>
             </div>
@@ -69,6 +73,14 @@
       </div>
     </div>
   </Transition>
+
+  <n-modal v-model:show="showDeleteModal" preset="dialog" title="删除工作流" type="warning">
+    <p>确定要删除工作流「{{ pendingDeleteWorkflow?.name || '未命名' }}」吗？此操作不可恢复。</p>
+    <template #action>
+      <n-button :disabled="isDeleting" @click="showDeleteModal = false">取消</n-button>
+      <n-button type="error" :loading="isDeleting" @click="confirmDeleteWorkflow">删除</n-button>
+    </template>
+  </n-modal>
 </template>
 
 <script setup>
@@ -77,16 +89,17 @@
  * 显示工作流模板列表，支持一键添加到画布
  */
 import { computed, ref } from 'vue'
-import { NIcon } from 'naive-ui'
+import { NButton, NIcon, NModal } from 'naive-ui'
 import { 
   CloseOutline,
   GridOutline, 
   ImageOutline, 
   VideocamOutline,
-  FolderOpenOutline 
+  FolderOpenOutline,
+  TrashOutline
 } from '@vicons/ionicons5'
 import { WORKFLOW_TEMPLATES } from '../config/workflows'
-import { myWorkflows } from '@/stores/workflows'
+import { myWorkflows, removeMyWorkflow } from '@/stores/workflows'
 
 const props = defineProps({
   show: Boolean
@@ -160,6 +173,36 @@ const handleAddWorkflow = (workflow) => {
   // 直接添加工作流，节点内容由用户自己填写
   emit('add-workflow', { workflow, options: {} })
   visible.value = false
+}
+
+const showDeleteModal = ref(false)
+const pendingDeleteWorkflow = ref(null)
+const isDeleting = ref(false)
+
+const openDeleteConfirm = (workflow) => {
+  pendingDeleteWorkflow.value = workflow || null
+  showDeleteModal.value = true
+}
+
+const confirmDeleteWorkflow = async () => {
+  const workflow = pendingDeleteWorkflow.value
+  if (!workflow?.id) {
+    showDeleteModal.value = false
+    pendingDeleteWorkflow.value = null
+    return
+  }
+
+  try {
+    isDeleting.value = true
+    await removeMyWorkflow(workflow.id)
+    window.$message?.success('已删除工作流')
+    showDeleteModal.value = false
+    pendingDeleteWorkflow.value = null
+  } catch (err) {
+    window.$message?.error(err?.message || '删除失败')
+  } finally {
+    isDeleting.value = false
+  }
 }
 
 // Handle click outside | 点击外部关闭
@@ -289,6 +332,7 @@ const vClickOutside = {
 .card-cover {
   aspect-ratio: 1;
   border-radius: 12px;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -296,6 +340,43 @@ const vClickOutside = {
   border: 1px solid var(--border-color);
   transition: border-color 0.2s;
   overflow: hidden;
+}
+
+.my-workflow-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.my-workflow-delete-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.95);
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+}
+
+.my-workflow-delete-btn:hover {
+  color: var(--accent-color);
+}
+
+.workflow-card:hover .my-workflow-mask,
+.workflow-card:hover .my-workflow-delete-btn {
+  opacity: 1;
 }
 
 .cover-img {

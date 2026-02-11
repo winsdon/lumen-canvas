@@ -36,14 +36,16 @@
       </div>
     </div>
 
+    <!-- Node Label (Outside Top-Left) -->
+    <div class="absolute -top-7 left-0 z-20 pointer-events-none">
+      <span class="text-sm text-[var(--text-tertiary)] select-none">视频</span>
+    </div>
+
     <div
       class="text-to-video-node bg-[var(--bg-secondary)] rounded-2xl border w-[360px] transition-all duration-200 flex flex-col overflow-hidden relative z-10"
       :class="selected ? 'border-2 border-[var(--accent-color)] shadow-xl shadow-[var(--accent-color)]/20' : 'border border-[var(--border-color)] shadow-md'"
       @click="toggleInputPanel"
     >
-      <div class="absolute top-3 left-3 z-20 pointer-events-none">
-        <span class="text-sm font-semibold text-[var(--text-primary)] drop-shadow-md">视频</span>
-      </div>
 
       <div class="relative bg-[var(--bg-tertiary)] group/video cursor-pointer transition-all duration-300" style="aspect-ratio: 16 / 9;">
         <div v-if="nodeLoading" class="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[var(--bg-tertiary)]">
@@ -163,19 +165,9 @@
               @blur="updateNodeData"
               @wheel.stop
               @keydown.enter.exact.prevent="handleGenerate"
-              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto pr-8"
+              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto"
               placeholder="输入视频描述（Enter 生成）"
             ></textarea>
-
-            <button 
-              v-if="originalContent"
-              @click="handleRevert"
-              :disabled="isPolishing"
-              class="absolute right-0 bottom-0 p-1.5 rounded-lg bg-[var(--bg-secondary)]/80 hover:bg-[var(--accent-color)] hover:text-white border border-[var(--border-color)] transition-all flex items-center justify-center backdrop-blur-sm shadow-sm"
-              title="恢复原文"
-            >
-               <n-icon :size="14"><ArrowUndoOutline /></n-icon>
-            </button>
           </div>
         </div>
 
@@ -245,16 +237,16 @@
 
 <script setup>
 import {
-    AddOutline,
-    ArrowUndoOutline,
-    ArrowUpOutline,
-    ChevronDownOutline,
-    CloseCircleOutline,
-    DownloadOutline,
-    EyeOutline,
-    SparklesOutline,
-    TrashOutline,
-    VideocamOutline
+  AddOutline,
+  ArrowUpOutline,
+  ChevronDownOutline,
+  CloseCircleOutline,
+  DownloadOutline,
+  EyeOutline,
+  SparklesOutline,
+  TrashOutline,
+  VideocamOutline,
+  AddCircle
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NSpin } from 'naive-ui'
@@ -262,7 +254,7 @@ import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useChat, useVideoGeneration } from '../../hooks'
 import { duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
-import { DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RESOLUTION, getModelConfig, getModelDurationOptions, VIDEO_RESOLUTION_OPTIONS, videoModelSelectOptions } from '../../stores/models'
+import { DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RESOLUTION, getModelConfig, getModelDurationOptions, videoModelSelectOptions, VIDEO_RESOLUTION_OPTIONS } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -290,7 +282,6 @@ const { updateNodeInternals } = useVueFlow()
 
 const showActions = ref(false)
 const content = ref(props.data?.content || '')
-const originalContent = ref(props.data?.originalContent || null)
 const localModel = ref(props.data?.model || DEFAULT_VIDEO_MODEL)
 const localResolution = ref(props.data?.resolution || DEFAULT_VIDEO_RESOLUTION)
 const localDuration = ref(props.data?.dur || DEFAULT_VIDEO_DURATION)
@@ -404,14 +395,7 @@ const handlePolish = async () => {
   const input = content.value.trim()
   if (!input) return
 
-  if (!originalContent.value) {
-    originalContent.value = content.value
-    updateNode(props.id, { originalContent: content.value })
-  }
-
   isPolishing.value = true
-  const currentContent = content.value
-
   try {
     const result = await sendChat(input, true)
     if (result) {
@@ -420,24 +404,11 @@ const handlePolish = async () => {
       window.$message?.success('提示词已润色')
     }
   } catch (err) {
-    content.value = currentContent
     if (!err?.__handled) {
       window.$message?.error('润色失败: ' + err.message)
     }
   } finally {
     isPolishing.value = false
-  }
-}
-
-const handleRevert = () => {
-  if (originalContent.value) {
-    content.value = originalContent.value
-    originalContent.value = null
-    updateNode(props.id, { 
-      content: content.value,
-      originalContent: null 
-    })
-    window.$message?.success('已恢复原文')
   }
 }
 

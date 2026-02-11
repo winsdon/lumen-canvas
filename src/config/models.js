@@ -149,14 +149,14 @@ export const VIDEO_MODEL_CAPABILITIES = [
 // Chat/LLM model capabilities | 对话模型能力配置
 // Currently simple list, but can be expanded
 export const CHAT_MODEL_CAPABILITIES = [
-    { key: 'gemini-3-flash-preview' },
-    { key: 'gemini-3-flash' },
-    { key: 'gpt-4o-mini' },
-    { key: 'gpt-4o' },
-    { key: 'gpt-5.2' },
-    { key: 'deepseek-chat' },
-    { key: 'doubao-seed-1-6-flash-250615' },
-    { key: 'gemini-3-pro' }
+    { key: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview' },
+    { key: 'gemini-3-flash', label: 'Gemini 3 Flash' },
+    { key: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+    { key: 'gpt-4o', label: 'GPT-4o' },
+    { key: 'gpt-5.2', label: 'GPT-5.2 (Preview)' },
+    { key: 'deepseek-chat', label: 'DeepSeek Chat' },
+    { key: 'doubao-seed-1-6-flash-250615', label: 'Doubao Flash' },
+    { key: 'gemini-3-pro', label: 'Gemini 3 Pro' }
 ]
 
 // Deprecated: Use dynamic loading instead
