@@ -178,7 +178,9 @@ const handlePolish = async () => {
     }
   } catch (err) {
     content.value = currentContent
-    if (!err?.__handled) {
+    // Only show error if it hasn't been handled by the API layer | 仅在 API 层未处理时显示错误
+    // Authentication errors (401) are typically handled globally or by the API wrapper
+    if (!err?.__handled && !err?.message?.includes('401')) {
       window.$message?.error(err.message || '润色失败')
     }
   } finally {

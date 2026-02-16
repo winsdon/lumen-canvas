@@ -449,7 +449,10 @@ const handleGenerate = async (mode = 'auto') => {
 
     // Add reference image if provided | 如果有参考图则添加
     if (refImages.length > 0) {
-      params.image = refImages[0]
+      // Limit to 5 images | 限制最多5张图片
+      const maxImages = 5
+      const imagesToUse = refImages.slice(0, maxImages)
+      params.image = imagesToUse.join(',')
     }
 
     const result = await generate(params)
