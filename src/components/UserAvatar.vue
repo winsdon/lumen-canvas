@@ -13,6 +13,7 @@
         <n-dropdown :options="menuOptions" @select="handleMenuSelect">
           <div class="avatar-wrapper">
             <img
+              :key="rawAvatar"
               :src="userAvatar"
               @error="handleAvatarError"
               class="w-8 h-8 rounded-full object-cover"
@@ -44,18 +45,22 @@ const router = useRouter()
 const { isLoggedIn, userInfo, logout } = useAuth()
 
 const defaultAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
-const avatarError = ref(false)
+const failedSrc = ref(null)
+
+const rawAvatar = computed(() => {
+  if (!userInfo.value?.avatar) return ''
+  return userInfo.value.avatar.replace(/[`\s]/g, '')
+})
 
 const userAvatar = computed(() => {
-  if (avatarError.value || !userInfo.value?.avatar) return defaultAvatar
-  // Clean up avatar URL (remove backticks and whitespace if present) | 清理头像 URL（移除可能存在的反引号和空格）
-  const cleanUrl = userInfo.value.avatar.replace(/[`\s]/g, '')
-  // console.log('Raw avatar:', userInfo.value.avatar, 'Cleaned:', cleanUrl)
-  return cleanUrl || defaultAvatar
+  if (!rawAvatar.value) return defaultAvatar
+  return rawAvatar.value === failedSrc.value ? defaultAvatar : rawAvatar.value
 })
 
 const handleAvatarError = () => {
-  avatarError.value = true
+  if (rawAvatar.value) {
+    failedSrc.value = rawAvatar.value
+  }
 }
 
 const renderIcon = (icon) => {

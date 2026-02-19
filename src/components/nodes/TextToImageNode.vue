@@ -143,6 +143,13 @@
       >
         <!-- Input Header -->
         <div class="flex flex-col p-3 gap-3">
+          <!-- Connected Text Indicator -->
+          <div v-if="!content && connectedText" class="flex items-center gap-1.5 text-xs text-[var(--accent-color)] bg-[var(--accent-color)]/10 px-2 py-1 rounded self-start border border-[var(--accent-color)]/20 max-w-full">
+            <n-icon :size="12"><TextOutline /></n-icon>
+            <span class="flex-shrink-0">已连接文本源</span>
+            <span class="opacity-70 truncate flex-1">{{ connectedText }}</span>
+          </div>
+
           <!-- Reference Image Upload Area | 参考图上传区域 -->
           <div class="flex flex-wrap gap-2">
             <!-- Upload Button | 上传按钮 -->
@@ -188,38 +195,15 @@
           </div>
           
           <!-- Text Input -->
-          <div class="flex-1 relative w-full flex gap-3">
-            <!-- Magic Button -->
-            <button 
-              @click="handlePolish"
-              :disabled="isPolishing || !content.trim()"
-              class="flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] transition-colors group flex-shrink-0"
-              :class="{ 'animate-pulse border-purple-500': isPolishing }"
-            >
-               <n-spin v-if="isPolishing" :size="18" />
-               <n-icon v-else :size="20" class="text-[var(--text-secondary)] group-hover:text-purple-400"><SparklesOutline /></n-icon>
-            </button>
-
-            <div class="flex-1 relative">
-              <textarea
-                v-model="content"
-                @blur="updateNodeData"
-                @wheel.stop
-                @keydown.enter.exact.prevent="handleGenerate"
-                class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto pr-8"
-                placeholder="输入描述或按 '/' 呼出指令（Enter 发送）"
-              ></textarea>
-              
-              <button 
-                v-if="originalContent"
-                @click="handleRevert"
-                :disabled="isPolishing"
-                class="absolute right-0 bottom-0 p-1.5 rounded-lg bg-[var(--bg-secondary)]/80 hover:bg-[var(--accent-color)] hover:text-white border border-[var(--border-color)] transition-all flex items-center justify-center backdrop-blur-sm shadow-sm"
-                title="恢复原文"
-              >
-                 <n-icon :size="14"><ArrowUndoOutline /></n-icon>
-              </button>
-            </div>
+          <div class="flex-1 relative w-full">
+            <textarea
+              v-model="content"
+              @blur="updateNodeData"
+              @wheel.stop
+              @keydown.enter.exact.prevent="handleGenerate"
+              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto"
+              placeholder="输入描述或按 '/' 呼出指令（Enter 发送）"
+            ></textarea>
           </div>
         </div>
 
@@ -287,8 +271,8 @@
              <!-- Generate Button -->
              <button 
                @click="handleGenerate"
-               :disabled="loading || !content.trim()"
-               :class="(loading || !content.trim()) ? 'bg-[var(--text-primary)]' : 'bg-[var(--accent-color)]'"
+               :disabled="loading || (!content.trim() && !connectedText)"
+               :class="(loading || (!content.trim() && !connectedText)) ? 'bg-[var(--text-primary)]' : 'bg-[var(--accent-color)]'"
                class="w-7 h-7 rounded-full text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
              >
                <n-icon v-if="loading" :size="14"><div class="animate-spin rounded-full h-3 w-3 border-b-2 border-[var(--bg-primary)]"></div></n-icon>
@@ -305,7 +289,6 @@
 <script setup>
 import {
   AddOutline,
-  ArrowUndoOutline,
   ArrowUpOutline,
   ChevronDownOutline,
   CloseCircleOutline,
@@ -316,7 +299,7 @@ import {
   EyeOutline,
   ImageOutline,
   ScanOutline,
-  SparklesOutline,
+  TextOutline,
   TrashOutline,
   VideocamOutline
 } from '@vicons/ionicons5'
@@ -324,7 +307,7 @@ import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
 import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
-import { useChat, useImageGeneration } from '../../hooks'
+import { useImageGeneration } from '../../hooks'
 import { duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
 import { DEFAULT_IMAGE_MODEL, getModelConfig, imageModelSelectOptions } from '../../stores/models'
 
@@ -357,10 +340,8 @@ const { updateNodeInternals } = useVueFlow()
 // State
 const showActions = ref(false)
 const content = ref(props.data?.content || '')
-const originalContent = ref(props.data?.originalContent || null)
 const localModel = ref(props.data?.model || DEFAULT_IMAGE_MODEL)
 const generateCount = ref(props.data?.n || 1)
-const isPolishing = ref(false)
 const isInputExpanded = ref(false)
 const selectedRatio = ref('auto')
 const previewImageRef = ref(null)
@@ -417,11 +398,30 @@ const displayRatio = computed(() => {
   return selectedRatio.value
 })
 
+const connectedText = computed(() => {
+  const incoming = edges.value.filter(e => e.target === props.id)
+  for (const edge of incoming) {
+    const sourceNode = nodes.value.find(n => n.id === edge.source)
+    if (!sourceNode) continue
+    
+    // Check for Text Combination Node
+    if (sourceNode.type === 'textCombination') {
+      const text = sourceNode.data?.generatedContent || sourceNode.data?.content
+      if (text) return text
+    }
+    
+    // Check for Text Node
+    if (sourceNode.type === 'text') {
+      const text = sourceNode.data?.content
+      if (text) return text
+    }
+  }
+  return null
+})
+
 // Hooks
 const { loading, error, images, generate } = useImageGeneration()
-const { send: sendChat } = useChat({
-  systemPrompt: '你是一个专业的AI绘画提示词专家。将用户输入的内容美化成高质量的生图提示词，包含风格、光线、構图、细节等要素。直接返回提示词，不要其他解释。'
-})
+const polishSystemPrompt = '你是一个专业的AI绘画提示词专家。将用户输入的内容美化成高质量的生图提示词，包含风格、光线、构图、细节等要素。请用中文输出。直接返回提示词，不要其他解释。'
 
 // Computed
 const imageUrl = computed(() => {
@@ -489,49 +489,9 @@ const handleModelSelect = (key) => {
   updateNodeData()
 }
 
-const handlePolish = async () => {
-  const input = content.value.trim()
-  if (!input) return
-  
-  if (!originalContent.value) {
-    originalContent.value = content.value
-    updateNode(props.id, { originalContent: content.value })
-  }
-
-  isPolishing.value = true
-  const currentContent = content.value
-
-  try {
-    const result = await sendChat(input, true)
-    if (result) {
-      content.value = result
-      updateNodeData()
-      window.$message?.success('提示词已润色')
-    }
-  } catch (err) {
-    content.value = currentContent
-    if (!err?.__handled) {
-      window.$message?.error('润色失败: ' + err.message)
-    }
-  } finally {
-    isPolishing.value = false
-  }
-}
-
-const handleRevert = () => {
-  if (originalContent.value) {
-    content.value = originalContent.value
-    originalContent.value = null
-    updateNode(props.id, { 
-      content: content.value,
-      originalContent: null 
-    })
-    window.$message?.success('已恢复原文')
-  }
-}
-
 const handleGenerate = async () => {
-  if (!content.value.trim()) return
+  const promptToUse = content.value.trim() || connectedText.value
+  if (!promptToUse) return
   
   updateNode(props.id, { loading: true, error: null })
   
@@ -547,10 +507,11 @@ const handleGenerate = async () => {
 
     const result = await generate({
       model: localModel.value,
-      prompt: content.value,
+      prompt: promptToUse,
       n: generateCount.value,
       size,
       quality,
+      systemPrompt: polishSystemPrompt,
       image: referenceImages.value.map(img => img.url).join(',')
     })
 

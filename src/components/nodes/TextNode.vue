@@ -39,6 +39,10 @@
             <span v-else>✨</span>
             AI 润色
           </button>
+          
+          <span v-if="polishPoints !== undefined && polishPoints !== null" class="text-xs text-[var(--accent-color)] font-medium">
+            {{ polishPoints > 0 ? polishPoints + ' 积分' : '免费' }}
+          </span>
 
           <!-- Revert button | 恢复按钮 -->
           <button 
@@ -114,9 +118,10 @@
 import { ArrowUndoOutline, CopyOutline, ExpandOutline, ImageOutline, TrashOutline, VideocamOutline } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NSpin } from 'naive-ui'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useChat } from '../../hooks'
 import { addEdge, addNode, duplicateNode, nodes, removeNode, updateNode } from '../../stores/canvas'
+import { DEFAULT_CHAT_MODEL, getModelConfig } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -129,6 +134,11 @@ const { updateNodeInternals } = useVueFlow()
 // Chat hook for polish | 润色用的 Chat hook
 const { send: sendChat } = useChat({
   systemPrompt: '你是一个专业的AI绘画提示词专家。将用户输入的内容美化成高质量的生图提示词，包含风格、光线、構图、细节等要素。直接返回提示词，不要其他解释。'
+})
+
+const polishPoints = computed(() => {
+  const config = getModelConfig(DEFAULT_CHAT_MODEL)
+  return config?.point
 })
 
 // Local content state | 本地内容状态

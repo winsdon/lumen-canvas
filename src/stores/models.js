@@ -198,7 +198,12 @@ export const videoModelSelectOptions = computed(() =>
 )
 
 export const chatModelSelectOptions = computed(() => 
-  chatModels.value.map(m => ({ label: m.label, value: m.key, key: m.key }))
+  chatModels.value.map(m => ({ 
+    label: m.label, 
+    value: m.key, 
+    key: m.key,
+    point: m.point
+  }))
 )
 
 // Export model arrays (computed refs)

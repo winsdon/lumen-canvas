@@ -29,3 +29,7 @@ export const getAiImageListByIds = (ids) => {
     params: { ids: ids.join(',') }
   })
 }
+
+export const getAiImagePageMy = (params = {}) => {
+  return authRequest.get('/ai/image/my-page', { params })
+}

@@ -58,7 +58,7 @@ export const useChat = (options = {}) => {
   const currentResponse = ref('')
   let abortController = null
 
-  const send = async (content, stream = true, modelKey = null) => {
+  const send = async (content, stream = true, modelKey = null, images = []) => {
     setLoading(true)
     currentResponse.value = ''
 
@@ -93,8 +93,19 @@ export const useChat = (options = {}) => {
           throw new Error(`Model not found: ${selectedModelKey}`)
         }
 
+        const requestData = { modelId, systemPrompt, userPrompt }
+        if (images && images.length > 0) {
+          console.log('[useChat] Sending images with request:', images)
+          requestData.images = images
+          // Try compatibility fields in case backend expects different naming
+          requestData.image = images.join(',')
+          requestData.imageUrls = images
+        } else {
+          console.log('[useChat] No images found in request')
+        }
+
         for await (const chunk of streamChatCompletions(
-          { modelId, systemPrompt, userPrompt },
+          requestData,
           abortController.signal
         )) {
           fullResponse += chunk
@@ -144,7 +155,7 @@ export const useImageGeneration = () => {
 
   /**
    * Generate image with fixed params | 固定参数生成图片
-   * @param {Object} params - { model, prompt, size, n, image (optional ref image) }
+   * @param {Object} params - { model, prompt, size, n, image (optional ref image), systemPrompt (optional) }
    */
   const generate = async (params) => {
     setLoading(true)
@@ -177,6 +188,7 @@ export const useImageGeneration = () => {
            prompt: params.prompt,
            width,
            height,
+           systemPrompt: params.systemPrompt,
            image: params.image // Optional for img2img
          })
          taskIds.push(taskId)
