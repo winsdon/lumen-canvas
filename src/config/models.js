@@ -128,9 +128,8 @@ export const VIDEO_RESOLUTION_OPTIONS = [
 export const VIDEO_MODEL_CAPABILITIES = [
     {
         key: 'doubao-seedance-1-5-pro_720p',
-        pattern: /doubao-seedance/i,
         ratios: VIDEO_RATIO_LIST.map(s => s.key),
-        durs: [{ label: '5 秒', key: 5 }],
+        durs: [{ label: '5 秒', key: 5 }, { label: '10 秒', key: 10 }],
         defaultParams: { ratio: '16:9', duration: 5 }
     },
     {
