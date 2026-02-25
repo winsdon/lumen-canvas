@@ -36,6 +36,7 @@
 
       <!-- Header Removed for consistency -->
 
+
       <div 
         class="relative bg-[var(--bg-tertiary)] group/text cursor-pointer transition-all duration-300 min-h-[200px] max-h-[400px] flex flex-col" 
       >
@@ -86,41 +87,26 @@
         @click.stop
       >
         <!-- Input Header -->
-        <div class="flex items-start p-3 gap-3">
-          
-          <!-- Magic Button -->
-          <button 
-            @click="handlePolish"
-            :disabled="isPolishing || !content.trim()"
-            class="flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] transition-colors group shrink-0"
-            :class="{ 'animate-pulse border-purple-500': isPolishing }"
-            title="AI 润色提示词"
-          >
-             <n-spin v-if="isPolishing" :size="18" />
-             <n-icon v-else :size="20" class="text-[var(--text-secondary)] group-hover:text-purple-400"><SparklesOutline /></n-icon>
-          </button>
-
-          <!-- Text Input -->
-          <div class="flex-1 relative">
-            <textarea
-              v-model="content"
-              @blur="updateNodeData"
-              @wheel.stop
-              @keydown.enter.exact.prevent="handleGenerate"
-              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto pr-8 custom-scrollbar"
-              placeholder="输入提示词... (Enter 生成)"
-            ></textarea>
-            
-            <button 
-              v-if="originalContent"
-              @click="handleRevert"
-              :disabled="isPolishing"
-              class="absolute right-0 bottom-0 p-1.5 rounded-lg bg-[var(--bg-secondary)]/80 hover:bg-[var(--accent-color)] hover:text-white border border-[var(--border-color)] transition-all flex items-center justify-center backdrop-blur-sm shadow-sm"
-              title="恢复原文"
-            >
-               <n-icon :size="14"><ArrowUndoOutline /></n-icon>
-            </button>
+        <div class="flex flex-col gap-2 p-3">
+          <div class="flex flex-wrap gap-2">
+            <div v-if="connectedImage" class="flex items-center gap-1.5 text-xs text-[var(--accent-color)] bg-[var(--accent-color)]/10 px-2 py-1 rounded self-start border border-[var(--accent-color)]/20">
+               <n-icon :size="12"><ImageOutline /></n-icon>
+               <span>已连接参考图</span>
+            </div>
+            <div v-if="connectedText" class="flex items-center gap-1.5 text-xs text-blue-500 bg-blue-500/10 px-2 py-1 rounded self-start border border-blue-500/20">
+               <n-icon :size="12"><DocumentTextOutline /></n-icon>
+               <span>已连接文本</span>
+            </div>
           </div>
+
+          <textarea
+            v-model="content"
+            @blur="updateNodeData"
+            @wheel.stop
+            @keydown.enter.exact.prevent="handleGenerate"
+            class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto custom-scrollbar"
+            placeholder="输入提示词... (Enter 生成)"
+          ></textarea>
         </div>
 
         <!-- Control Bar -->
@@ -137,6 +123,10 @@
           </div>
 
           <div class="flex items-center gap-3">
+             <div v-if="currentModelPoints !== undefined && currentModelPoints !== null" class="text-sm text-[var(--accent-color)] font-medium px-1.5 py-0.5 rounded">
+               {{ currentModelPoints > 0 ? currentModelPoints + ' 积分' : '免费' }}
+             </div>
+
              <!-- Generate Button -->
              <button 
                @click="handleGenerate"
@@ -159,21 +149,22 @@
 <script setup>
 import {
   AddOutline,
-  ArrowUndoOutline,
   ArrowUpOutline,
   ChatbubbleEllipsesOutline,
   ChevronDownOutline,
   CloseCircleOutline,
   CopyOutline,
+  DocumentTextOutline,
   HardwareChipOutline,
   SparklesOutline,
+  ImageOutline,
   TrashOutline
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NSpin } from 'naive-ui'
 import { computed, h, onMounted, onUnmounted, ref } from 'vue'
 import { useChat } from '../../hooks'
-import { duplicateNode, removeNode, updateNode } from '../../stores/canvas'
+import { duplicateNode, removeNode, updateNode, edges, nodes } from '../../stores/canvas'
 import { DEFAULT_CHAT_MODEL, chatModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
@@ -206,9 +197,7 @@ useVueFlow()
 const showActions = ref(false)
 const content = ref(props.data?.content || '')
 const generatedContent = ref(props.data?.generatedContent || '')
-const originalContent = ref(props.data?.originalContent || null)
 const localModel = ref(props.data?.model || DEFAULT_CHAT_MODEL)
-const isPolishing = ref(false)
 const isInputExpanded = ref(false)
 const nodeWrapperRef = ref(null)
 let hideTimer = null
@@ -228,18 +217,15 @@ const handleMouseLeave = () => {
 }
 
 // Hooks
-// 1. Chat hook for Polish
-const { send: sendPolish } = useChat({
-  systemPrompt: '你是一个专业的AI绘画提示词专家。将用户输入的内容美化成高质量的生图提示词，包含风格、光线、構图、细节等要素。直接返回提示词，不要其他解释。'
-})
+const polishSystemPrompt = '你是一个专业的AI绘画提示词专家。将用户输入的内容美化成高质量的生图提示词，包含风格、光线、构图、细节等要素。请用中文输出。直接返回提示词，不要其他解释。'
 
-// 2. Chat hook for Generation
+// Chat hook for Generation
 const { 
   send: sendGeneration, 
   currentResponse: currentGenerationResponse, 
   loading: loading, 
   error: error 
-} = useChat()
+} = useChat({ systemPrompt: polishSystemPrompt })
 
 // Computed
 const modelOptions = chatModelSelectOptions
@@ -250,6 +236,54 @@ const displayModelName = computed(() => {
   return model?.label || localModel.value || '选择模型'
 })
 
+const currentModelPoints = computed(() => {
+  const model = modelOptions.value.find(m => m.value === localModel.value || m.key === localModel.value)
+  return model?.point
+})
+
+const connectedImage = computed(() => {
+  const incoming = edges.value.filter(e => e.target === props.id)
+  for (const edge of incoming) {
+    const sourceNode = nodes.value.find(n => n.id === edge.source)
+    if (!sourceNode) continue
+    
+    // Check for Image Node or TextToImage Node
+    if (sourceNode.type === 'image' || sourceNode.type === 'textToImage') {
+      const url = sourceNode.data?.url
+      if (url) {
+        console.log('[TextCombinationNode] Found connected image:', url)
+        return url
+      }
+    }
+  }
+  return null
+})
+
+const connectedText = computed(() => {
+  const incoming = edges.value.filter(e => e.target === props.id)
+  let text = ''
+  
+  for (const edge of incoming) {
+    const sourceNode = nodes.value.find(n => n.id === edge.source)
+    if (!sourceNode) continue
+    
+    // Check for Text Node or TextCombination Node
+    if (sourceNode.type === 'text') {
+      const content = sourceNode.data?.content
+      if (content) {
+        text += (text ? '\n' : '') + content
+      }
+    } else if (sourceNode.type === 'textCombination') {
+      // Prioritize generated content, fallback to input content
+      const content = sourceNode.data?.generatedContent || sourceNode.data?.content
+      if (content) {
+        text += (text ? '\n' : '') + content
+      }
+    }
+  }
+  return text
+})
+
 const getModelMenuProps = () => ({
   style: {
     border: '1px solid var(--border-color)',
@@ -258,8 +292,10 @@ const getModelMenuProps = () => ({
 })
 
 const renderDropdownLabel = (option) => {
+  if (option.point === undefined || option.point === null) return option.label
   return h('div', { class: 'flex items-center justify-between gap-4 min-w-[140px]' }, [
-    h('span', option.label)
+    h('span', option.label),
+    h('span', { class: 'text-xs font-medium text-[var(--accent-color)] px-2 py-0.5 rounded' }, `${option.point} 积分`)
   ])
 }
 
@@ -281,49 +317,8 @@ const handleModelSelect = (key) => {
   updateNodeData()
 }
 
-const handlePolish = async () => {
-  const input = content.value.trim()
-  if (!input) return
-  
-  if (!originalContent.value) {
-    originalContent.value = content.value
-    updateNode(props.id, { originalContent: content.value })
-  }
-
-  isPolishing.value = true
-  const currentContent = content.value
-
-  try {
-    const result = await sendPolish(input, true)
-    if (result) {
-      content.value = result
-      updateNodeData()
-      window.$message?.success('提示词已润色')
-    }
-  } catch (err) {
-    content.value = currentContent
-    if (!err?.__handled) {
-      window.$message?.error('润色失败: ' + err.message)
-    }
-  } finally {
-    isPolishing.value = false
-  }
-}
-
-const handleRevert = () => {
-  if (originalContent.value) {
-    content.value = originalContent.value
-    originalContent.value = null
-    updateNode(props.id, { 
-      content: content.value,
-      originalContent: null 
-    })
-    window.$message?.success('已恢复原文')
-  }
-}
-
 const handleGenerate = async () => {
-  if (!content.value.trim()) return
+  if (!content.value.trim() && !connectedImage.value && !connectedText.value) return
   
   generatedContent.value = ''
   updateNode(props.id, { loading: true, error: null, generatedContent: '' })
@@ -331,13 +326,49 @@ const handleGenerate = async () => {
   try {
     let result = null
     try {
-      result = await sendGeneration(content.value, true, localModel.value)
+      let promptText = content.value.trim()
+      
+      if (connectedText.value) {
+        if (promptText) {
+          promptText = connectedText.value + '\n' + promptText
+        } else {
+          promptText = connectedText.value
+        }
+      }
+
+      const images = []
+      
+      if (connectedImage.value) {
+        images.push(connectedImage.value)
+        if (!promptText) {
+          promptText = "请详细描述这张图片的内容，生成高质量的绘画提示词，包含风格、光线、构图、细节等要素。"
+        }
+      }
+      
+      result = await sendGeneration(promptText, true, localModel.value, images)
     } catch (err) {
       const msg = String(err?.message || '')
       if (msg.includes('Model not found')) {
         localModel.value = DEFAULT_CHAT_MODEL
         updateNode(props.id, { model: DEFAULT_CHAT_MODEL })
-        result = await sendGeneration(content.value, true)
+        
+        // Retry with default model
+        let promptText = content.value.trim()
+        
+        if (connectedText.value) {
+          if (promptText) {
+            promptText = connectedText.value + '\n' + promptText
+          } else {
+            promptText = connectedText.value
+          }
+        }
+
+        const images = connectedImage.value ? [connectedImage.value] : []
+        if (connectedImage.value && !promptText) {
+          promptText = "请详细描述这张图片的内容，生成高质量的绘画提示词，包含风格、光线、构图、细节等要素。"
+        }
+        
+        result = await sendGeneration(promptText, true, DEFAULT_CHAT_MODEL, images)
       } else {
         throw err
       }

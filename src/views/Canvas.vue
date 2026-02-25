@@ -68,6 +68,18 @@
             <AppsOutline />
           </n-icon>
         </button>
+        <n-popover trigger="hover" placement="right-start" :show-arrow="false" style="padding: 0; background: var(--bg-secondary); border: 1px solid var(--border-color);">
+          <template #trigger>
+            <button
+              class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors"
+              title="历史记录">
+              <n-icon :size="20">
+                <TimeOutline />
+              </n-icon>
+            </button>
+          </template>
+          <HistoryPanel />
+        </n-popover>
         <div class="w-full h-px bg-[var(--border-color)] my-1"></div>
         <button v-for="tool in tools" :key="tool.id" @click="tool.action" :disabled="tool.disabled && tool.disabled()"
           class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -223,12 +235,13 @@ import {
   RemoveOutline,
   SunnyOutline,
   TextOutline,
+  TimeOutline,
   VideocamOutline
 } from '@vicons/ionicons5'
 import { Background } from '@vue-flow/background'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
-import { NButton, NDropdown, NIcon, NInput, NModal } from 'naive-ui'
+import { NButton, NDropdown, NIcon, NInput, NModal, NPopover } from 'naive-ui'
 import { computed, markRaw, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkflowOrchestrator } from '../hooks'
@@ -241,6 +254,7 @@ import { getAiVideoMy, getAiVideoPageMy } from '@/api/video'
 import DownloadModal from '../components/DownloadModal.vue'
 import UserAvatar from '../components/UserAvatar.vue'
 import WorkflowPanel from '../components/WorkflowPanel.vue'
+import HistoryPanel from '../components/HistoryPanel.vue'
 
 // Initialize models on page load | 页面加载时初始化模型
 onMounted(() => {

@@ -142,21 +142,27 @@
         @click.stop
       >
         <!-- Input Header -->
-        <div class="flex items-start p-3 gap-3">
-          <!-- Reference Image Upload | 参考图上传 -->
-          <div class="relative w-12 h-12">
-            <div
-              class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] transition-colors overflow-hidden group relative flex flex-col items-center justify-center"
-            >
-              <img v-if="referenceImageUrl" :src="referenceImageUrl" class="absolute inset-0 w-full h-full object-cover" />
-              <div v-if="referenceImageUrl" class="absolute inset-0 bg-black/30"></div>
+        <div class="flex flex-col p-3 gap-3">
+          <!-- Connected Text Indicator -->
+          <div v-if="!content && connectedText" class="flex items-center gap-1.5 text-xs text-[var(--accent-color)] bg-[var(--accent-color)]/10 px-2 py-1 rounded self-start border border-[var(--accent-color)]/20 max-w-full">
+            <n-icon :size="12"><TextOutline /></n-icon>
+            <span class="flex-shrink-0">已连接文本源</span>
+            <span class="opacity-70 truncate flex-1">{{ connectedText }}</span>
+          </div>
 
-              <n-spin v-if="isReferenceUploading" :size="18" class="relative z-10" />
+          <!-- Reference Image Upload Area | 参考图上传区域 -->
+          <div class="flex flex-wrap gap-2">
+            <!-- Upload Button | 上传按钮 -->
+            <div
+              v-if="referenceImages.length < 5"
+              class="relative w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] border-dashed transition-colors overflow-hidden group flex flex-col items-center justify-center flex-shrink-0"
+            >
+              <n-spin v-if="isReferenceUploading" :size="18" />
               <template v-else>
-                <n-icon :size="18" class="text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] mb-0.5 relative z-10">
+                <n-icon :size="18" class="text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] mb-0.5">
                   <AddOutline />
                 </n-icon>
-                <span class="text-[10px] text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] relative z-10">参考图</span>
+                <span class="text-[10px] text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]">参考图</span>
               </template>
 
               <input
@@ -165,68 +171,39 @@
                 class="absolute inset-0 opacity-0 cursor-pointer z-20"
                 :disabled="isReferenceUploading"
                 @change="handleReferenceUpload"
+                title="上传参考图 (最多5张)"
               />
             </div>
 
-            <button
-              v-if="referenceImageUrl"
-              class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-30 hover:bg-[var(--bg-primary)]"
-              @click.stop="handleRemoveReference"
-              title="移除参考图"
+            <!-- Uploaded Images List | 已上传图片列表 -->
+            <div 
+              v-for="(img, index) in referenceImages" 
+              :key="index"
+              class="relative w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] overflow-hidden group flex-shrink-0"
             >
-              <n-icon :size="12" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
-            </button>
-
-            <button
-              v-if="referenceImageUrl"
-              class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-30 hover:bg-[var(--bg-primary)]"
-              @click.stop="handleReferencePreview"
-              title="预览参考图"
-            >
-              <n-icon :size="12" class="text-[var(--text-secondary)]"><EyeOutline /></n-icon>
-            </button>
-
-            <n-image
-              v-if="referenceImageUrl"
-              ref="referencePreviewImageRef"
-              :src="referenceImageUrl"
-              class="fixed -left-[9999px] -top-[9999px] w-0 h-0 opacity-0 pointer-events-none"
-              object-fit="cover"
-              :preview-disabled="false"
-            />
+              <n-image :src="img.url" class="w-full h-full block" object-fit="cover" />
+              
+              <!-- Remove Button | 移除按钮 -->
+              <button
+                class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/50 hover:bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10"
+                @click.stop="handleRemoveReference(index)"
+                title="移除"
+              >
+                <n-icon :size="10"><CloseCircleOutline /></n-icon>
+              </button>
+            </div>
           </div>
           
-          <!-- Magic Button -->
-          <button 
-            @click="handlePolish"
-            :disabled="isPolishing || !content.trim()"
-            class="flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] transition-colors group"
-            :class="{ 'animate-pulse border-purple-500': isPolishing }"
-          >
-             <n-spin v-if="isPolishing" :size="18" />
-             <n-icon v-else :size="20" class="text-[var(--text-secondary)] group-hover:text-purple-400"><SparklesOutline /></n-icon>
-          </button>
-
           <!-- Text Input -->
-          <div class="flex-1 relative">
+          <div class="flex-1 relative w-full">
             <textarea
               v-model="content"
               @blur="updateNodeData"
               @wheel.stop
               @keydown.enter.exact.prevent="handleGenerate"
-              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto pr-8"
+              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto"
               placeholder="输入描述或按 '/' 呼出指令（Enter 发送）"
             ></textarea>
-            
-            <button 
-              v-if="originalContent"
-              @click="handleRevert"
-              :disabled="isPolishing"
-              class="absolute right-0 bottom-0 p-1.5 rounded-lg bg-[var(--bg-secondary)]/80 hover:bg-[var(--accent-color)] hover:text-white border border-[var(--border-color)] transition-all flex items-center justify-center backdrop-blur-sm shadow-sm"
-              title="恢复原文"
-            >
-               <n-icon :size="14"><ArrowUndoOutline /></n-icon>
-            </button>
           </div>
         </div>
 
@@ -294,8 +271,8 @@
              <!-- Generate Button -->
              <button 
                @click="handleGenerate"
-               :disabled="loading || !content.trim()"
-               :class="(loading || !content.trim()) ? 'bg-[var(--text-primary)]' : 'bg-[var(--accent-color)]'"
+               :disabled="loading || (!content.trim() && !connectedText)"
+               :class="(loading || (!content.trim() && !connectedText)) ? 'bg-[var(--text-primary)]' : 'bg-[var(--accent-color)]'"
                class="w-7 h-7 rounded-full text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
              >
                <n-icon v-if="loading" :size="14"><div class="animate-spin rounded-full h-3 w-3 border-b-2 border-[var(--bg-primary)]"></div></n-icon>
@@ -312,7 +289,6 @@
 <script setup>
 import {
   AddOutline,
-  ArrowUndoOutline,
   ArrowUpOutline,
   ChevronDownOutline,
   CloseCircleOutline,
@@ -323,7 +299,7 @@ import {
   EyeOutline,
   ImageOutline,
   ScanOutline,
-  SparklesOutline,
+  TextOutline,
   TrashOutline,
   VideocamOutline
 } from '@vicons/ionicons5'
@@ -331,7 +307,7 @@ import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
 import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
-import { useChat, useImageGeneration } from '../../hooks'
+import { useImageGeneration } from '../../hooks'
 import { duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
 import { DEFAULT_IMAGE_MODEL, getModelConfig, imageModelSelectOptions } from '../../stores/models'
 
@@ -364,19 +340,29 @@ const { updateNodeInternals } = useVueFlow()
 // State
 const showActions = ref(false)
 const content = ref(props.data?.content || '')
-const originalContent = ref(props.data?.originalContent || null)
 const localModel = ref(props.data?.model || DEFAULT_IMAGE_MODEL)
 const generateCount = ref(props.data?.n || 1)
-const isPolishing = ref(false)
 const isInputExpanded = ref(false)
 const selectedRatio = ref('auto')
 const previewImageRef = ref(null)
-const referencePreviewImageRef = ref(null)
 const isReferenceUploading = ref(false)
 const nodeWrapperRef = ref(null)
 let hideTimer = null
 
-const referenceImageUrl = computed(() => props.data?.referenceImageUrl)
+const referenceImages = computed(() => {
+  if (props.data?.referenceImages && Array.isArray(props.data.referenceImages)) {
+    return props.data.referenceImages
+  }
+  if (props.data?.referenceImageUrl) {
+    return [{ 
+      url: props.data.referenceImageUrl, 
+      fileName: props.data.referenceImageFileName,
+      type: props.data.referenceImageFileType 
+    }]
+  }
+  return []
+})
+const referenceImageUrl = computed(() => referenceImages.value[0]?.url) // Compatibility for other checks
 const isSyncingReference = ref(false)
 const lastSyncedSourceId = ref(null)
 const lastSyncedSourceSignature = ref(null)
@@ -412,11 +398,30 @@ const displayRatio = computed(() => {
   return selectedRatio.value
 })
 
+const connectedText = computed(() => {
+  const incoming = edges.value.filter(e => e.target === props.id)
+  for (const edge of incoming) {
+    const sourceNode = nodes.value.find(n => n.id === edge.source)
+    if (!sourceNode) continue
+    
+    // Check for Text Combination Node
+    if (sourceNode.type === 'textCombination') {
+      const text = sourceNode.data?.generatedContent || sourceNode.data?.content
+      if (text) return text
+    }
+    
+    // Check for Text Node
+    if (sourceNode.type === 'text') {
+      const text = sourceNode.data?.content
+      if (text) return text
+    }
+  }
+  return null
+})
+
 // Hooks
 const { loading, error, images, generate } = useImageGeneration()
-const { send: sendChat } = useChat({
-  systemPrompt: '你是一个专业的AI绘画提示词专家。将用户输入的内容美化成高质量的生图提示词，包含风格、光线、構图、细节等要素。直接返回提示词，不要其他解释。'
-})
+const polishSystemPrompt = '你是一个专业的AI绘画提示词专家。将用户输入的内容美化成高质量的生图提示词，包含风格、光线、构图、细节等要素。请用中文输出。直接返回提示词，不要其他解释。'
 
 // Computed
 const imageUrl = computed(() => {
@@ -484,49 +489,9 @@ const handleModelSelect = (key) => {
   updateNodeData()
 }
 
-const handlePolish = async () => {
-  const input = content.value.trim()
-  if (!input) return
-  
-  if (!originalContent.value) {
-    originalContent.value = content.value
-    updateNode(props.id, { originalContent: content.value })
-  }
-
-  isPolishing.value = true
-  const currentContent = content.value
-
-  try {
-    const result = await sendChat(input, true)
-    if (result) {
-      content.value = result
-      updateNodeData()
-      window.$message?.success('提示词已润色')
-    }
-  } catch (err) {
-    content.value = currentContent
-    if (!err?.__handled) {
-      window.$message?.error('润色失败: ' + err.message)
-    }
-  } finally {
-    isPolishing.value = false
-  }
-}
-
-const handleRevert = () => {
-  if (originalContent.value) {
-    content.value = originalContent.value
-    originalContent.value = null
-    updateNode(props.id, { 
-      content: content.value,
-      originalContent: null 
-    })
-    window.$message?.success('已恢复原文')
-  }
-}
-
 const handleGenerate = async () => {
-  if (!content.value.trim()) return
+  const promptToUse = content.value.trim() || connectedText.value
+  if (!promptToUse) return
   
   updateNode(props.id, { loading: true, error: null })
   
@@ -542,11 +507,12 @@ const handleGenerate = async () => {
 
     const result = await generate({
       model: localModel.value,
-      prompt: content.value,
+      prompt: promptToUse,
       n: generateCount.value,
       size,
       quality,
-      image: referenceImageUrl.value
+      systemPrompt: polishSystemPrompt,
+      image: referenceImages.value.map(img => img.url).join(',')
     })
 
     if (result && result.length > 0) {
@@ -572,6 +538,11 @@ const handleReferenceUpload = async (event) => {
   event.target.value = ''
   if (!file) return
 
+  if (referenceImages.value.length >= 5) {
+    window.$message?.warning('最多只能上传5张参考图')
+    return
+  }
+
   try {
     isReferenceUploading.value = true
 
@@ -579,10 +550,15 @@ const handleReferenceUpload = async (event) => {
     const { uploadUrl, url } = res
     await uploadFileToUrl(uploadUrl, file)
 
+    const newImages = [{
+      url: url,
+      fileName: file.name,
+      type: file.type
+    }, ...referenceImages.value]
+
     updateNode(props.id, {
-      referenceImageUrl: url,
-      referenceImageFileName: file.name,
-      referenceImageFileType: file.type,
+      referenceImages: newImages,
+      referenceImageUrl: null, // Clear legacy
       updatedAt: Date.now()
     })
 
@@ -624,9 +600,8 @@ const syncReferenceFromSource = async (source) => {
     if (source.url) {
       if (source.url !== referenceImageUrl.value) {
         updateNode(props.id, {
-          referenceImageUrl: source.url,
-          referenceImageFileName: source.fileName || null,
-          referenceImageFileType: null,
+          referenceImages: [{ url: source.url, fileName: source.fileName || null }],
+          referenceImageUrl: null,
           updatedAt: Date.now()
         })
       }
@@ -652,9 +627,8 @@ const syncReferenceFromSource = async (source) => {
         await uploadFileToUrl(uploadUrl, blob)
 
         updateNode(props.id, {
-          referenceImageUrl: url,
-          referenceImageFileName: name,
-          referenceImageFileType: mime,
+          referenceImages: [{ url, fileName: name, type: mime }],
+          referenceImageUrl: null,
           updatedAt: Date.now()
         })
       } finally {
@@ -668,22 +642,13 @@ const syncReferenceFromSource = async (source) => {
   }
 }
 
-const handleReferencePreview = () => {
-  if (!referenceImageUrl.value) return
-
-  const el = referencePreviewImageRef.value?.$el || referencePreviewImageRef.value
-  const imgEl = el?.querySelector?.('img')
-  if (imgEl) {
-    imgEl.click()
-    return
-  }
-}
-
-const handleRemoveReference = () => {
+const handleRemoveReference = (index) => {
+  const newImages = [...referenceImages.value]
+  newImages.splice(index, 1)
+  
   updateNode(props.id, {
+    referenceImages: newImages,
     referenceImageUrl: null,
-    referenceImageFileName: null,
-    referenceImageFileType: null,
     updatedAt: Date.now()
   })
 }
@@ -754,18 +719,9 @@ watch(
   ].join('::'),
   () => {
     const source = getConnectedReferenceSource()
-    if (!source) {
-      if (referenceImageUrl.value) {
-        updateNode(props.id, {
-          referenceImageUrl: null,
-          referenceImageFileName: null,
-          referenceImageFileType: null,
-          updatedAt: Date.now()
-        })
-      }
-      return
+    if (source) {
+      syncReferenceFromSource(source)
     }
-    syncReferenceFromSource(source)
   },
   { immediate: true }
 )
