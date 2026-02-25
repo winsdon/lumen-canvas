@@ -34,11 +34,7 @@
       @click="toggleInputPanel"
     >
 
-      <!-- Header -->
-      <div class="absolute top-3 left-3 z-20 pointer-events-none flex items-center gap-2">
-        <n-icon :size="16" class="text-[var(--text-primary)] drop-shadow-md"><TextOutline /></n-icon>
-        <span class="text-sm font-semibold text-[var(--text-primary)] drop-shadow-md">文本</span>
-      </div>
+      <!-- Header Removed for consistency -->
 
       <div 
         class="relative bg-[var(--bg-tertiary)] group/text cursor-pointer transition-all duration-300 min-h-[200px] max-h-[400px] flex flex-col" 
@@ -171,7 +167,6 @@ import {
   CopyOutline,
   HardwareChipOutline,
   SparklesOutline,
-  TextOutline,
   TrashOutline
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
