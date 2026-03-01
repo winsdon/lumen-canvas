@@ -165,6 +165,21 @@ const getDefaultNodeData = (type) => {
         url: '',
         label: '文生视频(组合)'
       }
+    case 'enhance':
+      return {
+        sourceImageUrl: '',
+        sourceImageId: '',
+        enhanceType: 'upscale',
+        upscaleModel: 'topazlabs',
+        upscaleStyle: 'general',
+        upscaleScale: 2,
+        skinMode: 'detail_enhance',
+        skinIntensity: 50,
+        resultUrl: '',
+        loading: false,
+        error: null,
+        label: '图片增强'
+      }
     case 'group':
       return {
         label: '组合'

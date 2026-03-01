@@ -10,7 +10,12 @@
         <div class="flex items-center justify-between">
           <span class="text-sm font-medium text-[var(--text-primary)]">{{ data.label || '图像生成结果' }}</span>
           <div class="flex items-center gap-1">
-            <button @click="handleDelete" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors">
+            <button @click="triggerReupload" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors" title="重新上传">
+              <n-icon :size="14">
+                <CloudUploadOutline />
+              </n-icon>
+            </button>
+            <button @click="handleDelete" class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors" title="删除">
               <n-icon :size="14">
                 <TrashOutline />
               </n-icon>
@@ -27,6 +32,16 @@
           {{ data.model }}
         </div>
       </div>
+      
+      <!-- Hidden input for re-upload -->
+      <input 
+        type="file" 
+        ref="reuploadInputRef" 
+        accept="image/*" 
+        class="hidden" 
+        style="display: none"
+        @change="handleFileUpload"
+      />
 
       <!-- Image preview area | 图片预览区域 -->
       <div class="p-3">
@@ -58,19 +73,19 @@
         <!-- Image display | 图片显示 -->
         <div 
           v-else-if="data.url" 
-          class="relative group/image aspect-square rounded-xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-tertiary)]"
+          class="relative group/image rounded-xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-tertiary)]"
           ref="imageContainerRef"
         >
           <n-image
             :src="data.url"
-            class="w-full h-full"
-            object-fit="cover"
+            class="w-full h-auto block"
             :preview-disabled="false"
             fallback-src="https://via.placeholder.com/200?text=Error"
             :class="{ 'pointer-events-none': isInpaintMode }"
+            @load="handleImageLoad"
           >
             <template #placeholder>
-              <div class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+              <div class="w-full aspect-square flex items-center justify-center bg-gray-100 dark:bg-gray-800">
                 <n-spin size="small" />
               </div>
             </template>
@@ -158,10 +173,14 @@
 
       <!-- Handles | 连接点 -->
       <Handle type="source" :position="Position.Right" id="right" class="custom-handle">
-        <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+        <div class="w-6 h-6 rounded-full bg-[var(--accent-color)] flex items-center justify-center shadow-sm">
+          <n-icon :size="16" class="text-black"><AddOutline /></n-icon>
+        </div>
       </Handle>
       <Handle type="target" :position="Position.Left" id="left" class="custom-handle">
-        <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+        <div class="w-6 h-6 rounded-full bg-[var(--accent-color)] flex items-center justify-center shadow-sm">
+          <n-icon :size="16" class="text-black"><AddOutline /></n-icon>
+        </div>
       </Handle>
     </div>
 
@@ -255,7 +274,8 @@ import {
   RefreshOutline,
   TrashOutline,
   VideocamOutline,
-  AddCircle
+  AddOutline,
+  CloudUploadOutline
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NImage, NModal, NSpin } from 'naive-ui'
@@ -301,6 +321,11 @@ const imageContainerRef = ref(null)
 const interactionLayerRef = ref(null)
 const brushCursor = ref({ x: 0, y: 0, visible: false })
 const maskData = ref(null)
+const reuploadInputRef = ref(null)
+
+const triggerReupload = () => {
+  reuploadInputRef.value?.click()
+}
 
 // Toggle inpaint mode | 切换涂抹模式
 const toggleInpaintMode = () => {
@@ -661,6 +686,10 @@ const handleVideoGen = () => {
     updateNodeInternals([textNodeId, configNodeId])
   }, 50)
 }
+
+const handleImageLoad = () => {
+  updateNodeInternals(props.id)
+}
 </script>
 
 <style scoped>
@@ -705,10 +734,12 @@ const handleVideoGen = () => {
 
 .image-node-wrapper:hover .custom-handle {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .custom-handle {
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.2s;
   width: auto;
   height: auto;
@@ -716,5 +747,6 @@ const handleVideoGen = () => {
   border: none;
   min-width: 0;
   min-height: 0;
+  z-index: 9999;
 }
 </style>

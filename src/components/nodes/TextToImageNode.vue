@@ -20,7 +20,7 @@
             <n-icon :size="14"><TrashOutline /></n-icon>
             <span>擦除</span>
           </button>
-          <button class="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+          <button @click.stop="handleEnhance" class="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
             <n-icon :size="14"><ScanOutline /></n-icon>
             <span>增强</span>
           </button>
@@ -308,7 +308,7 @@ import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
 import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useImageGeneration } from '../../hooks'
-import { duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
+import { addEdge, addNode, duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
 import { DEFAULT_IMAGE_MODEL, getModelConfig, imageModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
@@ -364,8 +364,7 @@ const referenceImages = computed(() => {
 })
 const referenceImageUrl = computed(() => referenceImages.value[0]?.url) // Compatibility for other checks
 const isSyncingReference = ref(false)
-const lastSyncedSourceId = ref(null)
-const lastSyncedSourceSignature = ref(null)
+const lastSyncedSourcesSignature = ref(null)
 
 const handleMouseEnter = () => {
   if (hideTimer) {
@@ -550,11 +549,11 @@ const handleReferenceUpload = async (event) => {
     const { uploadUrl, url } = res
     await uploadFileToUrl(uploadUrl, file)
 
-    const newImages = [{
+    const newImages = [...referenceImages.value, {
       url: url,
       fileName: file.name,
       type: file.type
-    }, ...referenceImages.value]
+    }]
 
     updateNode(props.id, {
       referenceImages: newImages,
@@ -570,43 +569,50 @@ const handleReferenceUpload = async (event) => {
   }
 }
 
-const getConnectedReferenceSource = () => {
+const getConnectedReferenceSources = () => {
   const incoming = edges.value.filter(e => e.target === props.id)
-  for (let i = incoming.length - 1; i >= 0; i--) {
-    const edge = incoming[i]
+  const sources = []
+  for (const edge of incoming) {
     const sourceNode = nodes.value.find(n => n.id === edge.source)
     if (!sourceNode) continue
+    if (sourceNode.type !== 'textToImage' && sourceNode.type !== 'image') continue
 
-    if (sourceNode.type === 'textToImage' || sourceNode.type === 'image') {
-      const url = sourceNode.data?.url
-      const base64 = sourceNode.data?.base64
-      if (url || base64) {
-        return { nodeId: sourceNode.id, url, base64, fileName: sourceNode.data?.fileName }
-      }
-    }
+    const url = sourceNode.data?.url
+    const base64 = sourceNode.data?.base64
+    if (!url && !base64) continue
+
+    sources.push({ nodeId: sourceNode.id, url, base64, fileName: sourceNode.data?.fileName })
+    if (sources.length >= 5) break
   }
-  return null
+  return sources
 }
 
-const syncReferenceFromSource = async (source) => {
-  if (!source) return
+const syncReferencesFromSources = async (sources) => {
+  if (!sources?.length) return
   if (isSyncingReference.value) return
 
-  const signature = source.url || `${String(source.base64 || '').slice(0, 64)}|${String(source.base64 || '').slice(-64)}`
-  if (lastSyncedSourceId.value === source.nodeId && lastSyncedSourceSignature.value === signature) return
+  const signature = sources
+    .map(s => s.url || `${String(s.base64 || '').slice(0, 64)}|${String(s.base64 || '').slice(-64)}`)
+    .join('||')
+  if (lastSyncedSourcesSignature.value === signature) return
 
   isSyncingReference.value = true
   try {
-    if (source.url) {
-      if (source.url !== referenceImageUrl.value) {
-        updateNode(props.id, {
-          referenceImages: [{ url: source.url, fileName: source.fileName || null }],
-          referenceImageUrl: null,
-          updatedAt: Date.now()
+    const synced = []
+
+    for (const source of sources.slice(0, 5)) {
+      if (source.url) {
+        synced.push({
+          url: source.url,
+          fileName: source.fileName || null,
+          sourceNodeId: source.nodeId
         })
+        continue
       }
-    } else if (source.base64) {
-      if (isReferenceUploading.value) return
+
+      if (!source.base64) continue
+      if (isReferenceUploading.value) break
+
       isReferenceUploading.value = true
       try {
         const base64String = source.base64
@@ -626,18 +632,22 @@ const syncReferenceFromSource = async (source) => {
         const { uploadUrl, url } = res
         await uploadFileToUrl(uploadUrl, blob)
 
-        updateNode(props.id, {
-          referenceImages: [{ url, fileName: name, type: mime }],
-          referenceImageUrl: null,
-          updatedAt: Date.now()
-        })
+        synced.push({ url, fileName: name, type: mime, sourceNodeId: source.nodeId })
       } finally {
         isReferenceUploading.value = false
       }
     }
+
+    const manual = referenceImages.value.filter(img => !img?.sourceNodeId)
+    const merged = [...synced, ...manual].slice(0, 5)
+
+    updateNode(props.id, {
+      referenceImages: merged,
+      referenceImageUrl: null,
+      updatedAt: Date.now()
+    })
   } finally {
-    lastSyncedSourceId.value = source.nodeId
-    lastSyncedSourceSignature.value = signature
+    lastSyncedSourcesSignature.value = signature
     isSyncingReference.value = false
   }
 }
@@ -689,6 +699,43 @@ const handleDuplicate = () => {
   }
 }
 
+const handleEnhance = () => {
+  if (!imageUrl.value) {
+    window.$message?.warning('请先生成图片')
+    return
+  }
+
+  // Get current node position
+  const currentNode = nodes.value.find(n => n.id === props.id)
+  const nodeX = currentNode?.position?.x || 0
+  const nodeY = currentNode?.position?.y || 0
+
+  // Create enhance node
+  const enhanceNodeId = addNode('enhance', {
+    x: nodeX + 350,
+    y: nodeY + 50
+  }, {
+    sourceImageUrl: imageUrl.value,
+    sourceImageId: props.id,
+    label: '图片增强'
+  })
+
+  // Create edge connection
+  addEdge({
+    source: props.id,
+    target: enhanceNodeId,
+    sourceHandle: 'right',
+    targetHandle: 'left'
+  })
+
+  // Force update node internals
+  setTimeout(() => {
+    updateNodeInternals(enhanceNodeId)
+  }, 50)
+
+  window.$message?.success('已创建增强节点')
+}
+
 // Global click handler to close panel
 const handleGlobalClick = (event) => {
   if (isInputExpanded.value && nodeWrapperRef.value && !nodeWrapperRef.value.contains(event.target)) {
@@ -718,10 +765,20 @@ watch(
     nodes.value.map(n => `${n.id}:${n.data?.url || ''}:${n.data?.base64 ? 'b64' : ''}`).join('|')
   ].join('::'),
   () => {
-    const source = getConnectedReferenceSource()
-    if (source) {
-      syncReferenceFromSource(source)
+    const sources = getConnectedReferenceSources()
+    if (sources.length > 0) {
+      syncReferencesFromSources(sources)
+      return
     }
+    const manual = referenceImages.value.filter(img => !img?.sourceNodeId)
+    if (manual.length !== referenceImages.value.length) {
+      updateNode(props.id, {
+        referenceImages: manual,
+        referenceImageUrl: null,
+        updatedAt: Date.now()
+      })
+    }
+    lastSyncedSourcesSignature.value = null
   },
   { immediate: true }
 )

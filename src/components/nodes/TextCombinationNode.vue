@@ -38,7 +38,7 @@
 
 
       <div 
-        class="relative bg-[var(--bg-tertiary)] group/text cursor-pointer transition-all duration-300 min-h-[200px] max-h-[400px] flex flex-col" 
+        class="relative bg-[var(--bg-tertiary)] group/text cursor-pointer transition-all duration-300 min-h-[200px] max-h-[400px] overflow-hidden" 
       >
         
         <!-- Loading State -->
@@ -54,8 +54,14 @@
         </div>
 
         <!-- Text Result -->
-        <div v-else-if="displayContent" class="w-full h-full p-4 pt-10 overflow-y-auto custom-scrollbar">
-          <div class="whitespace-pre-wrap text-sm text-[var(--text-primary)] leading-relaxed">{{ displayContent }}</div>
+        <div
+          v-else-if="displayContent"
+          class="nodrag w-full min-h-[200px] max-h-[400px] p-4 pt-10 overflow-y-auto custom-scrollbar select-text"
+          @mousedown.stop
+          @wheel.stop
+          @click.stop="handleTextResultClick"
+        >
+          <div class="whitespace-pre-wrap text-sm text-[var(--text-primary)] leading-relaxed select-text cursor-text">{{ displayContent }}</div>
         </div>
 
         <!-- Empty State -->
@@ -310,6 +316,13 @@ const updateNodeData = () => {
 
 const toggleInputPanel = () => {
   isInputExpanded.value = !isInputExpanded.value
+}
+
+const handleTextResultClick = () => {
+  const selection = window.getSelection?.()
+  const text = selection?.toString?.() || ''
+  if (text.trim()) return
+  toggleInputPanel()
 }
 
 const handleModelSelect = (key) => {

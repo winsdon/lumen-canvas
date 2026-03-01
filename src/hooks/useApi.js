@@ -4,8 +4,10 @@
  */
 
 import {
+  aiEnhanceImage,
   aiImageDraw,
   aiVideoGenerate,
+  getAiEnhanceListByIds,
   getAiImageListByIds,
   getAiVideoMy,
   streamChatCompletions
@@ -395,12 +397,68 @@ export const useVideoGeneration = () => {
 }
 
 /**
+ * Image enhancement composable | 图片增强组合式函数
+ */
+export const useImageEnhance = () => {
+  const { loading, error, status, reset, setLoading, setError, setSuccess } = useApiState()
+
+  const result = ref(null)
+  const taskId = ref(null)
+
+  /**
+   * Enhance image | 增强图片
+   * @param {Object} params - { imageUrl, type, upscaleModel, upscaleStyle, upscaleScale, skinMode, skinIntensity }
+   */
+  const enhance = async (params) => {
+    setLoading(true)
+    result.value = null
+    taskId.value = null
+
+    try {
+      // 1. Submit task
+      const id = await aiEnhanceImage(params)
+      taskId.value = id
+      status.value = 'polling'
+
+      // 2. Polling for results
+      const maxAttempts = 120 // 6 mins max
+      const interval = 3000 // 3s
+
+      for (let i = 0; i < maxAttempts; i++) {
+        const results = await getAiEnhanceListByIds([id])
+        const task = results?.[0]
+
+        if (task?.resultUrl) {
+          result.value = { url: task.resultUrl, id }
+          setSuccess()
+          return result.value
+        }
+
+        if (task?.errorMessage) {
+          throw new Error(task.errorMessage)
+        }
+
+        await new Promise(resolve => setTimeout(resolve, interval))
+      }
+
+      throw new Error('增强处理超时')
+    } catch (err) {
+      setError(err)
+      throw err
+    }
+  }
+
+  return { loading, error, status, result, taskId, enhance, reset }
+}
+
+/**
  * Combined API composable | 综合 API 组合式函数
  */
 export const useApi = () => {
   const chat = useChat()
   const image = useImageGeneration()
   const videoGen = useVideoGeneration()
+  const enhance = useImageEnhance()
 
-  return { chat, image, video: videoGen }
+  return { chat, image, video: videoGen, enhance }
 }

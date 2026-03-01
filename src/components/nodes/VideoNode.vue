@@ -3,7 +3,7 @@
   <div class="video-node-wrapper relative" @mouseenter="showActions = true" @mouseleave="showActions = false">
     <!-- Video node | 视频节点 -->
     <div 
-      class="video-node bg-[var(--bg-secondary)] rounded-xl border w-[400px] relative transition-all duration-200"
+      class="video-node bg-[var(--bg-secondary)] rounded-xl border min-w-[300px] max-w-[500px] relative transition-all duration-200"
       :class="data.selected ? 'border-1 border-blue-500 shadow-lg shadow-blue-500/20' : 'border border-[var(--border-color)]'"
       
     >
@@ -12,6 +12,22 @@
       <div class="flex items-center justify-between">
         <span class="text-sm font-medium text-[var(--text-secondary)]">{{ data.label }}</span>
         <div class="flex items-center gap-1">
+          <button 
+            @click.stop="triggerReupload"
+            class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+            title="重新上传"
+          >
+            <n-icon :size="14"><CloudUploadOutline /></n-icon>
+          </button>
+          <input
+            ref="reuploadInputRef"
+            type="file"
+            accept="video/*"
+            class="hidden"
+            style="display: none"
+            @change="handleFileUpload"
+            @click.stop
+          />
           <button 
             @click="handleDelete"
             class="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors"
@@ -92,10 +108,14 @@
 
     <!-- Handles | 连接点 -->
     <Handle type="source" :position="Position.Right" id="right" class="custom-handle">
-      <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+      <div class="w-6 h-6 rounded-full bg-[var(--accent-color)] flex items-center justify-center shadow-sm">
+        <n-icon :size="16" class="text-black"><AddOutline /></n-icon>
+      </div>
     </Handle>
     <Handle type="target" :position="Position.Left" id="left" class="custom-handle">
-      <n-icon :size="24" class="text-[var(--accent-color)] bg-white rounded-full shadow-sm"><AddCircle /></n-icon>
+      <div class="w-6 h-6 rounded-full bg-[var(--accent-color)] flex items-center justify-center shadow-sm">
+        <n-icon :size="16" class="text-black"><AddOutline /></n-icon>
+      </div>
     </Handle>
     </div>
 
@@ -147,7 +167,7 @@
 import { ref } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import { NIcon, NSpin } from 'naive-ui'
-import { TrashOutline, ExpandOutline, VideocamOutline, CopyOutline, CloseCircleOutline, DownloadOutline, EyeOutline, AddCircle } from '@vicons/ionicons5'
+import { TrashOutline, ExpandOutline, VideocamOutline, CopyOutline, CloseCircleOutline, DownloadOutline, EyeOutline, AddOutline, CloudUploadOutline } from '@vicons/ionicons5'
 import { updateNode, removeNode, duplicateNode } from '../../stores/canvas'
 import { getFilePresignedUrl, uploadFileToUrl } from '@/api'
 
@@ -156,12 +176,26 @@ const props = defineProps({
   data: Object
 })
 
+const { updateNodeInternals } = useVueFlow()
+
+const handleVideoLoaded = () => {
+  updateNodeInternals(props.id)
+}
+
 // Hover state | 悬浮状态
 const showActions = ref(false)
+const reuploadInputRef = ref(null)
+
+const triggerReupload = () => {
+  reuploadInputRef.value?.click()
+}
 
 // Handle file upload | 处理文件上传
 const handleFileUpload = async (event) => {
   const file = event.target.files[0]
+  // Reset input value to allow selecting the same file again
+  event.target.value = ''
+  
   if (file) {
     try {
       updateNode(props.id, { loading: true, error: null })
@@ -240,10 +274,12 @@ const handleDuplicate = () => {
 
 .video-node-wrapper:hover .custom-handle {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .custom-handle {
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.2s;
   width: auto;
   height: auto;
@@ -251,5 +287,6 @@ const handleDuplicate = () => {
   border: none;
   min-width: 0;
   min-height: 0;
+  z-index: 9999;
 }
 </style>

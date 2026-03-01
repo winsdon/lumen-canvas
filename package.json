@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "bash deploy.sh",
+    "deploy:ps": "powershell -File deploy.ps1",
+    "deploy:quick": "powershell -File deploy.ps1 -SkipBuild"
   },
   "dependencies": {
     "@vicons/ionicons5": "^0.13.0",

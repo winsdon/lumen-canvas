@@ -9,6 +9,7 @@ export {
   useChat,
   useImageGeneration,
   useVideoGeneration,
+  useImageEnhance,
   useApi
 } from './useApi'
 

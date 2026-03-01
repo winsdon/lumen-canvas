@@ -275,6 +275,7 @@ import TextCombinationNode from '../components/nodes/TextCombinationNode.vue'
 import TextNode from '../components/nodes/TextNode.vue'
 import VideoConfigNode from '../components/nodes/VideoConfigNode.vue'
 import VideoNode from '../components/nodes/VideoNode.vue'
+import EnhanceNode from '../components/nodes/EnhanceNode.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -293,7 +294,8 @@ const nodeTypes = {
   textToVideo: markRaw(TextToVideoNode),
   textCombination: markRaw(TextCombinationNode),
   connectPlaceholder: markRaw(ConnectPlaceholderNode),
-  group: markRaw(GroupNode)
+  group: markRaw(GroupNode),
+  enhance: markRaw(EnhanceNode)
 }
 
 // Register custom edge types | 注册自定义边类型

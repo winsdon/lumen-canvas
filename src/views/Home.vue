@@ -14,7 +14,7 @@
       <!-- Welcome section | 欢迎区域 -->
       <section class="text-center mb-12">
         <div class="flex items-center justify-center gap-4 mb-8">
-          <img src="https://ai.xmlumen.com/logo.png" alt="Logo" class="w-12 h-12 md:w-16 md:h-16" />
+          <img src="https://ai.xmlumen.com/logo.png" alt="Logo" class="w-12 h-12 md:w-16 md:h-16 rounded-xl" />
           <h1 class="text-2xl md:text-4xl font-bold text-[var(--text-primary)]">欢迎来到 Lumen Canvas</h1>
         </div>
         
