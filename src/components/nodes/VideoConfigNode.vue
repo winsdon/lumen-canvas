@@ -262,7 +262,7 @@ const getConnectedInputs = () => {
   const connectedEdges = edges.value.filter(e => e.target === props.id)
 
   let prompt = ''
-  let imgUrl = ''
+  const images = [] // 改为数组收集所有图片
   let hasUnsupportedImage = false
 
   for (const edge of connectedEdges) {
@@ -272,19 +272,26 @@ const getConnectedInputs = () => {
     if (sourceNode.type === 'text') {
       prompt = sourceNode.data?.content || ''
     } else if (sourceNode.type === 'image') {
-      const role = edge.data?.imageRole || 'first_frame_image'
+      // 前端角色映射到 API 角色
+      const frontendRole = edge.data?.imageRole || 'first_frame_image'
+      const apiRole = frontendRole.replace('_image', '') // first_frame_image -> first_frame
 
-      if (role === 'first_frame_image') {
-        if (sourceNode.data?.url) {
-          imgUrl = sourceNode.data.url
-        } else if (sourceNode.data?.base64) {
-          hasUnsupportedImage = true
-        }
+      if (sourceNode.data?.url) {
+        images.push({
+          url: sourceNode.data.url,
+          role: apiRole
+        })
+      } else if (sourceNode.data?.base64) {
+        hasUnsupportedImage = true
       }
     }
   }
 
-  return { prompt, imgUrl, hasUnsupportedImage }
+  // 向后兼容：提取首帧作为 imgUrl
+  const firstFrame = images.find(img => img.role === 'first_frame')
+  const imgUrl = firstFrame?.url || ''
+
+  return { prompt, imgUrl, images, hasUnsupportedImage }
 }
 
 // Computed connected prompt | 计算连接的提示词
@@ -297,9 +304,9 @@ const createdVideoNodeId = ref(null)
 
 // Handle generate action | 处理生成操作
 const handleGenerate = async () => {
-  const { prompt, imgUrl, hasUnsupportedImage } = getConnectedInputs()
+  const { prompt, imgUrl, images, hasUnsupportedImage } = getConnectedInputs()
 
-  const hasInput = prompt || imgUrl
+  const hasInput = prompt || imgUrl || images.length > 0
   if (!hasInput) {
     window.$message?.warning('请先连接文本节点或图片节点')
     return
@@ -351,7 +358,13 @@ const handleGenerate = async () => {
       params.prompt = prompt
     }
 
+    // 向后兼容：传递首帧作为 imgUrl
     if (imgUrl) params.imgUrl = imgUrl
+
+    // 新增：传递完整图片列表
+    if (images.length > 0) {
+      params.images = images
+    }
 
     const result = await generate(params, {
       onTaskId: (id) => {

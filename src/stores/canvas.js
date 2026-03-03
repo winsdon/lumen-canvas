@@ -9,6 +9,9 @@ import { getProjectCanvas, updateProjectCanvas } from './projects'
 let nodeId = 0
 const getNodeId = () => `node_${nodeId++}`
 
+let edgeId = 0
+const getEdgeId = () => `edge_${edgeId++}`
+
 // Current project ID | 当前项目ID
 export const currentProjectId = ref(null)
 
@@ -159,6 +162,14 @@ const getDefaultNodeData = (type) => {
         model: 'doubao-seedance-1-5-pro_720p',
         resolution: '720P',
         dur: 5,
+        // Multi-image support | 多图片支持
+        inputMode: 'frame', // 'frame' | 'reference'
+        firstFrameUrl: null,    // First frame image | 首帧图片
+        lastFrameUrl: null,     // Last frame image | 尾帧图片
+        firstFrameSourceNodeId: null,  // Source node ID for first frame | 首帧来源节点ID
+        lastFrameSourceNodeId: null,   // Source node ID for last frame | 尾帧来源节点ID
+        referenceImages: [],    // Reference images array | 参考图数组
+        // Backward compatibility | 向后兼容
         referenceImageUrl: null,
         referenceImageFileName: null,
         referenceImageFileType: null,
@@ -239,10 +250,20 @@ export const duplicateNode = (id) => {
 }
 
 // Add edge | 添加边
+const getUniqueEdgeId = (baseId) => {
+  if (!edges.value.some(edge => edge.id === baseId)) return baseId
+  let nextId = baseId
+  while (edges.value.some(edge => edge.id === nextId)) {
+    nextId = `${baseId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+  }
+  return nextId
+}
+
 export const addEdge = (params) => {
+  const baseId = params?.id || getEdgeId()
   const newEdge = {
-    id: `edge_${params.source}_${params.target}`,
-    ...params
+    ...params,
+    id: getUniqueEdgeId(baseId)
   }
   if (!newEdge.type) newEdge.type = 'deletable'
   edges.value = [...edges.value, newEdge]
@@ -443,6 +464,15 @@ export const loadProject = async (projectId) => {
       return max
     }, -1)
     nodeId = maxId + 1
+
+    const maxEdgeId = edges.value.reduce((max, edge) => {
+      const match = String(edge.id || '').match(/^edge_(\d+)$/)
+      if (match) {
+        return Math.max(max, parseInt(match[1], 10))
+      }
+      return max
+    }, -1)
+    edgeId = Math.max(maxEdgeId + 1, edges.value.length)
   } else {
     // Empty project | 空项目
     clearCanvas()

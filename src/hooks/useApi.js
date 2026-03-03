@@ -333,6 +333,12 @@ export const useVideoGeneration = () => {
       }
 
       if (imgUrl) requestData.imgUrl = imgUrl
+
+      // 新增：传递完整图片列表（首帧、尾帧、参考图）
+      if (params.images && params.images.length > 0) {
+        requestData.images = params.images
+      }
+
       if (params.negativePrompt) requestData.negativePrompt = params.negativePrompt
       if (params.audioUrl) requestData.audioUrl = params.audioUrl
       if (params.promptExtend !== undefined) requestData.promptExtend = params.promptExtend

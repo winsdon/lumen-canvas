@@ -96,68 +96,185 @@
         class="absolute top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-[520px] bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] shadow-2xl z-50 flex flex-col overflow-hidden"
         @click.stop
       >
+        <!-- Mode Tabs | 模式标签 -->
+        <div class="flex border-b border-[var(--border-color)]">
+          <button
+            @click="switchInputMode('frame')"
+            class="flex-1 py-2 text-xs font-medium transition-colors"
+            :class="inputMode === 'frame' ? 'text-[var(--accent-color)] border-b-2 border-[var(--accent-color)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'"
+          >
+            首尾帧
+          </button>
+          <button
+            @click="switchInputMode('reference')"
+            class="flex-1 py-2 text-xs font-medium transition-colors"
+            :class="inputMode === 'reference' ? 'text-[var(--accent-color)] border-b-2 border-[var(--accent-color)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'"
+          >
+            参考图
+          </button>
+        </div>
+
         <div class="flex items-start p-3 gap-3">
-          <div class="relative w-12 h-12">
+          <!-- Frame Mode | 首尾帧模式 -->
+          <div v-if="inputMode === 'frame'" class="flex gap-2">
+            <!-- First Frame Slot | 首帧槽位 -->
+            <div class="relative">
+              <div
+                class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border-2 transition-all overflow-hidden cursor-pointer hover:border-purple-400"
+                :class="[
+                  firstFrameUrl ? 'border-purple-500' : 'border-dashed border-[var(--border-color)]',
+                  frameDragOverSlot === 'first' && draggingFrameSlot === 'last' ? 'ring-2 ring-purple-400' : ''
+                ]"
+                :draggable="!!firstFrameUrl"
+                @dragstart.stop="firstFrameUrl && handleFrameDragStart($event, 'first')"
+                @dragover.prevent.stop="handleFrameDragOver($event, 'first')"
+                @drop.prevent.stop="handleFrameDrop('first')"
+                @dragend="handleFrameDragEnd"
+              >
+                <img v-if="firstFrameUrl" :src="firstFrameUrl" class="w-full h-full object-cover" :class="draggingFrameSlot === 'first' ? 'opacity-50' : ''" />
+                <div v-else class="w-full h-full flex flex-col items-center justify-center">
+                  <n-spin v-if="isFirstFrameUploading" :size="14" />
+                  <template v-else>
+                    <n-icon :size="16" class="text-[var(--text-tertiary)]"><AddOutline /></n-icon>
+                    <span class="text-[9px] text-[var(--text-tertiary)]">首帧</span>
+                  </template>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  :disabled="isFirstFrameUploading"
+                  @change="handleFirstFrameUpload"
+                />
+              </div>
+              <div v-if="firstFrameUrl" class="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-[8px] px-1.5 py-0.5 rounded whitespace-nowrap">首帧</div>
+              <!-- Link icon for connected source | 连接来源图标 -->
+              <div v-if="data?.firstFrameSourceNodeId" class="absolute -bottom-1 -left-1 w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center z-20">
+                <n-icon :size="8" class="text-white"><LinkOutline /></n-icon>
+              </div>
+              <button
+                v-if="firstFrameUrl"
+                @click.stop="removeFirstFrame"
+                class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-20 hover:bg-[var(--bg-primary)]"
+              >
+                <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
+              </button>
+            </div>
+
+            <!-- Last Frame Slot | 尾帧槽位 -->
+            <div class="relative">
+              <div
+                class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border-2 transition-all overflow-hidden cursor-pointer hover:border-orange-400"
+                :class="[
+                  lastFrameUrl ? 'border-orange-500' : 'border-dashed border-[var(--border-color)]',
+                  frameDragOverSlot === 'last' && draggingFrameSlot === 'first' ? 'ring-2 ring-orange-400' : ''
+                ]"
+                :draggable="!!lastFrameUrl"
+                @dragstart.stop="lastFrameUrl && handleFrameDragStart($event, 'last')"
+                @dragover.prevent.stop="handleFrameDragOver($event, 'last')"
+                @drop.prevent.stop="handleFrameDrop('last')"
+                @dragend="handleFrameDragEnd"
+              >
+                <img v-if="lastFrameUrl" :src="lastFrameUrl" class="w-full h-full object-cover" :class="draggingFrameSlot === 'last' ? 'opacity-50' : ''" />
+                <div v-else class="w-full h-full flex flex-col items-center justify-center">
+                  <n-spin v-if="isLastFrameUploading" :size="14" />
+                  <template v-else>
+                    <n-icon :size="16" class="text-[var(--text-tertiary)]"><AddOutline /></n-icon>
+                    <span class="text-[9px] text-[var(--text-tertiary)]">尾帧</span>
+                  </template>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  :disabled="isLastFrameUploading"
+                  @change="handleLastFrameUpload"
+                />
+              </div>
+              <div v-if="lastFrameUrl" class="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[8px] px-1.5 py-0.5 rounded whitespace-nowrap">尾帧</div>
+              <!-- Link icon for connected source | 连接来源图标 -->
+              <div v-if="data?.lastFrameSourceNodeId" class="absolute -bottom-1 -left-1 w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center z-20">
+                <n-icon :size="8" class="text-white"><LinkOutline /></n-icon>
+              </div>
+              <button
+                v-if="lastFrameUrl"
+                @click.stop="removeLastFrame"
+                class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-20 hover:bg-[var(--bg-primary)]"
+              >
+                <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Reference Mode | 参考图模式 -->
+          <div v-else :key="referenceRenderKey" class="flex gap-1 flex-wrap items-center">
+            <!-- Reference images list | 已上传的参考图列表 -->
             <div
-              class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] transition-colors overflow-hidden group relative flex flex-col items-center justify-center"
+              v-for="(img, index) in referenceImages"
+              :key="img.sourceNodeId || img.url || index"
+              class="relative"
+              draggable="true"
+              @dragstart.stop="handleDragStart($event, index)"
+              @dragover.prevent.stop="handleDragOver($event, index)"
+              @drop.prevent.stop="handleDrop(index)"
+              @dragend="handleDragEnd"
+              @mousedown.stop
             >
-              <img v-if="referenceImageUrl" :src="referenceImageUrl" class="absolute inset-0 w-full h-full object-cover" />
-              <div v-if="referenceImageUrl" class="absolute inset-0 bg-black/30"></div>
+              <div
+                class="w-10 h-10 rounded-lg overflow-hidden border transition-all"
+                :class="[
+                  dragIndex === index ? 'opacity-40 border-blue-400' : 'border-blue-400',
+                  dragOverIndex === index && dragIndex !== index ? 'ring-2 ring-blue-400' : ''
+                ]"
+                style="cursor: grab;"
+              >
+                <img :src="img.url" class="w-full h-full object-cover pointer-events-none" />
+              </div>
+              <!-- Link icon for connected source | 连接来源图标 -->
+              <div v-if="img.sourceNodeId" class="absolute -bottom-1 -left-1 w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center z-20">
+                <n-icon :size="8" class="text-white"><LinkOutline /></n-icon>
+              </div>
+              <button
+                @click.stop="removeReferenceImage(index)"
+                class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-20 hover:bg-[var(--bg-primary)]"
+              >
+                <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
+              </button>
+            </div>
 
-              <n-spin v-if="isReferenceUploading" :size="18" class="relative z-10" />
+            <!-- Add button | 添加按钮 -->
+            <div
+              v-if="referenceImages.length < 5"
+              class="relative w-10 h-10 rounded-lg bg-[var(--bg-tertiary)] border border-dashed border-[var(--border-color)] flex items-center justify-center cursor-pointer hover:border-[var(--accent-color)] transition-colors"
+            >
+              <n-spin v-if="isReferenceUploading" :size="14" />
               <template v-else>
-                <n-icon :size="18" class="text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] mb-0.5 relative z-10">
-                  <AddOutline />
-                </n-icon>
-                <span class="text-[10px] text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] relative z-10">参考图</span>
+                <n-icon :size="16" class="text-[var(--text-tertiary)]"><AddOutline /></n-icon>
               </template>
-
               <input
                 type="file"
                 accept="image/*"
-                class="absolute inset-0 opacity-0 cursor-pointer z-20"
+                class="absolute inset-0 opacity-0 cursor-pointer z-10"
                 :disabled="isReferenceUploading"
-                @change="handleReferenceUpload"
+                @change="handleReferenceImageUpload"
               />
             </div>
 
-            <button
-              v-if="referenceImageUrl"
-              class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-30 hover:bg-[var(--bg-primary)]"
-              @click.stop="handleRemoveReference"
-              title="移除参考图"
-            >
-              <n-icon :size="12" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
-            </button>
-
-            <button
-              v-if="referenceImageUrl"
-              class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-30 hover:bg-[var(--bg-primary)]"
-              @click.stop="handleReferencePreview"
-              title="预览参考图"
-            >
-              <n-icon :size="12" class="text-[var(--text-secondary)]"><EyeOutline /></n-icon>
-            </button>
-
-            <n-image
-              v-if="referenceImageUrl"
-              ref="referencePreviewImageRef"
-              :src="referenceImageUrl"
-              class="fixed -left-[9999px] -top-[9999px] w-0 h-0 opacity-0 pointer-events-none"
-              object-fit="cover"
-              :preview-disabled="false"
-            />
+            <!-- Backward compatibility: show old reference image | 向后兼容：显示旧参考图 -->
+            <div v-if="!referenceImages.length && referenceImageUrl" class="relative">
+              <div
+                class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border border-blue-400 transition-all overflow-hidden cursor-pointer"
+              >
+                <img :src="referenceImageUrl" class="w-full h-full object-cover" />
+              </div>
+              <button
+                @click.stop="handleRemoveReference"
+                class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-20 hover:bg-[var(--bg-primary)]"
+              >
+                <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
+              </button>
+            </div>
           </div>
-
-          <button
-            @click="handlePolish"
-            :disabled="isPolishing || !content.trim()"
-            class="flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] transition-colors group"
-            :class="{ 'animate-pulse border-purple-500': isPolishing }"
-          >
-            <n-spin v-if="isPolishing" :size="18" />
-            <n-icon v-else :size="20" class="text-[var(--text-secondary)] group-hover:text-purple-400"><SparklesOutline /></n-icon>
-          </button>
 
           <div class="flex-1 relative">
             <textarea
@@ -243,16 +360,16 @@ import {
   CloseCircleOutline,
   DownloadOutline,
   EyeOutline,
-  SparklesOutline,
   TrashOutline,
   VideocamOutline,
-  AddCircle
+  AddCircle,
+  LinkOutline
 } from '@vicons/ionicons5'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NSpin } from 'naive-ui'
-import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
-import { useChat, useVideoGeneration } from '../../hooks'
+import { useVideoGeneration } from '../../hooks'
 import { duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
 import { DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RESOLUTION, getModelConfig, getModelDurationOptions, videoModelSelectOptions, VIDEO_RESOLUTION_OPTIONS } from '../../stores/models'
 
@@ -286,17 +403,19 @@ const localModel = ref(props.data?.model || DEFAULT_VIDEO_MODEL)
 const localResolution = ref(props.data?.resolution || DEFAULT_VIDEO_RESOLUTION)
 const localDuration = ref(props.data?.dur || DEFAULT_VIDEO_DURATION)
 const hasManualModelSelection = ref(false)
-const isPolishing = ref(false)
 const isInputExpanded = ref(false)
 const nodeWrapperRef = ref(null)
 const referencePreviewImageRef = ref(null)
 const isReferenceUploading = ref(false)
+
+// Multi-image state | 多图片状态
+const inputMode = ref(props.data?.inputMode || 'reference')
+const isFirstFrameUploading = ref(false)
+const isLastFrameUploading = ref(false)
+
 let hideTimer = null
 
 const { loading, error, video, taskId, generate } = useVideoGeneration()
-const { send: sendChat } = useChat({
-  systemPrompt: '你是一个专业的AI视频提示词专家。将用户输入的内容美化成高质量的视频生成提示词，包含镜头语言、风格、光线、构图、动作、节奏等要素。直接返回提示词，不要其他解释。'
-})
 
 const modelOptions = videoModelSelectOptions
 const resolutionOptions = computed(() => VIDEO_RESOLUTION_OPTIONS)
@@ -317,9 +436,119 @@ const renderDropdownLabel = (option) => {
 }
 
 const referenceImageUrl = computed(() => props.data?.referenceImageUrl)
+const firstFrameUrl = ref(null)
+const lastFrameUrl = ref(null)
+const referenceImages = ref([])
 const isSyncingReference = ref(false)
-const lastSyncedSourceId = ref(null)
-const lastSyncedSourceSignature = ref(null)
+const lastSyncedSourcesSignature = ref(null)
+const referenceRenderKey = ref(0)
+
+const refreshNode = () => {
+  nextTick(() => {
+    updateNodeInternals(props.id)
+  })
+}
+
+const syncReferenceImagesFromData = () => {
+  const sources = getConnectedReferenceSources()
+  if (sources.length > 0) {
+    if (inputMode.value === 'frame') {
+      firstFrameUrl.value = sources[0]?.url || sources[0]?.base64 || null
+      lastFrameUrl.value = sources[1]?.url || sources[1]?.base64 || null
+    }
+    referenceImages.value = sources
+      .map(source => ({
+        url: source.url || source.base64,
+        fileName: source.fileName || null,
+        sourceNodeId: source.nodeId
+      }))
+      .slice(0, 5)
+    return
+  }
+  if (props.data?.referenceImages?.length > 0) {
+    referenceImages.value = props.data.referenceImages
+    return
+  }
+  if (inputMode.value === 'frame') {
+    firstFrameUrl.value = props.data?.firstFrameUrl || null
+    lastFrameUrl.value = props.data?.lastFrameUrl || null
+  }
+  if (inputMode.value === 'reference' && props.data?.referenceImageUrl) {
+    referenceImages.value = [{ url: props.data.referenceImageUrl, fileName: props.data?.referenceImageFileName }]
+    return
+  }
+  if (referenceImages.value.length > 0) {
+    referenceImages.value = []
+  }
+}
+
+const applyImmediateSourceSync = (sources) => {
+  const normalized = (sources || [])
+    .map(source => ({ ...source, displayUrl: source?.url || source?.base64 }))
+    .filter(source => source?.displayUrl)
+  if (!normalized.length) return
+
+  const uniqueSources = []
+  const seenKeys = new Set()
+  const seenUrls = new Set()
+  normalized.forEach(source => {
+    const key = source?.nodeId || source?.displayUrl
+    if (!key || seenKeys.has(key)) return
+    seenKeys.add(key)
+    seenUrls.add(source.displayUrl)
+    uniqueSources.push(source)
+  })
+  if (!uniqueSources.length) return
+
+  const updates = {}
+  if (!props.data?.firstFrameSourceNodeId && !props.data?.firstFrameUrl && uniqueSources[0]) {
+    updates.firstFrameUrl = uniqueSources[0].displayUrl
+    updates.firstFrameSourceNodeId = uniqueSources[0].nodeId
+  }
+  if (!props.data?.lastFrameSourceNodeId && !props.data?.lastFrameUrl && uniqueSources[1]) {
+    updates.lastFrameUrl = uniqueSources[1].displayUrl
+    updates.lastFrameSourceNodeId = uniqueSources[1].nodeId
+  }
+
+  const manual = referenceImages.value.filter(img => {
+    if (img?.sourceNodeId && seenKeys.has(img.sourceNodeId)) return false
+    if (img?.url && seenUrls.has(img.url)) return false
+    return !img?.sourceNodeId
+  })
+  const merged = [
+    ...uniqueSources.map(source => ({
+      url: source.displayUrl,
+      fileName: source.fileName || null,
+      sourceNodeId: source.nodeId
+    })),
+    ...manual
+  ].slice(0, 5)
+
+  if (merged.length > 0) {
+    updates.referenceImages = merged
+    updates.referenceImageUrl = null
+    referenceImages.value = merged
+  }
+
+  if (Object.keys(updates).length > 0) {
+    updates.updatedAt = Date.now()
+    updateNode(props.id, updates)
+    if (updates.firstFrameUrl !== undefined) {
+      firstFrameUrl.value = updates.firstFrameUrl
+    }
+    if (updates.lastFrameUrl !== undefined) {
+      lastFrameUrl.value = updates.lastFrameUrl
+    }
+    referenceRenderKey.value += 1
+    refreshNode()
+  }
+}
+
+// Drag and drop state | 拖拽排序状态
+const dragIndex = ref(-1)
+const dragOverIndex = ref(-1)
+const draggingFrameSlot = ref(null) // 'first' | 'last' | null
+const frameDragOverSlot = ref(null) // 'first' | 'last' | null
 
 const displayModelName = computed(() => {
   const model = modelOptions.value.find(m => m.value === localModel.value || m.key === localModel.value)
@@ -359,7 +588,8 @@ const updateNodeData = () => {
     content: content.value,
     model: localModel.value,
     resolution: localResolution.value,
-    dur: localDuration.value
+    dur: localDuration.value,
+    inputMode: inputMode.value
   })
 }
 
@@ -389,27 +619,6 @@ const handleResolutionSelect = (key) => {
 const handleDurationSelect = (key) => {
   localDuration.value = key
   updateNodeData()
-}
-
-const handlePolish = async () => {
-  const input = content.value.trim()
-  if (!input) return
-
-  isPolishing.value = true
-  try {
-    const result = await sendChat(input, true)
-    if (result) {
-      content.value = result
-      updateNodeData()
-      window.$message?.success('提示词已润色')
-    }
-  } catch (err) {
-    if (!err?.__handled) {
-      window.$message?.error('润色失败: ' + err.message)
-    }
-  } finally {
-    isPolishing.value = false
-  }
 }
 
 const handleReferenceUpload = async (event) => {
@@ -460,70 +669,262 @@ const handleRemoveReference = () => {
   })
 }
 
-const getConnectedReferenceSource = () => {
-  const incoming = edges.value.filter(e => e.target === props.id)
-  for (let i = incoming.length - 1; i >= 0; i--) {
-    const edge = incoming[i]
-    const sourceNode = nodes.value.find(n => n.id === edge.source)
-    if (!sourceNode) continue
-
-    if (sourceNode.type === 'textToImage' || sourceNode.type === 'image') {
-      const url = sourceNode.data?.url
-      const base64 = sourceNode.data?.base64
-      if (url || base64) {
-        return { nodeId: sourceNode.id, url, base64, fileName: sourceNode.data?.fileName }
-      }
-    }
-  }
-  return null
+// Switch input mode | 切换输入模式
+const switchInputMode = (mode) => {
+  inputMode.value = mode
+  updateNode(props.id, { inputMode: mode })
+  refreshNode()
 }
 
-const syncReferenceFromSource = async (source) => {
-  if (!source) return
+// First frame upload | 首帧上传
+const handleFirstFrameUpload = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  try {
+    isFirstFrameUploading.value = true
+    const res = await getFilePresignedUrl(file.name)
+    await uploadFileToUrl(res.uploadUrl, file)
+    updateNode(props.id, { firstFrameUrl: res.url, firstFrameSourceNodeId: null, updatedAt: Date.now() })
+    window.$message?.success('首帧上传成功')
+  } catch (err) {
+    window.$message?.error('首帧上传失败')
+  } finally {
+    isFirstFrameUploading.value = false
+  }
+}
+
+// Last frame upload | 尾帧上传
+const handleLastFrameUpload = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  try {
+    isLastFrameUploading.value = true
+    const res = await getFilePresignedUrl(file.name)
+    await uploadFileToUrl(res.uploadUrl, file)
+    updateNode(props.id, { lastFrameUrl: res.url, lastFrameSourceNodeId: null, updatedAt: Date.now() })
+    window.$message?.success('尾帧上传成功')
+  } catch (err) {
+    window.$message?.error('尾帧上传失败')
+  } finally {
+    isLastFrameUploading.value = false
+  }
+}
+
+// Reference image upload (append to array) | 参考图上传（追加到数组）
+const handleReferenceImageUpload = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  if (referenceImages.value.length >= 5) {
+    window.$message?.warning('最多支持5张参考图')
+    return
+  }
+
+  try {
+    isReferenceUploading.value = true
+    const res = await getFilePresignedUrl(file.name)
+    await uploadFileToUrl(res.uploadUrl, file)
+    const newImages = [...referenceImages.value, { url: res.url, fileName: file.name }]
+    updateNode(props.id, { referenceImages: newImages, updatedAt: Date.now() })
+    window.$message?.success('参考图上传成功')
+  } catch (err) {
+    window.$message?.error('参考图上传失败')
+  } finally {
+    isReferenceUploading.value = false
+  }
+}
+
+// Remove first frame | 移除首帧
+const removeFirstFrame = () => {
+  updateNode(props.id, { firstFrameUrl: null, firstFrameSourceNodeId: null, updatedAt: Date.now() })
+}
+
+// Remove last frame | 移除尾帧
+const removeLastFrame = () => {
+  updateNode(props.id, { lastFrameUrl: null, lastFrameSourceNodeId: null, updatedAt: Date.now() })
+}
+
+// Remove reference image by index | 移除参考图
+const removeReferenceImage = (index) => {
+  const newImages = referenceImages.value.filter((_, i) => i !== index)
+  updateNode(props.id, { referenceImages: newImages, updatedAt: Date.now() })
+}
+
+// === Drag and Drop: Reference Images | 参考图拖拽排序 ===
+const handleDragStart = (event, index) => {
+  dragIndex.value = index
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', String(index))
+}
+
+const handleDragOver = (event, index) => {
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'move'
+  dragOverIndex.value = index
+}
+
+const handleDrop = (index) => {
+  const from = dragIndex.value
+  if (from < 0 || from === index) {
+    handleDragEnd()
+    return
+  }
+  const newImages = [...referenceImages.value]
+  const [moved] = newImages.splice(from, 1)
+  newImages.splice(index, 0, moved)
+  updateNode(props.id, { referenceImages: newImages, updatedAt: Date.now() })
+  handleDragEnd()
+}
+
+const handleDragEnd = () => {
+  dragIndex.value = -1
+  dragOverIndex.value = -1
+}
+
+// === Drag and Drop: First/Last Frame | 首尾帧拖拽互换 ===
+const handleFrameDragStart = (event, slot) => {
+  draggingFrameSlot.value = slot
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', slot)
+}
+
+const handleFrameDragOver = (event, slot) => {
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'move'
+  frameDragOverSlot.value = slot
+}
+
+const handleFrameDrop = (targetSlot) => {
+  const sourceSlot = draggingFrameSlot.value
+  if (!sourceSlot || sourceSlot === targetSlot) {
+    handleFrameDragEnd()
+    return
+  }
+  // Swap first and last frame | 交换首尾帧
+  const tempUrl = firstFrameUrl.value
+  const tempSourceId = props.data?.firstFrameSourceNodeId
+  updateNode(props.id, {
+    firstFrameUrl: lastFrameUrl.value,
+    firstFrameSourceNodeId: props.data?.lastFrameSourceNodeId || null,
+    lastFrameUrl: tempUrl,
+    lastFrameSourceNodeId: tempSourceId || null,
+    updatedAt: Date.now()
+  })
+  handleFrameDragEnd()
+}
+
+const handleFrameDragEnd = () => {
+  draggingFrameSlot.value = null
+  frameDragOverSlot.value = null
+}
+
+const getConnectedReferenceSources = () => {
+  const incoming = edges.value.filter(e => e.target === props.id)
+  const sources = []
+  const seenIds = new Set()
+  for (const edge of incoming) {
+    const sourceNode = nodes.value.find(n => n.id === edge.source)
+    if (!sourceNode) continue
+    if (sourceNode.type !== 'textToImage' && sourceNode.type !== 'image') continue
+    if (seenIds.has(sourceNode.id)) continue
+
+    const url = sourceNode.data?.url
+    const base64 = sourceNode.data?.base64
+    if (!url && !base64) continue
+
+    seenIds.add(sourceNode.id)
+    sources.push({ nodeId: sourceNode.id, url, base64, fileName: sourceNode.data?.fileName })
+    if (sources.length >= 5) break
+  }
+  return sources
+}
+
+const syncReferencesFromSources = async (sources) => {
+  if (!sources?.length) return
   if (isSyncingReference.value) return
 
-  const signature = source.url || `${String(source.base64 || '').slice(0, 64)}|${String(source.base64 || '').slice(-64)}`
-  if (lastSyncedSourceId.value === source.nodeId && lastSyncedSourceSignature.value === signature) return
+  const signature = `${inputMode.value}::${sources
+    .map(s => s.url || `${String(s.base64 || '').slice(0, 64)}|${String(s.base64 || '').slice(-64)}`)
+    .join('||')}`
+  if (lastSyncedSourcesSignature.value === signature) return
 
   isSyncingReference.value = true
   try {
-    if (source.url) {
-      if (source.url !== referenceImageUrl.value) {
-        updateNode(props.id, {
-          referenceImageUrl: source.url,
-          referenceImageFileName: source.fileName || null,
-          referenceImageFileType: null,
-          updatedAt: Date.now()
-        })
+    // Resolve all sources to URLs | 将所有源解析为 URL
+    const resolved = []
+    for (const source of sources.slice(0, 5)) {
+      if (source.url) {
+        resolved.push({ url: source.url, fileName: source.fileName || null, sourceNodeId: source.nodeId })
+        continue
       }
-    } else if (source.base64) {
-      const base64String = source.base64
-      const matches = String(base64String).match(/^data:(.+?);base64,(.+)$/)
-      const mime = matches?.[1] || 'image/png'
-      const raw = matches?.[2] || base64String
+      if (!source.base64) continue
 
-      const bytes = atob(raw)
-      const array = new Uint8Array(bytes.length)
-      for (let i = 0; i < bytes.length; i++) array[i] = bytes.charCodeAt(i)
+      // Upload base64 | 上传 base64
+      try {
+        const base64String = source.base64
+        const matches = String(base64String).match(/^data:(.+?);base64,(.+)$/)
+        const mime = matches?.[1] || 'image/png'
+        const raw = matches?.[2] || base64String
 
-      const ext = mime.includes('jpeg') ? 'jpg' : (mime.includes('webp') ? 'webp' : 'png')
-      const name = `reference_${Date.now()}.${ext}`
-      const blob = new Blob([array], { type: mime })
+        const bytes = atob(raw)
+        const array = new Uint8Array(bytes.length)
+        for (let i = 0; i < bytes.length; i++) array[i] = bytes.charCodeAt(i)
 
-      const res = await getFilePresignedUrl(name)
-      const { uploadUrl, url } = res
-      await uploadFileToUrl(uploadUrl, blob)
+        const ext = mime.includes('jpeg') ? 'jpg' : (mime.includes('webp') ? 'webp' : 'png')
+        const name = `reference_${Date.now()}.${ext}`
+        const blob = new Blob([array], { type: mime })
 
+        const res = await getFilePresignedUrl(name)
+        await uploadFileToUrl(res.uploadUrl, blob)
+        resolved.push({ url: res.url, fileName: name, sourceNodeId: source.nodeId })
+      } catch {
+        // Skip failed uploads
+      }
+    }
+
+    if (!resolved.length) return
+
+    if (inputMode.value === 'frame') {
+      // Frame mode: sources[0] → firstFrame, sources[1] → lastFrame
+      const updates = {}
+      if (resolved[0]) {
+        updates.firstFrameUrl = resolved[0].url
+        updates.firstFrameSourceNodeId = resolved[0].sourceNodeId
+      }
+      if (resolved[1]) {
+        updates.lastFrameUrl = resolved[1].url
+        updates.lastFrameSourceNodeId = resolved[1].sourceNodeId
+      }
+      updates.updatedAt = Date.now()
+      updateNode(props.id, updates)
+      if (updates.firstFrameUrl !== undefined) {
+        firstFrameUrl.value = updates.firstFrameUrl
+      }
+      if (updates.lastFrameUrl !== undefined) {
+        lastFrameUrl.value = updates.lastFrameUrl
+      }
+      referenceRenderKey.value += 1
+      refreshNode()
+    } else {
+      // Reference mode: merge synced + manual
+      const manual = referenceImages.value.filter(img => !img?.sourceNodeId)
+      const merged = [...resolved, ...manual].slice(0, 5)
       updateNode(props.id, {
-        referenceImageUrl: url,
-        referenceImageFileName: name,
-        referenceImageFileType: mime,
+        referenceImages: merged,
+        referenceImageUrl: null,
         updatedAt: Date.now()
       })
+      referenceImages.value = merged
+      referenceRenderKey.value += 1
+      refreshNode()
     }
   } finally {
-    lastSyncedSourceId.value = source.nodeId
-    lastSyncedSourceSignature.value = signature
+    lastSyncedSourcesSignature.value = signature
     isSyncingReference.value = false
   }
 }
@@ -533,20 +934,51 @@ const handleGenerate = async () => {
 
   updateNode(props.id, { loading: true, error: null })
   try {
-    const result = await generate(
-      {
-        model: localModel.value,
-        prompt: content.value,
-        resolution: localResolution.value,
-        duration: localDuration.value,
-        imgUrl: referenceImageUrl.value || ''
-      },
-      {
-        onTaskId: (id) => {
-          updateNode(props.id, { taskId: id, updatedAt: Date.now() })
-        }
+    // Build request params | 构建请求参数
+    const params = {
+      model: localModel.value,
+      prompt: content.value,
+      resolution: localResolution.value,
+      duration: localDuration.value
+    }
+
+    // Add images based on mode | 根据模式添加图片
+    if (inputMode.value === 'frame') {
+      // Frame mode: first/last frame | 首尾帧模式
+      const images = []
+      if (firstFrameUrl.value) {
+        images.push({ url: firstFrameUrl.value, role: 'first_frame' })
       }
-    )
+      if (lastFrameUrl.value) {
+        images.push({ url: lastFrameUrl.value, role: 'last_frame' })
+      }
+      if (images.length > 0) {
+        params.images = images
+      }
+      // Backward compatibility: first frame as imgUrl | 向后兼容：首帧作为 imgUrl
+      if (firstFrameUrl.value) {
+        params.imgUrl = firstFrameUrl.value
+      }
+    } else {
+      // Reference mode | 参考图模式
+      if (referenceImages.value.length > 0) {
+        params.images = referenceImages.value.map(img => ({
+          url: img.url,
+          role: 'input_reference'
+        }))
+        // Backward compatibility: first reference as imgUrl | 向后兼容：第一张参考图作为 imgUrl
+        params.imgUrl = referenceImages.value[0].url
+      } else if (referenceImageUrl.value) {
+        // Backward compatibility: old single reference | 兼容旧数据
+        params.imgUrl = referenceImageUrl.value
+      }
+    }
+
+    const result = await generate(params, {
+      onTaskId: (id) => {
+        updateNode(props.id, { taskId: id, updatedAt: Date.now() })
+      }
+    })
 
     if (result?.url) {
       updateNode(props.id, {
@@ -613,6 +1045,7 @@ onMounted(() => {
   if (!props.data?.model || !props.data?.resolution || !props.data?.dur) {
     updateNodeData()
   }
+  syncReferenceImagesFromData()
 })
 
 onUnmounted(() => {
@@ -620,26 +1053,73 @@ onUnmounted(() => {
 })
 
 watch(
+  () => props.data?.inputMode,
+  (mode) => {
+    if (mode && mode !== inputMode.value) {
+      inputMode.value = mode
+      refreshNode()
+    }
+    syncReferenceImagesFromData()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [
+    props.data?.referenceImages?.length || 0,
+    props.data?.referenceImageUrl || ''
+  ].join('::'),
+  () => {
+    syncReferenceImagesFromData()
+  },
+  { immediate: true }
+)
+
+watch(
   () => [
     edges.value.length,
     edges.value.map(e => `${e.id}:${e.source}->${e.target}:${e.sourceHandle || ''}:${e.targetHandle || ''}`).join('|'),
     nodes.value.length,
-    nodes.value.map(n => `${n.id}:${n.data?.url || ''}:${n.data?.base64 ? 'b64' : ''}`).join('|')
+    nodes.value.map(n => `${n.id}:${n.data?.url || ''}:${n.data?.base64 ? 'b64' : ''}`).join('|'),
+    inputMode.value
   ].join('::'),
   () => {
-    const source = getConnectedReferenceSource()
-    if (!source) {
-      if (referenceImageUrl.value) {
-        updateNode(props.id, {
-          referenceImageUrl: null,
-          referenceImageFileName: null,
-          referenceImageFileType: null,
-          updatedAt: Date.now()
-        })
-      }
+    const sources = getConnectedReferenceSources()
+    if (sources.length > 0) {
+      applyImmediateSourceSync(sources)
+      syncReferencesFromSources(sources)
       return
     }
-    syncReferenceFromSource(source)
+    // No sources — only clear items that came from connections | 无源时仅清除来自连接的项
+    if (inputMode.value === 'frame') {
+      const updates = {}
+      if (props.data?.firstFrameSourceNodeId) {
+        updates.firstFrameUrl = null
+        updates.firstFrameSourceNodeId = null
+      }
+      if (props.data?.lastFrameSourceNodeId) {
+        updates.lastFrameUrl = null
+        updates.lastFrameSourceNodeId = null
+      }
+      if (Object.keys(updates).length > 0) {
+        updates.updatedAt = Date.now()
+        updateNode(props.id, updates)
+        refreshNode()
+      }
+    } else {
+      const manual = referenceImages.value.filter(img => !img?.sourceNodeId)
+      if (manual.length !== referenceImages.value.length) {
+        updateNode(props.id, {
+          referenceImages: manual,
+          referenceImageUrl: null,
+          updatedAt: Date.now()
+        })
+        referenceImages.value = manual
+        referenceRenderKey.value += 1
+        refreshNode()
+      }
+    }
+    lastSyncedSourcesSignature.value = null
   },
   { immediate: true }
 )
