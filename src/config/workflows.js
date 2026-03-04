@@ -7,6 +7,7 @@ import workflowCover1 from '@/assets/workflow01.jpeg'
 import workflowCover2 from '@/assets/workflow02.jpeg'
 import scene01 from '@/assets/scene01.jpeg'
 import shot01 from '@/assets/shot01.jpeg'
+import { DEFAULT_IMAGE_MODEL } from '@/config/models'
 
 // Multi-angle prompts | 多角度提示词模板
 export const MULTI_ANGLE_PROMPTS = {
@@ -81,7 +82,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + nodeSpacing, y: startPosition.y + rowSpacing * 1.5 },
         data: {
           label: '主角色图',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2048x2048'
         }
       })
@@ -145,7 +146,7 @@ export const WORKFLOW_TEMPLATES = [
           position: { x: currentX, y: angleY },
           data: {
             label: `${angleConfig.label} (${angleConfig.english})`,
-            model: 'doubao-seedream-4-5-251128',
+            model: DEFAULT_IMAGE_MODEL,
             size: '2048x2048'
           }
         })
@@ -277,7 +278,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 2, y: startPosition.y },
         data: {
           label: '生成模特图',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2048x2048'
         }
       })
@@ -290,7 +291,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 2, y: startPosition.y + rowSpacing },
         data: {
           label: '侧面展示图',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2048x2048'
         }
       })
@@ -303,7 +304,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 2, y: startPosition.y + rowSpacing * 2 },
         data: {
           label: '俯瞰展示图',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2048x2048'
         }
       })
@@ -316,7 +317,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 2, y: startPosition.y + rowSpacing * 3 },
         data: {
           label: '拆解图',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2048x2048'
         }
       })
@@ -495,7 +496,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 2, y: startPosition.y },
         data: {
           label: '生成正面全身图',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '1440x2560'
         }
       })
@@ -557,7 +558,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 4 + 100, y: startPosition.y + rowSpacing },
         data: {
           label: '侧面半身图',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2048x2048'
         }
       })
@@ -570,7 +571,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 4 + 100, y: startPosition.y + rowSpacing * 2 },
         data: {
           label: '表情特写图',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2048x2048'
         }
       })
@@ -583,7 +584,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 4 + 100, y: startPosition.y + rowSpacing * 3 },
         data: {
           label: '背面全身图',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '1440x2560'
         }
       })
@@ -733,7 +734,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 2, y: startPosition.y },
         data: {
           label: '生成基础场景',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2560x1440'
         }
       })
@@ -795,7 +796,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 4 + 100, y: startPosition.y + rowSpacing },
         data: {
           label: '傍晚场景',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2560x1440'
         }
       })
@@ -808,7 +809,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 4 + 100, y: startPosition.y + rowSpacing * 2 },
         data: {
           label: '夜晚场景',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2560x1440'
         }
       })
@@ -821,7 +822,7 @@ export const WORKFLOW_TEMPLATES = [
         position: { x: startPosition.x + colSpacing * 4 + 100, y: startPosition.y + rowSpacing * 3 },
         data: {
           label: '雨天场景',
-          model: 'doubao-seedream-4-5-251128',
+          model: DEFAULT_IMAGE_MODEL,
           size: '2560x1440'
         }
       })

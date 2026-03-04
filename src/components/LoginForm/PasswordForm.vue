@@ -70,7 +70,11 @@ const handleSubmit = async () => {
     await loginByPassword(formData.mobile, formData.password)
     emit('success')
   } catch (e) {
-    // Validation or login failed
+    // Validation errors are shown by Naive UI, API errors by request interceptor
+    // Only show fallback for unhandled errors | 仅对未处理的错误显示兜底提示
+    if (e?.message && !e?.response) {
+      window.$message?.error(e.message)
+    }
   }
 }
 </script>

@@ -250,8 +250,8 @@ export const initProjectsStore = async () => {
 }
 
 
-// Export for debugging | 导出用于调试
-if (typeof window !== 'undefined') {
+// Export for debugging (DEV only) | 导出用于调试（仅开发环境）
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
   window.__aiCanvasProjects = {
     projects,
     loadProjects,

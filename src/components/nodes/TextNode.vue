@@ -121,7 +121,7 @@ import { NIcon, NSpin } from 'naive-ui'
 import { computed, ref, watch } from 'vue'
 import { useChat } from '../../hooks'
 import { addEdge, addNode, duplicateNode, nodes, removeNode, updateNode } from '../../stores/canvas'
-import { DEFAULT_CHAT_MODEL, getModelConfig } from '../../stores/models'
+import { DEFAULT_CHAT_MODEL, DEFAULT_IMAGE_MODEL, DEFAULT_IMAGE_SIZE, getModelConfig } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -235,8 +235,8 @@ const handleImageGen = () => {
 
   // Create imageConfig node | 创建text生图配置节点
   const configNodeId = addNode('imageConfig', { x: nodeX + 400, y: nodeY }, {
-    model: 'doubao-seedream-4-5-251128',
-    size: '2048x2048',
+    model: DEFAULT_IMAGE_MODEL,
+    size: DEFAULT_IMAGE_SIZE,
     label: '文生图'
   })
 

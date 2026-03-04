@@ -10,8 +10,8 @@ export const aiModels = ref({})
 // Loading state | 加载状态
 export const isLoading = ref(false)
 
-// Initialized flags by type | 各类型的初始化标志
-export const initializedTypes = ref(new Set())
+// Initialized flags by type (use array for Vue reactivity) | 各类型的初始化标志（使用数组保证 Vue 响应式）
+export const initializedTypes = ref([])
 
 /**
  * Fetch and cache models | 获取并缓存模型
@@ -27,7 +27,7 @@ export const initializedTypes = ref(new Set())
  */
 export const fetchModels = async (type = 2) => {
   // If already initialized for this type, skip
-  if (initializedTypes.value.has(type)) return
+  if (initializedTypes.value.includes(type)) return
   
   // We don't block by global isLoading because we might want parallel fetches for different types.
   // Ideally we should have per-type loading state, but for simplicity:
@@ -40,7 +40,7 @@ export const fetchModels = async (type = 2) => {
         ...aiModels.value,
         [type]: res
       }
-      initializedTypes.value.add(type)
+      initializedTypes.value = [...initializedTypes.value, type]
     }
   } catch (error) {
     console.error(`Failed to fetch AI models (type ${type}):`, error)

@@ -52,6 +52,9 @@ export const DEFAULT_CHAT_CONFIG = {
   supportDeepThink: false
 }
 
+// Default Avatar URL | 默认头像地址
+export const DEFAULT_AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
+
 // Auth Storage Keys | 认证存储键
 export const AUTH_STORAGE_KEYS = {
   ACCESS_TOKEN: 'accessToken',

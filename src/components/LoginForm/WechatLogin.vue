@@ -32,11 +32,14 @@ const handleWechatLogin = async () => {
   try {
     await openWechatLogin()
   } catch (e) {
-    // Failed to open wechat login
+    window.$message?.error('无法打开微信登录窗口，请检查是否被浏览器拦截')
   }
 }
 
 const handleMessage = async (event) => {
+  // Validate origin to prevent cross-origin forgery | 验证来源防止跨域伪造
+  if (event.origin !== window.location.origin) return
+
   if (event.data?.type === 'wechat_login_callback') {
     const { code, state } = event.data
     if (code && state) {
@@ -44,7 +47,7 @@ const handleMessage = async (event) => {
         await loginByWechat(code, state)
         emit('success')
       } catch (e) {
-        // Login failed
+        window.$message?.error('微信登录失败，请重试')
       }
     }
   }

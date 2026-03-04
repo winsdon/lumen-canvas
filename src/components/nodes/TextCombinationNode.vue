@@ -257,7 +257,7 @@ const connectedImage = computed(() => {
     if (sourceNode.type === 'image' || sourceNode.type === 'textToImage') {
       const url = sourceNode.data?.url
       if (url) {
-        console.log('[TextCombinationNode] Found connected image:', url)
+        if (import.meta.env.DEV) console.log('[TextCombinationNode] Found connected image:', url)
         return url
       }
     }

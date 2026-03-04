@@ -97,13 +97,13 @@ export const useChat = (options = {}) => {
 
         const requestData = { modelId, systemPrompt, userPrompt }
         if (images && images.length > 0) {
-          console.log('[useChat] Sending images with request:', images)
+          if (import.meta.env.DEV) console.log('[useChat] Sending images with request:', images)
           requestData.images = images
           // Try compatibility fields in case backend expects different naming
           requestData.image = images.join(',')
           requestData.imageUrls = images
         } else {
-          console.log('[useChat] No images found in request')
+          if (import.meta.env.DEV) console.log('[useChat] No images found in request')
         }
 
         for await (const chunk of streamChatCompletions(

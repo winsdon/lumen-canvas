@@ -98,7 +98,10 @@ const handleSendCode = async () => {
     await sendSmsCode(formData.mobile, SMS_SCENE.LOGIN)
     startCountdown()
   } catch (e) {
-    // Send failed
+    // API errors handled by request interceptor | API 错误由请求拦截器处理
+    if (e?.message && !e?.response) {
+      window.$message?.error('验证码发送失败')
+    }
   } finally {
     sendingCode.value = false
   }
@@ -110,7 +113,10 @@ const handleSubmit = async () => {
     await loginBySms(formData.mobile, formData.code)
     emit('success')
   } catch (e) {
-    // Validation or login failed
+    // Validation errors shown by Naive UI, API errors by request interceptor
+    if (e?.message && !e?.response) {
+      window.$message?.error(e.message)
+    }
   }
 }
 

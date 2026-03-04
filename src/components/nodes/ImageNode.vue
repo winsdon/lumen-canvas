@@ -281,6 +281,7 @@ import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NImage, NModal, NSpin } from 'naive-ui'
 import { nextTick, ref } from 'vue'
 import { addEdge, addNode, duplicateNode, nodes, removeNode, updateNode } from '../../stores/canvas'
+import { DEFAULT_IMAGE_MODEL, DEFAULT_IMAGE_SIZE } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -485,8 +486,8 @@ const createInpaintWorkflow = () => {
   
   // Create imageConfig node for inpainting | 创建图生图配置节点
   const configNodeId = addNode('imageConfig', { x: nodeX + 600, y: nodeY }, {
-    model: 'doubao-seedream-4-5-251128',
-    size: '2048x2048',
+    model: DEFAULT_IMAGE_MODEL,
+    size: DEFAULT_IMAGE_SIZE,
     label: '局部重绘',
     inpaintMode: true
   })
@@ -534,10 +535,24 @@ const fileToBase64 = (file) => {
   })
 }
 
+// File upload limits | 文件上传限制
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+
 // Handle file upload | 处理文件上传
 const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   if (file) {
+    // Validate file type | 验证文件类型
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      window.$message?.error('仅支持 JPEG、PNG、GIF、WebP、SVG 格式的图片')
+      return
+    }
+    // Validate file size | 验证文件大小
+    if (file.size > MAX_IMAGE_SIZE) {
+      window.$message?.error('图片大小不能超过 10MB')
+      return
+    }
     try {
       updateNode(props.id, { loading: true, error: null })
 
@@ -598,8 +613,8 @@ const handleImageGen = () => {
 
   // Create imageConfig node | 创建文生图配置节点
   const configNodeId = addNode('imageConfig', { x: nodeX + 600, y: nodeY }, {
-    model: 'doubao-seedream-4-5-251128',
-    size: '2048x2048',
+    model: DEFAULT_IMAGE_MODEL,
+    size: DEFAULT_IMAGE_SIZE,
     label: '图生图'
   })
 

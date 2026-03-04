@@ -149,7 +149,9 @@ export const useWorkflowOrchestrator = () => {
    */
   const addLog = (type, message) => {
     executionLog.value.push({ type, message, timestamp: Date.now() })
-    console.log(`[Workflow ${type}] ${message}`)
+    if (import.meta.env.DEV) {
+      console.log(`[Workflow ${type}] ${message}`)
+    }
   }
   
   /**

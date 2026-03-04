@@ -9,7 +9,7 @@ import { AUTH_BASE_URL, DEFAULT_API_BASE_URL, TENANT_ID } from './constants'
 
 const instance = axios.create({
   baseURL: DEFAULT_API_BASE_URL,
-  timeout: 30000000,
+  timeout: 30000,
   headers: {
     'tenant-id': TENANT_ID
   }

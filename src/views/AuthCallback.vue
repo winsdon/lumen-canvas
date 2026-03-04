@@ -41,7 +41,8 @@ const handleClose = () => {
 
 const notifyParent = (data) => {
   if (window.opener) {
-    window.opener.postMessage(data, '*')
+    // Use same origin instead of '*' to prevent data leakage | 使用同源而非 '*' 防止数据泄露
+    window.opener.postMessage(data, window.location.origin)
     setTimeout(() => {
       window.close()
     }, 1500)

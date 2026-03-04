@@ -925,9 +925,9 @@ const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
 }
 
-const videoResumeDebugEnabled = new URLSearchParams(window.location.search).get('videoDebug') === '1'
+const videoResumeDebugEnabled = import.meta.env.DEV && new URLSearchParams(window.location.search).get('videoDebug') === '1'
 const debugVideoResume = (...args) => {
-  if (!videoResumeDebugEnabled && !import.meta.env.DEV) return
+  if (!videoResumeDebugEnabled) return
   console.log('[video-resume]', ...args)
 }
 
@@ -999,7 +999,6 @@ const resumePendingVideoTasks = () => {
         edges: edges.value
       })
     }
-    if (import.meta.env.DEV) debugger
   }
 
   let inProgressRecordsPromise = null

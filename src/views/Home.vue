@@ -340,7 +340,7 @@ const createNewProject = async () => {
     const id = await createProject('未命名项目')
     router.push(`/canvas/${id}`)
   } catch (e) {
-    // Error handled in store
+    // Store layer handles API errors via request interceptor | Store 层通过请求拦截器处理 API 错误
   }
 }
 
@@ -353,7 +353,7 @@ const handleCreateWithInput = async () => {
     inputText.value = ''
     router.push(`/canvas/${id}`)
   } catch (e) {
-    // Error handled in store
+    // Store layer handles API errors via request interceptor | Store 层通过请求拦截器处理 API 错误
   }
 }
 

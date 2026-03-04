@@ -165,7 +165,7 @@
  * Displays and manages video content
  */
 import { ref } from 'vue'
-import { Handle, Position } from '@vue-flow/core'
+import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NSpin } from 'naive-ui'
 import { TrashOutline, ExpandOutline, VideocamOutline, CopyOutline, CloseCircleOutline, DownloadOutline, EyeOutline, AddOutline, CloudUploadOutline } from '@vicons/ionicons5'
 import { updateNode, removeNode, duplicateNode } from '../../stores/canvas'
@@ -190,13 +190,27 @@ const triggerReupload = () => {
   reuploadInputRef.value?.click()
 }
 
+// File upload limits | 文件上传限制
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024 // 100MB
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']
+
 // Handle file upload | 处理文件上传
 const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   // Reset input value to allow selecting the same file again
   event.target.value = ''
-  
+
   if (file) {
+    // Validate file type | 验证文件类型
+    if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+      window.$message?.error('仅支持 MP4、WebM、MOV、AVI 格式的视频')
+      return
+    }
+    // Validate file size | 验证文件大小
+    if (file.size > MAX_VIDEO_SIZE) {
+      window.$message?.error('视频大小不能超过 100MB')
+      return
+    }
     try {
       updateNode(props.id, { loading: true, error: null })
       
