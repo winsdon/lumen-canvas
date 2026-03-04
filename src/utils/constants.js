@@ -75,3 +75,16 @@ export const SMS_SCENE = {
   UPDATE_PASSWORD: 3,
   RESET_PASSWORD: 4
 }
+
+// Seedream Model for quick-create workflows | 快捷创建工作流使用的 Seedream 模型
+export const SEEDREAM_MODEL = 'doubao-seedream-4-5-251128'
+export const SEEDREAM_DEFAULT_SIZE = '2048x2048'
+
+// Default Avatar | 默认头像
+export const DEFAULT_AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
+
+// Placeholder Images | 占位图
+export const ERROR_PLACEHOLDER_IMAGE = 'https://via.placeholder.com/200?text=Error'
+
+// Mobile Breakpoint | 移动端断点
+export const MOBILE_BREAKPOINT = 768

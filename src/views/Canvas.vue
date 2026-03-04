@@ -237,6 +237,7 @@ import { loadAllModels } from '../stores/models'
 import { deleteProject, initProjectsStore, projects, renameProject } from '../stores/projects'
 import { isDark, toggleTheme } from '../stores/theme'
 import { getAiVideoMy, getAiVideoPageMy } from '@/api/video'
+import { MOBILE_BREAKPOINT } from '@/utils/constants'
 
 import DownloadModal from '../components/DownloadModal.vue'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -917,7 +918,7 @@ const goBack = () => {
 
 // Check if mobile | 检测是否移动端
 const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
+  isMobile.value = window.innerWidth < MOBILE_BREAKPOINT
 }
 
 const videoResumeDebugEnabled = new URLSearchParams(window.location.search).get('videoDebug') === '1'
@@ -994,7 +995,7 @@ const resumePendingVideoTasks = () => {
         edges: edges.value
       })
     }
-    if (import.meta.env.DEV) debugger
+    // debugger removed
   }
 
   let inProgressRecordsPromise = null

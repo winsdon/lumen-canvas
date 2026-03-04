@@ -37,13 +37,14 @@ import { useRouter } from 'vue-router'
 import { NButton, NDropdown, NIcon } from 'naive-ui'
 import { PersonOutline, LogOutOutline, DiamondOutline, WalletOutline } from '@vicons/ionicons5'
 import { useAuth } from '@/hooks'
+import { DEFAULT_AVATAR_URL } from '@/utils/constants'
 
 const emit = defineEmits(['login'])
 const router = useRouter()
 
 const { isLoggedIn, userInfo, logout } = useAuth()
 
-const defaultAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
+const defaultAvatar = DEFAULT_AVATAR_URL
 const avatarError = ref(false)
 
 const userAvatar = computed(() => {

@@ -13,15 +13,24 @@ const theme = computed(() => isDark.value ? darkTheme : null)
 
 const showLoginModal = ref(false)
 
-window.$showLoginModal = () => {
-  showLoginModal.value = true
-}
+// 使用 defineProperty 设置为不可枚举，减少被第三方脚本发现的风险
+Object.defineProperty(window, '$showLoginModal', {
+  value: () => { showLoginModal.value = true },
+  writable: false,
+  enumerable: false,
+  configurable: true
+})
 
-window.$handleSessionExpire = () => {
-  clearUserAuth()
-  window.$message?.error('登录已过期，请重新登录')
-  window.$showLoginModal?.()
-}
+Object.defineProperty(window, '$handleSessionExpire', {
+  value: () => {
+    clearUserAuth()
+    window.$message?.error('登录已过期，请重新登录')
+    window.$showLoginModal?.()
+  },
+  writable: false,
+  enumerable: false,
+  configurable: true
+})
 
 const themeOverrides = {
   common: {

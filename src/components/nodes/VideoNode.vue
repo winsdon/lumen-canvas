@@ -159,10 +159,22 @@ const props = defineProps({
 // Hover state | 悬浮状态
 const showActions = ref(false)
 
+// 视频上传限制
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime']
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024 // 100MB
+
 // Handle file upload | 处理文件上传
 const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   if (file) {
+    if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+      window.$message?.error('仅支持 MP4、WebM、MOV 格式的视频')
+      return
+    }
+    if (file.size > MAX_VIDEO_SIZE) {
+      window.$message?.error('视频大小不能超过 100MB')
+      return
+    }
     try {
       updateNode(props.id, { loading: true, error: null })
       

@@ -98,7 +98,7 @@ const handleSendCode = async () => {
     await sendSmsCode(formData.mobile, SMS_SCENE.LOGIN)
     startCountdown()
   } catch (e) {
-    // Send failed
+    if (e?.message) console.error('Send SMS failed:', e.message)
   } finally {
     sendingCode.value = false
   }
@@ -110,7 +110,7 @@ const handleSubmit = async () => {
     await loginBySms(formData.mobile, formData.code)
     emit('success')
   } catch (e) {
-    // Validation or login failed
+    if (e?.message) console.error('SMS login failed:', e.message)
   }
 }
 

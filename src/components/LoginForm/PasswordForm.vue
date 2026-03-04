@@ -70,7 +70,8 @@ const handleSubmit = async () => {
     await loginByPassword(formData.mobile, formData.password)
     emit('success')
   } catch (e) {
-    // Validation or login failed
+    // 表单验证失败或登录失败（全局拦截器已处理 API 错误提示）
+    if (e?.message) console.error('Login failed:', e.message)
   }
 }
 </script>

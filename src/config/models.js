@@ -159,11 +159,6 @@ export const CHAT_MODEL_CAPABILITIES = [
     { key: 'gemini-3-pro' }
 ]
 
-// Deprecated: Use dynamic loading instead
-export const IMAGE_MODELS = []
-export const VIDEO_MODELS = []
-export const CHAT_MODELS = []
-
 // Video ratio options | 视频比例选项
 export const VIDEO_RATIO_OPTIONS = VIDEO_RATIO_LIST
 
@@ -182,8 +177,3 @@ export const DEFAULT_VIDEO_RATIO = '16:9'
 export const DEFAULT_VIDEO_DURATION = 5
 export const DEFAULT_VIDEO_RESOLUTION = '720P'
 
-// Get model by key | 根据 key 获取模型
-export const getModelByName = (key) => {
-    const allModels = [...IMAGE_MODELS, ...VIDEO_MODELS, ...CHAT_MODELS]
-    return allModels.find(m => m.key === key)
-}

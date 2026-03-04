@@ -377,11 +377,6 @@ const handleGenerate = async (mode = 'auto') => {
     return
   }
   
-  // Log prompt order for debugging | 记录提示词顺序用于调试
-  if (prompts.length > 1) {
-    console.log('[ImageConfigNode] 拼接提示词顺序:', prompts.map(p => `${p.order}: ${p.content.substring(0, 20)}...`))
-  }
-
   let imageNodeId = null
   
   if (mode === 'replace') {

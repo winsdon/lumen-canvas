@@ -26,7 +26,7 @@
           <!-- 头像区域 -->
           <div class="relative group cursor-pointer mr-4" @click="triggerHeaderAvatarUpload">
             <img
-              :src="userInfo?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'"
+              :src="userInfo?.avatar || DEFAULT_AVATAR_URL"
               alt="头像"
               class="w-20 h-20 rounded-full object-cover border-2 border-[var(--border-color)] group-hover:border-blue-500 transition-colors"
             />
@@ -292,7 +292,7 @@ import { getFilePresignedUrl, uploadFileToUrl } from '@/api/file'
 import { updateMobile, updatePassword, updateUserInfo } from '@/api/user'
 import AppHeader from '@/components/AppHeader.vue'
 import { fetchUserInfo, userInfo as storeUserInfo } from '@/stores/user'
-import { SMS_SCENE } from '@/utils/constants'
+import { SMS_SCENE, DEFAULT_AVATAR_URL } from '@/utils/constants'
 import { ArrowBackOutline } from '@vicons/ionicons5'
 import { NIcon } from 'naive-ui'
 import { nextTick, onMounted, reactive, ref, watch } from 'vue'

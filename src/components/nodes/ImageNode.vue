@@ -66,7 +66,7 @@
             class="w-full h-full"
             object-fit="cover"
             :preview-disabled="false"
-            fallback-src="https://via.placeholder.com/200?text=Error"
+            :fallback-src="ERROR_PLACEHOLDER_IMAGE"
             :class="{ 'pointer-events-none': isInpaintMode }"
           >
             <template #placeholder>
@@ -245,6 +245,7 @@
  * Displays and manages image content with loading state
  */
 import { getFilePresignedUrl, uploadFileToUrl } from '@/api'
+import { SEEDREAM_MODEL, ERROR_PLACEHOLDER_IMAGE } from '@/utils/constants'
 import {
   BrushOutline,
   CloseCircleOutline,
@@ -460,7 +461,7 @@ const createInpaintWorkflow = () => {
   
   // Create imageConfig node for inpainting | 创建图生图配置节点
   const configNodeId = addNode('imageConfig', { x: nodeX + 600, y: nodeY }, {
-    model: 'doubao-seedream-4-5-251128',
+    model: SEEDREAM_MODEL,
     size: '2048x2048',
     label: '局部重绘',
     inpaintMode: true
@@ -509,10 +510,22 @@ const fileToBase64 = (file) => {
   })
 }
 
+// 图片上传限制
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB
+
 // Handle file upload | 处理文件上传
 const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   if (file) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      window.$message?.error('仅支持 JPG、PNG、WebP、GIF 格式的图片')
+      return
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      window.$message?.error('图片大小不能超过 10MB')
+      return
+    }
     try {
       updateNode(props.id, { loading: true, error: null })
 
@@ -573,7 +586,7 @@ const handleImageGen = () => {
 
   // Create imageConfig node | 创建文生图配置节点
   const configNodeId = addNode('imageConfig', { x: nodeX + 600, y: nodeY }, {
-    model: 'doubao-seedream-4-5-251128',
+    model: SEEDREAM_MODEL,
     size: '2048x2048',
     label: '图生图'
   })

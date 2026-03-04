@@ -37,6 +37,9 @@ const handleWechatLogin = async () => {
 }
 
 const handleMessage = async (event) => {
+  // 验证消息来源，防止跨域攻击
+  if (event.origin !== window.location.origin) return
+
   if (event.data?.type === 'wechat_login_callback') {
     const { code, state } = event.data
     if (code && state) {
@@ -44,7 +47,7 @@ const handleMessage = async (event) => {
         await loginByWechat(code, state)
         emit('success')
       } catch (e) {
-        // Login failed
+        console.error('Wechat login failed:', e)
       }
     }
   }

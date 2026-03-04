@@ -340,7 +340,7 @@ const createNewProject = async () => {
     const id = await createProject('未命名项目')
     router.push(`/canvas/${id}`)
   } catch (e) {
-    // Error handled in store
+    if (e?.message) console.error('Create project failed:', e.message)
   }
 }
 
@@ -353,7 +353,7 @@ const handleCreateWithInput = async () => {
     inputText.value = ''
     router.push(`/canvas/${id}`)
   } catch (e) {
-    // Error handled in store
+    if (e?.message) console.error('Create project failed:', e.message)
   }
 }
 

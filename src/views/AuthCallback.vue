@@ -41,7 +41,8 @@ const handleClose = () => {
 
 const notifyParent = (data) => {
   if (window.opener) {
-    window.opener.postMessage(data, '*')
+    // 指定精确 origin，避免向任意域发送登录数据
+    window.opener.postMessage(data, window.location.origin)
     setTimeout(() => {
       window.close()
     }, 1500)

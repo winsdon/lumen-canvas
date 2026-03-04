@@ -117,6 +117,7 @@ import { NIcon, NSpin } from 'naive-ui'
 import { ref, watch } from 'vue'
 import { useChat } from '../../hooks'
 import { addEdge, addNode, duplicateNode, nodes, removeNode, updateNode } from '../../stores/canvas'
+import { SEEDREAM_MODEL, SEEDREAM_DEFAULT_SIZE } from '@/utils/constants'
 
 const props = defineProps({
   id: String,
@@ -223,8 +224,8 @@ const handleImageGen = () => {
 
   // Create imageConfig node | 创建text生图配置节点
   const configNodeId = addNode('imageConfig', { x: nodeX + 400, y: nodeY }, {
-    model: 'doubao-seedream-4-5-251128',
-    size: '2048x2048',
+    model: SEEDREAM_MODEL,
+    size: SEEDREAM_DEFAULT_SIZE,
     label: '文生图'
   })
 
