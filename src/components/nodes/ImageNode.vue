@@ -605,38 +605,22 @@ const handleImageGen = () => {
   const nodeX = currentNode?.position?.x || 0
   const nodeY = currentNode?.position?.y || 0
 
-  // Create text node for prompt | 创建文本节点用于提示词
-  const textNodeId = addNode('text', { x: nodeX + 300, y: nodeY - 100 }, {
-    content: '',
-    label: '提示词'
+  // Create textToImage node | 创建文生图组合节点
+  const nodeId = addNode('textToImage', { x: nodeX + 400, y: nodeY }, {
+    label: '文生图(组合)'
   })
 
-  // Create imageConfig node | 创建文生图配置节点
-  const configNodeId = addNode('imageConfig', { x: nodeX + 600, y: nodeY }, {
-    model: DEFAULT_IMAGE_MODEL,
-    size: DEFAULT_IMAGE_SIZE,
-    label: '图生图'
-  })
-
-  // Connect image node to config node | 连接图片节点到配置节点
+  // Connect image node to combo node | 连接图片节点到组合节点
   addEdge({
     source: props.id,
-    target: configNodeId,
-    sourceHandle: 'right',
-    targetHandle: 'left'
-  })
-
-  // Connect text node to config node | 连接文本节点到配置节点
-  addEdge({
-    source: textNodeId,
-    target: configNodeId,
+    target: nodeId,
     sourceHandle: 'right',
     targetHandle: 'left'
   })
 
   // Force Vue Flow to recalculate node dimensions | 强制 Vue Flow 重新计算节点尺寸
   setTimeout(() => {
-    updateNodeInternals([textNodeId, configNodeId])
+    updateNodeInternals(nodeId)
   }, 50)
 }
 
@@ -667,38 +651,22 @@ const handleVideoGen = () => {
   const nodeX = currentNode?.position?.x || 0
   const nodeY = currentNode?.position?.y || 0
 
-  // Create text node for prompt | 创建文本节点用于提示词
-  const textNodeId = addNode('text', { x: nodeX + 300, y: nodeY - 100 }, {
-    content: '',
-    label: '提示词'
+  // Create textToVideo node | 创建文生视频组合节点
+  const nodeId = addNode('textToVideo', { x: nodeX + 400, y: nodeY }, {
+    label: '文生视频(组合)'
   })
 
-  // Create videoConfig node | 创建视频配置节点
-  const configNodeId = addNode('videoConfig', { x: nodeX + 600, y: nodeY }, {
-    label: '视频生成'
-  })
-
-  // Connect image node to config node with role | 连接图片节点到配置节点并设置角色
+  // Connect image node to combo node | 连接图片节点到组合节点
   addEdge({
     source: props.id,
-    target: configNodeId,
-    sourceHandle: 'right',
-    targetHandle: 'left',
-    type: 'imageRole',
-    data: { imageRole: 'first_frame_image' } // Default to first frame | 默认首帧
-  })
-
-  // Connect text node to config node | 连接文本节点到配置节点
-  addEdge({
-    source: textNodeId,
-    target: configNodeId,
+    target: nodeId,
     sourceHandle: 'right',
     targetHandle: 'left'
   })
 
   // Force Vue Flow to recalculate node dimensions | 强制 Vue Flow 重新计算节点尺寸
   setTimeout(() => {
-    updateNodeInternals([textNodeId, configNodeId])
+    updateNodeInternals(nodeId)
   }, 50)
 }
 

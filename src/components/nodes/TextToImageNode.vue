@@ -151,7 +151,7 @@
           </div>
 
           <!-- Reference Image Upload Area | 参考图上传区域 -->
-          <div class="flex flex-wrap gap-2">
+          <div :key="referenceRenderKey" class="flex flex-wrap gap-2">
             <!-- Upload Button | 上传按钮 -->
             <div
               v-if="referenceImages.length < 5"
@@ -178,7 +178,7 @@
             <!-- Uploaded Images List | 已上传图片列表 -->
             <div 
               v-for="(img, index) in referenceImages" 
-              :key="index"
+              :key="img.sourceNodeId || img.url || index"
               class="relative w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] overflow-hidden group flex-shrink-0"
             >
               <n-image :src="img.url" class="w-full h-full block" object-fit="cover" />
@@ -308,7 +308,7 @@ import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
 import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useImageGeneration } from '../../hooks'
-import { addEdge, addNode, duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
+import { addEdge, addNode, duplicateNode, edges, nodes, removeEdge, removeNode, updateNode } from '../../stores/canvas'
 import { DEFAULT_IMAGE_MODEL, getModelConfig, imageModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
@@ -336,6 +336,7 @@ const props = defineProps({
 
 const emit = defineEmits(['updateNodeInternals'])
 const { updateNodeInternals } = useVueFlow()
+const referenceRenderKey = ref(0)
 
 // State
 const showActions = ref(false)
@@ -349,22 +350,51 @@ const isReferenceUploading = ref(false)
 const nodeWrapperRef = ref(null)
 let hideTimer = null
 
-const referenceImages = computed(() => {
-  if (props.data?.referenceImages && Array.isArray(props.data.referenceImages)) {
-    return props.data.referenceImages
-  }
-  if (props.data?.referenceImageUrl) {
-    return [{ 
-      url: props.data.referenceImageUrl, 
-      fileName: props.data.referenceImageFileName,
-      type: props.data.referenceImageFileType 
-    }]
-  }
-  return []
-})
+const referenceImages = ref([])
 const referenceImageUrl = computed(() => referenceImages.value[0]?.url) // Compatibility for other checks
 const isSyncingReference = ref(false)
 const lastSyncedSourcesSignature = ref(null)
+
+const syncReferenceImagesFromData = () => {
+  const sources = getConnectedReferenceSources()
+  if (sources.length > 0) {
+    const immediate = sources
+      .map(source => ({
+        url: source.url || source.base64,
+        fileName: source.fileName || null,
+        sourceNodeId: source.nodeId
+      }))
+      .filter(img => img.url)
+      .slice(0, 5)
+    if (immediate.length > 0) {
+      referenceImages.value = immediate
+      referenceRenderKey.value += 1
+      updateNodeInternals(props.id)
+      return
+    }
+  }
+  if (props.data?.referenceImages && Array.isArray(props.data.referenceImages) && props.data.referenceImages.length > 0) {
+    referenceImages.value = props.data.referenceImages
+    referenceRenderKey.value += 1
+    updateNodeInternals(props.id)
+    return
+  }
+  if (props.data?.referenceImageUrl) {
+    referenceImages.value = [{
+      url: props.data.referenceImageUrl,
+      fileName: props.data.referenceImageFileName,
+      type: props.data.referenceImageFileType
+    }]
+    referenceRenderKey.value += 1
+    updateNodeInternals(props.id)
+    return
+  }
+  if (referenceImages.value.length > 0) {
+    referenceImages.value = []
+    referenceRenderKey.value += 1
+    updateNodeInternals(props.id)
+  }
+}
 
 const handleMouseEnter = () => {
   if (hideTimer) {
@@ -560,6 +590,9 @@ const handleReferenceUpload = async (event) => {
       referenceImageUrl: null, // Clear legacy
       updatedAt: Date.now()
     })
+    referenceImages.value = newImages
+    referenceRenderKey.value += 1
+    updateNodeInternals(props.id)
 
     window.$message?.success('参考图上传成功')
   } catch (err) {
@@ -599,9 +632,15 @@ const syncReferencesFromSources = async (sources) => {
   isSyncingReference.value = true
   try {
     const synced = []
+    const seenKeys = new Set()
+    const seenUrls = new Set()
 
     for (const source of sources.slice(0, 5)) {
+      const key = source.nodeId || source.url || source.base64
+      if (!key || seenKeys.has(key)) continue
+      seenKeys.add(key)
       if (source.url) {
+        seenUrls.add(source.url)
         synced.push({
           url: source.url,
           fileName: source.fileName || null,
@@ -632,13 +671,18 @@ const syncReferencesFromSources = async (sources) => {
         const { uploadUrl, url } = res
         await uploadFileToUrl(uploadUrl, blob)
 
+        seenUrls.add(url)
         synced.push({ url, fileName: name, type: mime, sourceNodeId: source.nodeId })
       } finally {
         isReferenceUploading.value = false
       }
     }
 
-    const manual = referenceImages.value.filter(img => !img?.sourceNodeId)
+    const manual = referenceImages.value.filter(img => {
+      if (img?.sourceNodeId && seenKeys.has(img.sourceNodeId)) return false
+      if (img?.url && seenUrls.has(img.url)) return false
+      return !img?.sourceNodeId
+    })
     const merged = [...synced, ...manual].slice(0, 5)
 
     updateNode(props.id, {
@@ -646,6 +690,9 @@ const syncReferencesFromSources = async (sources) => {
       referenceImageUrl: null,
       updatedAt: Date.now()
     })
+    referenceImages.value = merged
+    referenceRenderKey.value += 1
+    updateNodeInternals(props.id)
   } finally {
     lastSyncedSourcesSignature.value = signature
     isSyncingReference.value = false
@@ -653,6 +700,7 @@ const syncReferencesFromSources = async (sources) => {
 }
 
 const handleRemoveReference = (index) => {
+  const target = referenceImages.value[index]
   const newImages = [...referenceImages.value]
   newImages.splice(index, 1)
   
@@ -661,6 +709,14 @@ const handleRemoveReference = (index) => {
     referenceImageUrl: null,
     updatedAt: Date.now()
   })
+  referenceImages.value = newImages
+  referenceRenderKey.value += 1
+  updateNodeInternals(props.id)
+  if (target?.sourceNodeId) {
+    const toRemove = edges.value.filter(edge => edge.source === target.sourceNodeId && edge.target === props.id)
+    toRemove.forEach(edge => removeEdge(edge.id))
+  }
+  lastSyncedSourcesSignature.value = null
 }
 
 const handleDownload = () => {
@@ -751,6 +807,7 @@ const handleGlobalClick = (event) => {
 onMounted(() => {
   document.addEventListener('click', handleGlobalClick)
   if (!props.data?.model) updateNodeData()
+  syncReferenceImagesFromData()
 })
 
 onUnmounted(() => {
@@ -767,6 +824,7 @@ watch(
   () => {
     const sources = getConnectedReferenceSources()
     if (sources.length > 0) {
+      syncReferenceImagesFromData()
       syncReferencesFromSources(sources)
       return
     }
@@ -777,8 +835,22 @@ watch(
         referenceImageUrl: null,
         updatedAt: Date.now()
       })
+      referenceImages.value = manual
+      referenceRenderKey.value += 1
+      updateNodeInternals(props.id)
     }
     lastSyncedSourcesSignature.value = null
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [
+    props.data?.referenceImages?.length || 0,
+    props.data?.referenceImageUrl || ''
+  ].join('::'),
+  () => {
+    syncReferenceImagesFromData()
   },
   { immediate: true }
 )

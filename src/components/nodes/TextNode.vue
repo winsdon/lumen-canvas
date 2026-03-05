@@ -233,24 +233,22 @@ const handleImageGen = () => {
   const nodeX = currentNode?.position?.x || 0
   const nodeY = currentNode?.position?.y || 0
 
-  // Create imageConfig node | 创建text生图配置节点
-  const configNodeId = addNode('imageConfig', { x: nodeX + 400, y: nodeY }, {
-    model: DEFAULT_IMAGE_MODEL,
-    size: DEFAULT_IMAGE_SIZE,
-    label: '文生图'
+  // Create textToImage node | 创建文生图组合节点
+  const nodeId = addNode('textToImage', { x: nodeX + 400, y: nodeY }, {
+    label: '文生图(组合)'
   })
 
   // Auto connect | 自动连接
   addEdge({
     source: props.id,
-    target: configNodeId,
+    target: nodeId,
     sourceHandle: 'right',
     targetHandle: 'left'
   })
 
   // Force Vue Flow to recalculate node dimensions | 强制 Vue Flow 重新计算节点尺寸
   setTimeout(() => {
-    updateNodeInternals(configNodeId)
+    updateNodeInternals(nodeId)
   }, 50)
 }
 
@@ -260,22 +258,22 @@ const handleVideoGen = () => {
   const nodeX = currentNode?.position?.x || 0
   const nodeY = currentNode?.position?.y || 0
 
-  // Create videoConfig node | 创建视频配置节点
-  const configNodeId = addNode('videoConfig', { x: nodeX + 400, y: nodeY }, {
-    label: '视频生成'
+  // Create textToVideo node | 创建文生视频组合节点
+  const nodeId = addNode('textToVideo', { x: nodeX + 400, y: nodeY }, {
+    label: '文生视频(组合)'
   })
 
   // Auto connect | 自动连接
   addEdge({
     source: props.id,
-    target: configNodeId,
+    target: nodeId,
     sourceHandle: 'right',
     targetHandle: 'left'
   })
 
   // Force Vue Flow to recalculate node dimensions | 强制 Vue Flow 重新计算节点尺寸
   setTimeout(() => {
-    updateNodeInternals(configNodeId)
+    updateNodeInternals(nodeId)
   }, 50)
 }
 </script>

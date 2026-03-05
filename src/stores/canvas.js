@@ -282,7 +282,65 @@ export const updateEdge = (id, data) => {
 
 // Remove edge | 删除边
 export const removeEdge = (id) => {
+  const removed = edges.value.find(edge => edge.id === id)
   edges.value = edges.value.filter(edge => edge.id !== id)
+  if (removed) {
+    const targetId = removed.target
+    const sourceId = removed.source
+    const targetNode = nodes.value.find(node => node.id === targetId)
+    if (targetNode?.type === 'textToImage') {
+      const updates = {}
+      const current = Array.isArray(targetNode.data?.referenceImages) ? targetNode.data.referenceImages : []
+      const filtered = current.filter(img => img?.sourceNodeId !== sourceId)
+      if (filtered.length !== current.length) {
+        updates.referenceImages = filtered
+      }
+      const hasSources = edges.value.some(edge => {
+        if (edge.target !== targetId) return false
+        const sourceNode = nodes.value.find(node => node.id === edge.source)
+        return sourceNode?.type === 'textToImage' || sourceNode?.type === 'image'
+      })
+      if (!hasSources) {
+        updates.referenceImageUrl = null
+        updates.referenceImageFileName = null
+        updates.referenceImageFileType = null
+      }
+      if (Object.keys(updates).length > 0) {
+        updates.updatedAt = Date.now()
+        updateNode(targetId, updates)
+      }
+    }
+    if (targetNode?.type === 'textToVideo') {
+      const updates = {}
+      if (targetNode.data?.firstFrameSourceNodeId === sourceId) {
+        updates.firstFrameUrl = null
+        updates.firstFrameSourceNodeId = null
+      }
+      if (targetNode.data?.lastFrameSourceNodeId === sourceId) {
+        updates.lastFrameUrl = null
+        updates.lastFrameSourceNodeId = null
+      }
+      const current = Array.isArray(targetNode.data?.referenceImages) ? targetNode.data.referenceImages : []
+      const filtered = current.filter(img => img?.sourceNodeId !== sourceId)
+      if (filtered.length !== current.length) {
+        updates.referenceImages = filtered
+      }
+      const hasSources = edges.value.some(edge => {
+        if (edge.target !== targetId) return false
+        const sourceNode = nodes.value.find(node => node.id === edge.source)
+        return sourceNode?.type === 'textToImage' || sourceNode?.type === 'image'
+      })
+      if (!hasSources) {
+        updates.referenceImageUrl = null
+        updates.referenceImageFileName = null
+        updates.referenceImageFileType = null
+      }
+      if (Object.keys(updates).length > 0) {
+        updates.updatedAt = Date.now()
+        updateNode(targetId, updates)
+      }
+    }
+  }
   saveToHistory() // Save after removing edge | 删除连线后保存
 }
 

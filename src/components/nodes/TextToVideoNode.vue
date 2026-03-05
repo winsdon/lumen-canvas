@@ -370,7 +370,7 @@ import { NDropdown, NIcon, NImage, NSpin } from 'naive-ui'
 import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useVideoGeneration } from '../../hooks'
-import { duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
+import { duplicateNode, edges, nodes, removeEdge, removeNode, updateNode } from '../../stores/canvas'
 import { DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RESOLUTION, getModelConfig, getModelDurationOptions, videoModelSelectOptions, VIDEO_RESOLUTION_OPTIONS } from '../../stores/models'
 
 const props = defineProps({
@@ -741,18 +741,41 @@ const handleReferenceImageUpload = async (event) => {
 
 // Remove first frame | 移除首帧
 const removeFirstFrame = () => {
+  const sourceId = props.data?.firstFrameSourceNodeId
   updateNode(props.id, { firstFrameUrl: null, firstFrameSourceNodeId: null, updatedAt: Date.now() })
+  firstFrameUrl.value = null
+  if (sourceId) {
+    edges.value
+      .filter(edge => edge.source === sourceId && edge.target === props.id)
+      .forEach(edge => removeEdge(edge.id))
+  }
 }
 
 // Remove last frame | 移除尾帧
 const removeLastFrame = () => {
+  const sourceId = props.data?.lastFrameSourceNodeId
   updateNode(props.id, { lastFrameUrl: null, lastFrameSourceNodeId: null, updatedAt: Date.now() })
+  lastFrameUrl.value = null
+  if (sourceId) {
+    edges.value
+      .filter(edge => edge.source === sourceId && edge.target === props.id)
+      .forEach(edge => removeEdge(edge.id))
+  }
 }
 
 // Remove reference image by index | 移除参考图
 const removeReferenceImage = (index) => {
+  const removed = referenceImages.value[index]
   const newImages = referenceImages.value.filter((_, i) => i !== index)
   updateNode(props.id, { referenceImages: newImages, updatedAt: Date.now() })
+  referenceImages.value = newImages
+  referenceRenderKey.value += 1
+  refreshNode()
+  if (removed?.sourceNodeId) {
+    edges.value
+      .filter(edge => edge.source === removed.sourceNodeId && edge.target === props.id)
+      .forEach(edge => removeEdge(edge.id))
+  }
 }
 
 // === Drag and Drop: Reference Images | 参考图拖拽排序 ===

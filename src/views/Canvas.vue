@@ -84,7 +84,7 @@
         :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }" @keydown.esc="showNodeMenu = false">
         <div class="px-2 py-1 text-xs text-[var(--text-secondary)] font-medium">添加节点</div>
         <button
-          v-for="nodeType in nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'textCombination', 'text', 'imageConfig', 'videoConfig'].includes(n.type))"
+          v-for="nodeType in nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'textCombination', 'text'].includes(n.type))"
   :key="nodeType.type" @click="addNewNode(nodeType.type)"
           class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-left">
           <n-icon :size="20" :color="nodeType.color">
@@ -489,7 +489,6 @@ const projectOptions = [
 const tools = [
   { id: 'text', name: '文本', icon: TextOutline, action: () => addNewNode('text') },
   { id: 'image', name: '图片', icon: ImageOutline, action: () => addNewNode('image') },
-  { id: 'imageConfig', name: '文生图', icon: ColorPaletteOutline, action: () => addNewNode('imageConfig') },
   { id: 'undo', name: '撤销', icon: ArrowUndoOutline, action: () => undo(), disabled: () => !canUndo() },
   { id: 'redo', name: '重做', icon: ArrowRedoOutline, action: () => redo(), disabled: () => !canRedo() }
 ]
@@ -500,14 +499,12 @@ const nodeTypeOptions = [
   { type: 'textToVideo', name: '文生视频(组合)', icon: VideocamOutline, color: '#f97316' },
   { type: 'textCombination', name: '文本(组合)', icon: TextOutline, color: '#8b5cf6' },
   { type: 'text', name: '文本节点', icon: TextOutline, color: '#3b82f6' },
-  { type: 'imageConfig', name: '文生图配置', icon: ColorPaletteOutline, color: '#32F08C' },
-  { type: 'videoConfig', name: '视频生成配置', icon: VideocamOutline, color: '#f59e0b' },
   { type: 'image', name: '图片节点', icon: ImageOutline, color: '#8b5cf6' },
   { type: 'video', name: '视频节点', icon: VideocamOutline, color: '#ef4444' }
 ]
 
 const connectNodeTypeOptions = computed(() =>
-  nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'textCombination', 'text', 'imageConfig', 'videoConfig', 'image', 'video'].includes(n.type))
+  nodeTypeOptions.filter(n => ['textToImage', 'textToVideo', 'textCombination', 'text', 'image', 'video'].includes(n.type))
 )
 
 // Add new node | 添加新节点
@@ -620,6 +617,10 @@ const onConnect = (params) => {
   } else {
     addEdge(params)
   }
+
+  nextTick(() => {
+    updateNodeInternals([params.source, params.target])
+  })
 }
 
 const cleanupPendingConnection = () => {
@@ -886,20 +887,9 @@ const sendMessage = async () => {
       }
     } else {
       // Manual mode: just create nodes | 手动模式：仅创建节点
-      const textNodeId = addNode('text', { x: baseX, y: baseY }, {
+      addNode('textToImage', { x: baseX, y: baseY }, {
         content: content,
-        label: '提示词'
-      })
-
-      const imageConfigNodeId = addNode('imageConfig', { x: baseX + 400, y: baseY }, {
-        label: '文生图'
-      })
-
-      addEdge({
-        source: textNodeId,
-        target: imageConfigNodeId,
-        sourceHandle: 'right',
-        targetHandle: 'left'
+        label: '文生图(组合)'
       })
     }
   } catch (err) {
