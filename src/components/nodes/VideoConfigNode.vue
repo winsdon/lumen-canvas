@@ -287,11 +287,7 @@ const getConnectedInputs = () => {
     }
   }
 
-  // 向后兼容：提取首帧作为 imgUrl
-  const firstFrame = images.find(img => img.role === 'first_frame')
-  const imgUrl = firstFrame?.url || ''
-
-  return { prompt, imgUrl, images, hasUnsupportedImage }
+  return { prompt, images, hasUnsupportedImage }
 }
 
 // Computed connected prompt | 计算连接的提示词
@@ -304,9 +300,9 @@ const createdVideoNodeId = ref(null)
 
 // Handle generate action | 处理生成操作
 const handleGenerate = async () => {
-  const { prompt, imgUrl, images, hasUnsupportedImage } = getConnectedInputs()
+  const { prompt, images, hasUnsupportedImage } = getConnectedInputs()
 
-  const hasInput = prompt || imgUrl || images.length > 0
+  const hasInput = prompt || images.length > 0
   if (!hasInput) {
     window.$message?.warning('请先连接文本节点或图片节点')
     return
@@ -358,10 +354,7 @@ const handleGenerate = async () => {
       params.prompt = prompt
     }
 
-    // 向后兼容：传递首帧作为 imgUrl
-    if (imgUrl) params.imgUrl = imgUrl
-
-    // 新增：传递完整图片列表
+    // 传递图片列表（首帧、尾帧、参考图）
     if (images.length > 0) {
       params.images = images
     }

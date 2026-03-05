@@ -978,10 +978,6 @@ const handleGenerate = async () => {
       if (images.length > 0) {
         params.images = images
       }
-      // Backward compatibility: first frame as imgUrl | 向后兼容：首帧作为 imgUrl
-      if (firstFrameUrl.value) {
-        params.imgUrl = firstFrameUrl.value
-      }
     } else {
       // Reference mode | 参考图模式
       if (referenceImages.value.length > 0) {
@@ -989,11 +985,6 @@ const handleGenerate = async () => {
           url: img.url,
           role: 'input_reference'
         }))
-        // Backward compatibility: first reference as imgUrl | 向后兼容：第一张参考图作为 imgUrl
-        params.imgUrl = referenceImages.value[0].url
-      } else if (referenceImageUrl.value) {
-        // Backward compatibility: old single reference | 兼容旧数据
-        params.imgUrl = referenceImageUrl.value
       }
     }
 

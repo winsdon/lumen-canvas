@@ -304,16 +304,16 @@ export const useVideoGeneration = () => {
         throw new Error('未找到模型 ID，请刷新模型列表后重试')
       }
 
-      const imgUrl = params?.imgUrl || ''
-      const type = params?.type || (imgUrl ? 2 : 1)
+      const hasFirstFrame = params?.images?.some(img => img.role === 'first_frame')
+      const type = params?.type || (hasFirstFrame ? 2 : 1)
       const duration = params?.duration ?? params?.dur
 
       if (!params?.prompt) {
         throw new Error('请输入提示词')
       }
 
-      if (type === 2 && !imgUrl) {
-        throw new Error('图生视频需要首帧图片 URL')
+      if (type === 2 && !hasFirstFrame) {
+        throw new Error('图生视频需要首帧图片')
       }
 
       if (!duration) {
@@ -332,9 +332,7 @@ export const useVideoGeneration = () => {
         resolution: params.resolution
       }
 
-      if (imgUrl) requestData.imgUrl = imgUrl
-
-      // 新增：传递完整图片列表（首帧、尾帧、参考图）
+      // 传递图片列表（首帧、尾帧、参考图）
       if (params.images && params.images.length > 0) {
         requestData.images = params.images
       }
