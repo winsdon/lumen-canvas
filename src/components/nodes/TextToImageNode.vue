@@ -344,7 +344,7 @@ const content = ref(props.data?.content || '')
 const localModel = ref(props.data?.model || DEFAULT_IMAGE_MODEL)
 const generateCount = ref(props.data?.n || 1)
 const isInputExpanded = ref(false)
-const selectedRatio = ref('auto')
+const selectedRatio = ref(props.data?.ratio || 'auto')
 const previewImageRef = ref(null)
 const isReferenceUploading = ref(false)
 const nodeWrapperRef = ref(null)
@@ -427,6 +427,14 @@ const displayRatio = computed(() => {
   return selectedRatio.value
 })
 
+watch(
+  () => props.data?.ratio || 'auto',
+  (ratio) => {
+    if (ratio !== selectedRatio.value) selectedRatio.value = ratio
+  },
+  { immediate: true }
+)
+
 const connectedText = computed(() => {
   const incoming = edges.value.filter(e => e.target === props.id)
   for (const edge of incoming) {
@@ -459,6 +467,10 @@ const imageUrl = computed(() => {
 })
 
 const imageAspectRatio = computed(() => {
+  if (props.data?.ratio && props.data.ratio !== 'auto') {
+    const [rw, rh] = String(props.data.ratio).split(':').map(Number)
+    if (rw && rh) return `${rw} / ${rh}`
+  }
   if (!props.data?.generatedSize) return '1 / 1'
   try {
     const [w, h] = props.data.generatedSize.split('x').map(Number)
@@ -549,7 +561,8 @@ const handleGenerate = async () => {
         url: result[0].url,
         loading: false,
         updatedAt: Date.now(),
-        generatedSize: size
+        generatedSize: size,
+        ratio: selectedRatio.value
       })
       window.$message?.success('图片生成成功')
     }
@@ -860,6 +873,24 @@ watch(
 <style scoped>
 .text-to-image-node-wrapper {
   /* Ensure z-index handling for overlapping */
+}
+
+:deep(.n-image) {
+  width: 100%;
+  height: 100%;
+}
+
+:deep(.n-image .n-image__wrapper) {
+  width: 100%;
+  height: 100%;
+}
+
+:deep(.n-image img),
+:deep(.n-image .n-image__img) {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 :deep(.t2i-handle) {

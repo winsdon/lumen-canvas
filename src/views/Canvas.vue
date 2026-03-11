@@ -68,6 +68,13 @@
             <AppsOutline />
           </n-icon>
         </button>
+        <button @click="showHistoryPanel = true"
+          class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors"
+          title="历史记录">
+          <n-icon :size="20">
+            <TimeOutline />
+          </n-icon>
+        </button>
         <div class="w-full h-px bg-[var(--border-color)] my-1"></div>
         <button v-for="tool in tools" :key="tool.id" @click="tool.action" :disabled="tool.disabled && tool.disabled()"
           class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -198,6 +205,11 @@
     <DownloadModal v-model:show="showDownloadModal" />
 
     <!-- Workflow Panel | 工作流面板 -->
+    <GenerationHistoryPanel
+      v-model:show="showHistoryPanel"
+      @select-image="handleSelectHistoryImage"
+      @select-video="handleSelectHistoryVideo"
+    />
     <WorkflowPanel v-model:show="showWorkflowPanel" @add-workflow="handleAddWorkflow" />
   </div>
 </template>
@@ -222,6 +234,7 @@ import {
   MoonOutline,
   RemoveOutline,
   SunnyOutline,
+  TimeOutline,
   TextOutline,
   VideocamOutline
 } from '@vicons/ionicons5'
@@ -240,6 +253,7 @@ import { getAiVideoMy, getAiVideoPageMy } from '@/api/video'
 
 import DownloadModal from '../components/DownloadModal.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+import GenerationHistoryPanel from '../components/GenerationHistoryPanel.vue'
 import WorkflowPanel from '../components/WorkflowPanel.vue'
 
 // Initialize models on page load | 页面加载时初始化模型
@@ -350,6 +364,7 @@ const showRenameModal = ref(false)
 const showDeleteModal = ref(false)
 const showDownloadModal = ref(false)
 const showWorkflowPanel = ref(false)
+const showHistoryPanel = ref(false)
 const showConnectNodeModal = ref(false)
 const renameValue = ref('')
 
@@ -586,6 +601,51 @@ const handleAddWorkflow = ({ workflow, options }) => {
   }, 100)
 
   window.$message?.success(`已添加工作流: ${workflow.name}`)
+}
+
+const addHistoryNode = (type, data) => {
+  const viewportCenterX = -viewport.value.x / viewport.value.zoom + (window.innerWidth / 2) / viewport.value.zoom
+  const viewportCenterY = -viewport.value.y / viewport.value.zoom + (window.innerHeight / 2) / viewport.value.zoom
+  const position = { x: viewportCenterX - 100, y: viewportCenterY - 100 }
+  const nodeId = addNode(type, position, data)
+  const maxZIndex = Math.max(0, ...nodes.value.map(n => n.zIndex || 0))
+  updateNode(nodeId, { zIndex: maxZIndex + 1 })
+  setTimeout(() => {
+    updateNodeInternals(nodeId)
+  }, 50)
+  window.$message?.success('已添加到画布')
+}
+
+const normalizeHistoryUrl = (url) => String(url || '').trim().replace(/^`|`$/g, '')
+
+const handleSelectHistoryImage = (item) => {
+  const url = normalizeHistoryUrl(item?.picUrl || item?.url)
+  if (!url) {
+    window.$message?.warning('该记录缺少图片地址')
+    return
+  }
+  const generatedSize = item?.width && item?.height ? `${item.width}x${item.height}` : undefined
+  addHistoryNode('textToImage', {
+    url,
+    content: item?.prompt || '',
+    model: item?.model || undefined,
+    generatedSize
+  })
+}
+
+const handleSelectHistoryVideo = (item) => {
+  const url = normalizeHistoryUrl(item?.videoUrl || item?.url)
+  if (!url) {
+    window.$message?.warning('该记录缺少视频地址')
+    return
+  }
+  addHistoryNode('textToVideo', {
+    url,
+    content: item?.prompt || '',
+    model: item?.model || undefined,
+    resolution: item?.resolution || undefined,
+    dur: item?.duration || undefined
+  })
 }
 
 // Handle connection | 处理连接
