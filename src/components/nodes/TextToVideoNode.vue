@@ -115,176 +115,175 @@
         </div>
 
         <div class="flex items-start p-3 gap-3">
-          <!-- Frame Mode | 首尾帧模式 -->
-          <div v-if="inputMode === 'frame'" class="flex gap-2">
-            <!-- First Frame Slot | 首帧槽位 -->
-            <div class="relative">
+          <div v-if="inputMode === 'reference'" class="flex-1 flex flex-col gap-3">
+            <div :key="referenceRenderKey" class="flex flex-wrap gap-2 items-center">
+              <!-- Add button | 添加按钮 -->
               <div
-                class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border-2 transition-all overflow-hidden cursor-pointer hover:border-purple-400"
-                :class="[
-                  firstFrameUrl ? 'border-purple-500' : 'border-dashed border-[var(--border-color)]',
-                  frameDragOverSlot === 'first' && draggingFrameSlot === 'last' ? 'ring-2 ring-purple-400' : ''
-                ]"
-                :draggable="!!firstFrameUrl"
-                @dragstart.stop="firstFrameUrl && handleFrameDragStart($event, 'first')"
-                @dragover.prevent.stop="handleFrameDragOver($event, 'first')"
-                @drop.prevent.stop="handleFrameDrop('first')"
-                @dragend="handleFrameDragEnd"
+                v-if="referenceImages.length < 5"
+                class="relative w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] border-dashed transition-colors overflow-hidden group flex flex-col items-center justify-center flex-shrink-0"
               >
-                <img v-if="firstFrameUrl" :src="firstFrameUrl" class="w-full h-full object-cover" :class="draggingFrameSlot === 'first' ? 'opacity-50' : ''" />
-                <div v-else class="w-full h-full flex flex-col items-center justify-center">
-                  <n-spin v-if="isFirstFrameUploading" :size="14" />
-                  <template v-else>
-                    <n-icon :size="16" class="text-[var(--text-tertiary)]"><AddOutline /></n-icon>
-                    <span class="text-[9px] text-[var(--text-tertiary)]">首帧</span>
-                  </template>
-                </div>
+                <n-spin v-if="isReferenceUploading" :size="14" />
+                <template v-else>
+                  <n-icon :size="16" class="text-[var(--text-tertiary)]"><AddOutline /></n-icon>
+                  <span class="text-[10px] text-[var(--text-tertiary)]">参考图</span>
+                </template>
                 <input
                   type="file"
                   accept="image/*"
                   class="absolute inset-0 opacity-0 cursor-pointer z-10"
-                  :disabled="isFirstFrameUploading"
-                  @change="handleFirstFrameUpload"
+                  :disabled="isReferenceUploading"
+                  @change="handleReferenceImageUpload"
                 />
               </div>
-              <div v-if="firstFrameUrl" class="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-[8px] px-1.5 py-0.5 rounded whitespace-nowrap">首帧</div>
-              <!-- Link icon for connected source | 连接来源图标 -->
-              <div v-if="data?.firstFrameSourceNodeId" class="absolute -bottom-1 -left-1 w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center z-20">
-                <n-icon :size="8" class="text-white"><LinkOutline /></n-icon>
-              </div>
-              <button
-                v-if="firstFrameUrl"
-                @click.stop="removeFirstFrame"
-                class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-20 hover:bg-[var(--bg-primary)]"
-              >
-                <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
-              </button>
-            </div>
-
-            <!-- Last Frame Slot | 尾帧槽位 -->
-            <div class="relative">
+              <!-- Reference images list | 已上传的参考图列表 -->
               <div
-                class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border-2 transition-all overflow-hidden cursor-pointer hover:border-orange-400"
-                :class="[
-                  lastFrameUrl ? 'border-orange-500' : 'border-dashed border-[var(--border-color)]',
-                  frameDragOverSlot === 'last' && draggingFrameSlot === 'first' ? 'ring-2 ring-orange-400' : ''
-                ]"
-                :draggable="!!lastFrameUrl"
-                @dragstart.stop="lastFrameUrl && handleFrameDragStart($event, 'last')"
-                @dragover.prevent.stop="handleFrameDragOver($event, 'last')"
-                @drop.prevent.stop="handleFrameDrop('last')"
-                @dragend="handleFrameDragEnd"
+                v-for="(img, index) in referenceImages"
+                :key="img.sourceNodeId || img.url || index"
+                class="relative w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] overflow-hidden group flex-shrink-0"
+                draggable="true"
+                @dragstart.stop="handleDragStart($event, index)"
+                @dragover.prevent.stop="handleDragOver($event, index)"
+                @drop.prevent.stop="handleDrop(index)"
+                @dragend="handleDragEnd"
+                @mousedown.stop
               >
-                <img v-if="lastFrameUrl" :src="lastFrameUrl" class="w-full h-full object-cover" :class="draggingFrameSlot === 'last' ? 'opacity-50' : ''" />
-                <div v-else class="w-full h-full flex flex-col items-center justify-center">
-                  <n-spin v-if="isLastFrameUploading" :size="14" />
-                  <template v-else>
-                    <n-icon :size="16" class="text-[var(--text-tertiary)]"><AddOutline /></n-icon>
-                    <span class="text-[9px] text-[var(--text-tertiary)]">尾帧</span>
-                  </template>
+                <div
+                  class="w-full h-full transition-all"
+                  :class="[
+                    dragIndex === index ? 'opacity-40' : '',
+                    dragOverIndex === index && dragIndex !== index ? 'ring-2 ring-[var(--accent-color)]' : ''
+                  ]"
+                  style="cursor: grab;"
+                >
+                  <img :src="img.url" class="w-full h-full object-cover pointer-events-none" />
                 </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  class="absolute inset-0 opacity-0 cursor-pointer z-10"
-                  :disabled="isLastFrameUploading"
-                  @change="handleLastFrameUpload"
-                />
+                <button
+                  @click.stop="removeReferenceImage(index)"
+                  class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/50 hover:bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-20"
+                >
+                  <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
+                </button>
               </div>
-              <div v-if="lastFrameUrl" class="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[8px] px-1.5 py-0.5 rounded whitespace-nowrap">尾帧</div>
-              <!-- Link icon for connected source | 连接来源图标 -->
-              <div v-if="data?.lastFrameSourceNodeId" class="absolute -bottom-1 -left-1 w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center z-20">
-                <n-icon :size="8" class="text-white"><LinkOutline /></n-icon>
+
+              <!-- Backward compatibility: show old reference image | 向后兼容：显示旧参考图 -->
+              <div v-if="!referenceImages.length && referenceImageUrl" class="relative">
+                <div
+                  class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] transition-all overflow-hidden cursor-pointer"
+                >
+                  <img :src="referenceImageUrl" class="w-full h-full object-cover" />
+                </div>
+                <button
+                  @click.stop="handleRemoveReference"
+                  class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/50 hover:bg-red-500 text-white flex items-center justify-center z-20"
+                >
+                  <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
+                </button>
               </div>
-              <button
-                v-if="lastFrameUrl"
-                @click.stop="removeLastFrame"
-                class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-20 hover:bg-[var(--bg-primary)]"
-              >
-                <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
-              </button>
+            </div>
+
+            <div class="w-full relative">
+              <textarea
+                v-model="content"
+                @blur="updateNodeData"
+                @wheel.stop
+                @keydown.enter.exact.prevent="handleGenerate"
+                class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto"
+                placeholder="输入视频描述（Enter 生成）"
+              ></textarea>
             </div>
           </div>
 
-          <!-- Reference Mode | 参考图模式 -->
-          <div v-else :key="referenceRenderKey" class="flex gap-1 flex-wrap items-center">
-            <!-- Reference images list | 已上传的参考图列表 -->
-            <div
-              v-for="(img, index) in referenceImages"
-              :key="img.sourceNodeId || img.url || index"
-              class="relative"
-              draggable="true"
-              @dragstart.stop="handleDragStart($event, index)"
-              @dragover.prevent.stop="handleDragOver($event, index)"
-              @drop.prevent.stop="handleDrop(index)"
-              @dragend="handleDragEnd"
-              @mousedown.stop
-            >
-              <div
-                class="w-10 h-10 rounded-lg overflow-hidden border transition-all"
-                :class="[
-                  dragIndex === index ? 'opacity-40 border-blue-400' : 'border-blue-400',
-                  dragOverIndex === index && dragIndex !== index ? 'ring-2 ring-blue-400' : ''
-                ]"
-                style="cursor: grab;"
-              >
-                <img :src="img.url" class="w-full h-full object-cover pointer-events-none" />
+          <div v-else class="flex-1 flex flex-col gap-3">
+            <div v-if="inputMode === 'frame'" class="flex gap-2">
+              <div class="relative">
+                <div
+                  class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border-2 transition-all overflow-hidden cursor-pointer hover:border-purple-400"
+                  :class="[
+                    firstFrameUrl ? 'border-purple-500' : 'border-dashed border-[var(--border-color)]',
+                    frameDragOverSlot === 'first' && draggingFrameSlot === 'last' ? 'ring-2 ring-purple-400' : ''
+                  ]"
+                  :draggable="!!firstFrameUrl"
+                  @dragstart.stop="firstFrameUrl && handleFrameDragStart($event, 'first')"
+                  @dragover.prevent.stop="handleFrameDragOver($event, 'first')"
+                  @drop.prevent.stop="handleFrameDrop('first')"
+                  @dragend="handleFrameDragEnd"
+                >
+                  <img v-if="firstFrameUrl" :src="firstFrameUrl" class="w-full h-full object-cover" :class="draggingFrameSlot === 'first' ? 'opacity-50' : ''" />
+                  <div v-else class="w-full h-full flex flex-col items-center justify-center">
+                    <n-spin v-if="isFirstFrameUploading" :size="14" />
+                    <template v-else>
+                      <n-icon :size="16" class="text-[var(--text-tertiary)]"><AddOutline /></n-icon>
+                      <span class="text-[9px] text-[var(--text-tertiary)]">首帧</span>
+                    </template>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    class="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    :disabled="isFirstFrameUploading"
+                    @change="handleFirstFrameUpload"
+                  />
+                </div>
+                <div v-if="firstFrameUrl" class="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-[8px] px-1.5 py-0.5 rounded whitespace-nowrap">首帧</div>
+                <button
+                  v-if="firstFrameUrl"
+                  @click.stop="removeFirstFrame"
+                  class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-20 hover:bg-[var(--bg-primary)]"
+                >
+                  <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
+                </button>
               </div>
-              <!-- Link icon for connected source | 连接来源图标 -->
-              <div v-if="img.sourceNodeId" class="absolute -bottom-1 -left-1 w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center z-20">
-                <n-icon :size="8" class="text-white"><LinkOutline /></n-icon>
+
+              <div class="relative">
+                <div
+                  class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border-2 transition-all overflow-hidden cursor-pointer hover:border-orange-400"
+                  :class="[
+                    lastFrameUrl ? 'border-orange-500' : 'border-dashed border-[var(--border-color)]',
+                    frameDragOverSlot === 'last' && draggingFrameSlot === 'first' ? 'ring-2 ring-orange-400' : ''
+                  ]"
+                  :draggable="!!lastFrameUrl"
+                  @dragstart.stop="lastFrameUrl && handleFrameDragStart($event, 'last')"
+                  @dragover.prevent.stop="handleFrameDragOver($event, 'last')"
+                  @drop.prevent.stop="handleFrameDrop('last')"
+                  @dragend="handleFrameDragEnd"
+                >
+                  <img v-if="lastFrameUrl" :src="lastFrameUrl" class="w-full h-full object-cover" :class="draggingFrameSlot === 'last' ? 'opacity-50' : ''" />
+                  <div v-else class="w-full h-full flex flex-col items-center justify-center">
+                    <n-spin v-if="isLastFrameUploading" :size="14" />
+                    <template v-else>
+                      <n-icon :size="16" class="text-[var(--text-tertiary)]"><AddOutline /></n-icon>
+                      <span class="text-[9px] text-[var(--text-tertiary)]">尾帧</span>
+                    </template>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    class="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    :disabled="isLastFrameUploading"
+                    @change="handleLastFrameUpload"
+                  />
+                </div>
+                <div v-if="lastFrameUrl" class="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[8px] px-1.5 py-0.5 rounded whitespace-nowrap">尾帧</div>
+                <button
+                  v-if="lastFrameUrl"
+                  @click.stop="removeLastFrame"
+                  class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-20 hover:bg-[var(--bg-primary)]"
+                >
+                  <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
+                </button>
               </div>
-              <button
-                @click.stop="removeReferenceImage(index)"
-                class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-20 hover:bg-[var(--bg-primary)]"
-              >
-                <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
-              </button>
             </div>
 
-            <!-- Add button | 添加按钮 -->
-            <div
-              v-if="referenceImages.length < 5"
-              class="relative w-10 h-10 rounded-lg bg-[var(--bg-tertiary)] border border-dashed border-[var(--border-color)] flex items-center justify-center cursor-pointer hover:border-[var(--accent-color)] transition-colors"
-            >
-              <n-spin v-if="isReferenceUploading" :size="14" />
-              <template v-else>
-                <n-icon :size="16" class="text-[var(--text-tertiary)]"><AddOutline /></n-icon>
-              </template>
-              <input
-                type="file"
-                accept="image/*"
-                class="absolute inset-0 opacity-0 cursor-pointer z-10"
-                :disabled="isReferenceUploading"
-                @change="handleReferenceImageUpload"
-              />
+            <div class="w-full relative">
+              <textarea
+                v-model="content"
+                @blur="updateNodeData"
+                @wheel.stop
+                @keydown.enter.exact.prevent="handleGenerate"
+                class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto"
+                placeholder="输入视频描述（Enter 生成）"
+              ></textarea>
             </div>
-
-            <!-- Backward compatibility: show old reference image | 向后兼容：显示旧参考图 -->
-            <div v-if="!referenceImages.length && referenceImageUrl" class="relative">
-              <div
-                class="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border border-blue-400 transition-all overflow-hidden cursor-pointer"
-              >
-                <img :src="referenceImageUrl" class="w-full h-full object-cover" />
-              </div>
-              <button
-                @click.stop="handleRemoveReference"
-                class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center z-20 hover:bg-[var(--bg-primary)]"
-              >
-                <n-icon :size="10" class="text-[var(--text-secondary)]"><CloseCircleOutline /></n-icon>
-              </button>
-            </div>
-          </div>
-
-          <div class="flex-1 relative">
-            <textarea
-              v-model="content"
-              @blur="updateNodeData"
-              @wheel.stop
-              @keydown.enter.exact.prevent="handleGenerate"
-              class="nodrag w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none outline-none border-none py-1 h-20 leading-5 overflow-y-auto"
-              placeholder="输入视频描述（Enter 生成）"
-            ></textarea>
           </div>
         </div>
 

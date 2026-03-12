@@ -51,14 +51,15 @@
     
     <!-- Top Panel: Image Display Area | 顶部：图片展示区域 -->
     <div
-      class="text-to-image-node bg-[var(--bg-secondary)] rounded-2xl border w-[320px] transition-all duration-200 flex flex-col overflow-hidden relative z-10"
+      class="text-to-image-node bg-[var(--bg-secondary)] rounded-2xl border transition-all duration-200 flex flex-col overflow-hidden relative z-10"
       :class="selected ? 'border-2 border-[var(--accent-color)] shadow-xl shadow-[var(--accent-color)]/20' : 'border border-[var(--border-color)] shadow-md'"
+      :style="nodeContainerStyle"
       @click="toggleInputPanel"
     >
 
       <div 
         class="relative bg-[var(--bg-tertiary)] group/image cursor-pointer transition-all duration-300" 
-        :style="{ aspectRatio: imageAspectRatio }"
+        :style="previewAreaStyle"
       >
         
         <!-- Loading State -->
@@ -479,6 +480,26 @@ const imageAspectRatio = computed(() => {
   } catch (e) {
     return '1 / 1'
   }
+})
+
+const isPreviewFixedHeight = computed(() => {
+  if (props.data?.ratio === '16:9') return true
+  const size = props.data?.generatedSize
+  if (!size) return false
+  const [w, h] = String(size).split('x').map(Number)
+  if (!w || !h) return false
+  const r = w / h
+  return r >= 1.75 && r <= 1.81
+})
+
+const previewAreaStyle = computed(() => {
+  if (isPreviewFixedHeight.value) return { height: '320px' }
+  return { aspectRatio: imageAspectRatio.value }
+})
+
+const nodeContainerStyle = computed(() => {
+  if (isPreviewFixedHeight.value) return { width: `${Math.round(320 * 16 / 9)}px` }
+  return { width: '320px' }
 })
 
 const modelOptions = imageModelSelectOptions
