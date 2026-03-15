@@ -20,3 +20,24 @@ export const createPointRecharge = (data) => {
 export const getPointRechargePage = (params) => {
   return authRequest.get('/member/point-recharge/page', { params })
 }
+
+/**
+ * 提交支付订单（选择支付渠道并发起支付）
+ * @param {Object} data
+ * @param {number} data.id - 支付单编号（payOrderId）
+ * @param {string} data.channelCode - 支付渠道编码（如 alipay_pc）
+ * @param {string} [data.displayMode] - 展示模式（url/qr_code/form）
+ * @param {string} [data.returnUrl] - 支付成功后的回跳地址
+ */
+export const submitPayOrder = (data) => {
+  return authRequest.post('/pay/order/submit', data)
+}
+
+/**
+ * 查询支付订单状态
+ * @param {Object} params
+ * @param {number} params.id - 支付单编号
+ */
+export const getPayOrder = (params) => {
+  return authRequest.get('/pay/order/get', { params })
+}

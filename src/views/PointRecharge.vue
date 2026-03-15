@@ -59,6 +59,18 @@
         <h3 class="text-lg font-semibold text-[var(--text-primary)] mb-4">支付方式</h3>
         <div class="flex gap-4 mb-6">
           <div
+            @click="paymentMethod = 'alipay_pc'"
+            :class="[
+              'flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors',
+              paymentMethod === 'alipay_pc'
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600'
+                : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-blue-300'
+            ]"
+          >
+            <n-icon><CardOutline /></n-icon>
+            <span>支付宝</span>
+          </div>
+          <div
             @click="paymentMethod = 'wx_pub'"
             :class="[
               'flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors',
@@ -70,7 +82,6 @@
             <n-icon><LogoWechat /></n-icon>
             <span>微信支付</span>
           </div>
-          <!-- Add Alipay later if needed -->
         </div>
 
         <button
@@ -122,16 +133,16 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NIcon } from 'naive-ui'
-import { ArrowBackOutline, CheckmarkCircle, LogoWechat } from '@vicons/ionicons5'
+import { ArrowBackOutline, CheckmarkCircle, LogoWechat, CardOutline } from '@vicons/ionicons5'
 import AppHeader from '@/components/AppHeader.vue'
 import { userInfo } from '@/stores/user'
-import { createPointRecharge, getPointRechargePage } from '@/api/point'
+import { createPointRecharge, getPointRechargePage, submitPayOrder, getPayOrder } from '@/api/point'
 
 const router = useRouter()
 const loading = ref(false)
 const historyLoading = ref(false)
 const historyList = ref([])
-const paymentMethod = ref('wx_pub')
+const paymentMethod = ref('alipay_pc')
 const selectedPackage = ref(null)
 
 // Define recharge packages (price in cents)
@@ -146,6 +157,10 @@ const rechargePackages = [
 
 // Set default selection
 selectedPackage.value = rechargePackages[0]
+
+const selectPackage = (pkg) => {
+  selectedPackage.value = pkg
+}
 
 const goBack = () => {
   router.back()
@@ -173,22 +188,50 @@ const loadHistory = async () => {
 
 const handleRecharge = async () => {
   if (!selectedPackage.value) return
-  
+
   loading.value = true
   try {
-    const res = await createPointRecharge({
+    // 1. 创建积分充值订单，获取 payOrderId
+    const rechargeRes = await createPointRecharge({
       payPrice: selectedPackage.value.price,
       channelCode: paymentMethod.value
     })
-    
-    // Here we get the payOrderId. 
-    // Since we don't have the payment SDK integrated yet, we just show a success message for creating the order.
-    // In a real app, we would redirect to payment or show QR code.
-    window.$message?.success(`充值订单创建成功 (ID: ${res.payOrderId})`)
-    
-    // Refresh history
-    loadHistory()
-    
+    const { payOrderId } = rechargeRes
+
+    // 2. 提交支付订单，选择支付渠道
+    const returnUrl = `${window.location.origin}/recharge?payResult=success&payOrderId=${payOrderId}`
+    const submitRes = await submitPayOrder({
+      id: payOrderId,
+      channelCode: paymentMethod.value,
+      returnUrl
+    })
+
+    // 3. 根据返回的 displayMode 处理支付
+    const { displayMode, displayContent, status } = submitRes
+
+    // 状态 10 表示已支付（重复提交等场景）
+    if (status === 10) {
+      window.$message?.success('该订单已支付成功')
+      loadHistory()
+      return
+    }
+
+    if (displayMode === 'url') {
+      // 支付宝 PC 支付：跳转到支付宝收银台
+      window.location.href = displayContent
+    } else if (displayMode === 'qr_code') {
+      // 二维码模式（微信等）：后续可扩展展示二维码
+      window.$message?.info('请使用二维码支付（功能开发中）')
+    } else if (displayMode === 'form') {
+      // 表单模式：将 HTML 写入页面自动提交
+      const formDiv = document.createElement('div')
+      formDiv.innerHTML = displayContent
+      document.body.appendChild(formDiv)
+      const form = formDiv.querySelector('form')
+      if (form) form.submit()
+    } else {
+      window.$message?.warning('未知的支付方式，请联系客服')
+    }
   } catch (error) {
     console.error('Recharge failed:', error)
     window.$message?.error('充值发起失败')
@@ -197,7 +240,31 @@ const handleRecharge = async () => {
   }
 }
 
+// 支付回跳后检查支付结果
+const checkPayResult = async () => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const payResult = urlParams.get('payResult')
+  const payOrderId = urlParams.get('payOrderId')
+
+  if (payResult === 'success' && payOrderId) {
+    window.$message?.info('正在确认支付结果...')
+    try {
+      const order = await getPayOrder({ id: Number(payOrderId) })
+      if (order.status === 10) {
+        window.$message?.success('支付成功，积分已到账！')
+      } else {
+        window.$message?.warning('支付处理中，请稍后刷新查看')
+      }
+    } catch (error) {
+      console.error('Check pay result failed:', error)
+    }
+    // 清除 URL 中的支付参数
+    router.replace({ path: '/recharge' })
+  }
+}
+
 onMounted(() => {
+  checkPayResult()
   loadHistory()
 })
 </script>
