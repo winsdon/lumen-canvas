@@ -20,3 +20,10 @@ export const promptFlowDelete = (id) => {
   return authRequest.delete('/prompt/flow/delete', { params: { id } })
 }
 
+export const promptFlowPublishSubmit = (data) => {
+  return authRequest.post('/prompt/flow/publish/submit', data)
+}
+
+export const promptFlowPublishMy = (params = {}) => {
+  return authRequest.get('/prompt/flow/publish/my', { params })
+}
