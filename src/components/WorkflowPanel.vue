@@ -372,14 +372,15 @@ const getPublishBadgeClass = (status) => {
 }
 
 const isPublishActionDisabled = (workflow) => {
+  // Only disable when pending review | 仅审核中时禁用，已发布/已驳回均可重新提交
   const s = String(workflow?.publishStatus || '').toUpperCase()
-  return s === 'PENDING' || s === 'APPROVED'
+  return s === 'PENDING'
 }
 
 const getPublishActionTitle = (workflow) => {
   const s = String(workflow?.publishStatus || '').toUpperCase()
   if (s === 'PENDING') return '审核中'
-  if (s === 'APPROVED') return '已通过'
+  if (s === 'APPROVED') return '重新发布'
   if (s === 'REJECTED') return '重新提交'
   return '发布'
 }
@@ -452,9 +453,7 @@ const removePublishTag = (idx) => {
 const openPublishModal = (workflow) => {
   if (!workflow?.id) return
   if (isPublishActionDisabled(workflow)) {
-    const s = String(workflow?.publishStatus || '').toUpperCase()
-    if (s === 'PENDING') window.$message?.info('审核中')
-    if (s === 'APPROVED') window.$message?.info('已通过')
+    window.$message?.info('审核中，请等待审核结果')
     return
   }
   pendingPublishWorkflow.value = workflow
