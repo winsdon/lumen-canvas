@@ -4,6 +4,11 @@ import { promptFlowCreate, promptFlowDelete, promptFlowPage, promptFlowPublishMy
 export const myWorkflows = ref([])
 
 const normalizePublishStatus = (s) => {
+  // Handle integer status from backend | 处理后端返回的整数状态
+  if (s === 1 || s === '1') return 'PENDING'
+  if (s === 2 || s === '2') return 'APPROVED'
+  if (s === 3 || s === '3') return 'REJECTED'
+
   const v = String(s || '').toUpperCase()
   if (v === 'PENDING' || v === 'APPROVED' || v === 'REJECTED') return v
   if (v === 'WAIT' || v === 'SUBMITTED') return 'PENDING'
@@ -82,7 +87,7 @@ export const loadMyWorkflows = async (params = {}) => {
     myWorkflows.value = normalized
 
     try {
-      const reqRes = await promptFlowPublishMy()
+      const reqRes = await promptFlowPublishMy({ pageNo: 1, pageSize: 200 })
       const reqList = Array.isArray(reqRes?.list) ? reqRes.list : (Array.isArray(reqRes) ? reqRes : [])
       myWorkflows.value = mergePublishStatusToWorkflows(myWorkflows.value, reqList)
     } catch (err) {}
@@ -117,9 +122,13 @@ export const upsertMyWorkflow = async (payload) => {
   const list = myWorkflows.value || []
   const idx = list.findIndex(w => String(w.id) === id)
   const prev = idx === -1 ? null : list[idx]
+  // Merge backend response (publishStatus etc.) into local state | 合并后端返回的状态
+  const backendFields = {}
+  if (data?.publishStatus != null) backendFields.publishStatus = data.publishStatus
   const wf = normalizeWorkflow({
     ...(prev || {}),
     ...payload,
+    ...backendFields,
     id,
     updatedAt: data?.updatedAt || now
   })

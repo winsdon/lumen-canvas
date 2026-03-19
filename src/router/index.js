@@ -34,6 +34,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/review/:id',
+    name: 'Review',
+    component: () => import('../views/Review.vue')
+    // No requiresAuth — public review page | 免登录审核页面
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     redirect: '/'

@@ -359,6 +359,16 @@ const handleSaveWorkflow = () => {
   }
 
   const isEditing = Boolean(editingWorkflowId.value)
+
+  // Check if updating a published workflow | 检查是否更新已发布的工作流
+  const currentPublishStatus = existingWorkflow.value?.publishStatus || ''
+  const isPublished = currentPublishStatus === 'APPROVED' || currentPublishStatus === 'PUBLISHED'
+  if (isEditing && isPublished) {
+    if (!window.confirm('该工作流已发布到公共市场，更新后需要重新提交审批。是否继续？')) {
+      return
+    }
+  }
+
   const payload = {
     ...(isEditing ? { id: String(editingWorkflowId.value) } : {}),
     name,
@@ -375,7 +385,11 @@ const handleSaveWorkflow = () => {
       const savedId = saved?.id ? String(saved.id) : (payload.id || '')
       if (savedId) updateNode(props.id, { workflowId: savedId, label: name })
       showCreateWorkflowModal.value = false
-      window.$message?.success(isEditing ? '工作流已更新' : '工作流已保存')
+      if (isEditing && isPublished) {
+        window.$message?.success('工作流已更新，请前往「我的工作流」重新提交审批')
+      } else {
+        window.$message?.success(isEditing ? '工作流已更新' : '工作流已保存')
+      }
     })
     .catch(() => {})
 }

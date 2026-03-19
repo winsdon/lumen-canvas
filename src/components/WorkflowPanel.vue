@@ -187,7 +187,7 @@
  * Workflow Panel Component | 工作流面板组件
  * 显示工作流模板列表，支持一键添加到画布
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { NButton, NIcon, NInput, NModal } from 'naive-ui'
 import { 
   CloseOutline,
@@ -200,7 +200,7 @@ import {
 } from '@vicons/ionicons5'
 import { WORKFLOW_TEMPLATES } from '../config/workflows'
 import { myWorkflows, removeMyWorkflow } from '@/stores/workflows'
-import { promptFlowPublishSubmit } from '@/api/flow'
+import { promptFlowPublishSubmit, promptFlowPublicPage } from '@/api/flow'
 
 const props = defineProps({
   show: Boolean
@@ -218,7 +218,61 @@ const visible = computed({
 })
 
 // Public workflows | 公共工作流
-const publicWorkflows = computed(() => WORKFLOW_TEMPLATES)
+const publicWorkflowList = ref([])
+const publicWorkflowsLoading = ref(false)
+
+const loadPublicWorkflows = async () => {
+  try {
+    publicWorkflowsLoading.value = true
+    const res = await promptFlowPublicPage({ pageNo: 1, pageSize: 200 })
+    const list = Array.isArray(res?.list) ? res.list : []
+    publicWorkflowList.value = list.map(w => {
+      const nodes = Array.isArray(w.nodes) ? w.nodes : []
+      const edges = Array.isArray(w.edges) ? w.edges : []
+      const tempIds = nodes.map((_, idx) => `pub_${w.id}_${idx}`)
+      return {
+        ...w,
+        id: w.id == null ? '' : String(w.id),
+        createNodes: (startPosition) => {
+          const newNodes = nodes.map((n, idx) => ({
+            id: tempIds[idx],
+            type: n.type,
+            position: {
+              x: (startPosition?.x || 0) + (n.position?.x || 0),
+              y: (startPosition?.y || 0) + (n.position?.y || 0)
+            },
+            data: n.data || {}
+          }))
+          const newEdges = edges
+            .filter(e => Number.isInteger(e.sourceIndex) && Number.isInteger(e.targetIndex))
+            .map((e, idx) => ({
+              id: `edge_${tempIds[e.sourceIndex]}_${tempIds[e.targetIndex]}_${idx}`,
+              source: tempIds[e.sourceIndex],
+              target: tempIds[e.targetIndex],
+              sourceHandle: e.sourceHandle || 'right',
+              targetHandle: e.targetHandle || 'left',
+              type: e.type,
+              data: e.data
+            }))
+          return { nodes: newNodes, edges: newEdges }
+        }
+      }
+    })
+  } catch (err) {
+    publicWorkflowList.value = []
+  } finally {
+    publicWorkflowsLoading.value = false
+  }
+}
+
+// Fallback to templates if API returns empty | API 为空时回退到本地模板
+const publicWorkflows = computed(() => {
+  return publicWorkflowList.value.length > 0 ? publicWorkflowList.value : WORKFLOW_TEMPLATES
+})
+
+onMounted(() => {
+  loadPublicWorkflows()
+})
 
 const myWorkflowTemplates = computed(() => {
   const workflows = myWorkflows.value || []
