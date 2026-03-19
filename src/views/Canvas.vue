@@ -75,6 +75,14 @@
             <TimeOutline />
           </n-icon>
         </button>
+        <button @click="showAgentPanel = true"
+          class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors"
+          :class="{ 'text-[var(--accent-color)]': showAgentPanel }"
+          title="创意助手">
+          <n-icon :size="20">
+            <SparklesOutline />
+          </n-icon>
+        </button>
         <div class="w-full h-px bg-[var(--border-color)] my-1"></div>
         <button v-for="tool in tools" :key="tool.id" @click="tool.action" :disabled="tool.disabled && tool.disabled()"
           class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -211,6 +219,16 @@
       @select-video="handleSelectHistoryVideo"
     />
     <WorkflowPanel v-model:show="showWorkflowPanel" @add-workflow="handleAddWorkflow" />
+
+    <!-- Agent Panel | 智能体面板 -->
+    <AgentPanel
+      v-model:show="showAgentPanel"
+      :messages="agentMessages"
+      :loading="agentLoading"
+      :current-response="agentCurrentResponse"
+      @send="agentSend"
+      @add-to-canvas="addImageToCanvas"
+    />
   </div>
 </template>
 
@@ -236,7 +254,8 @@ import {
   SunnyOutline,
   TimeOutline,
   TextOutline,
-  VideocamOutline
+  VideocamOutline,
+  SparklesOutline
 } from '@vicons/ionicons5'
 import { Background } from '@vue-flow/background'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
@@ -253,8 +272,10 @@ import { getAiVideoMy, getAiVideoPageMy } from '@/api/video'
 
 import DownloadModal from '../components/DownloadModal.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+import AgentPanel from '../components/AgentPanel.vue'
 import GenerationHistoryPanel from '../components/GenerationHistoryPanel.vue'
 import WorkflowPanel from '../components/WorkflowPanel.vue'
+import { useAgent } from '../hooks/useAgent'
 
 // Initialize models on page load | 页面加载时初始化模型
 onMounted(() => {
@@ -318,6 +339,16 @@ const edgeTypes = {
   imageRole: markRaw(ImageRoleEdge),
   promptOrder: markRaw(PromptOrderEdge)
 }
+
+// Agent state | 智能体状态
+const showAgentPanel = ref(false)
+const {
+  messages: agentMessages,
+  loading: agentLoading,
+  currentResponse: agentCurrentResponse,
+  send: agentSend,
+  addImageToCanvas
+} = useAgent()
 
 // UI state | UI状态
 const showNodeMenu = ref(false)

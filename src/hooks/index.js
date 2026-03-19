@@ -18,3 +18,6 @@ export { useWorkflowOrchestrator } from './useWorkflowOrchestrator'
 
 // Auth Hook | 认证 Hook
 export { useAuth } from './useAuth'
+
+// Agent Hook | 智能体 Hook
+export { useAgent } from './useAgent'
