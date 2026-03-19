@@ -1,7 +1,58 @@
 import { ref } from 'vue'
-import { promptFlowCreate, promptFlowDelete, promptFlowPage, promptFlowUpdate } from '@/api/flow'
+import { promptFlowCreate, promptFlowDelete, promptFlowPage, promptFlowPublishMy, promptFlowUpdate } from '@/api/flow'
 
 export const myWorkflows = ref([])
+
+const normalizePublishStatus = (s) => {
+  const v = String(s || '').toUpperCase()
+  if (v === 'PENDING' || v === 'APPROVED' || v === 'REJECTED') return v
+  if (v === 'WAIT' || v === 'SUBMITTED') return 'PENDING'
+  if (v === 'PASS' || v === 'ACCEPTED') return 'APPROVED'
+  if (v === 'FAIL' || v === 'DENIED') return 'REJECTED'
+  return ''
+}
+
+const normalizePublishRequest = (r) => {
+  if (!r) return null
+  const id = r.id == null ? '' : String(r.id)
+  const flowId = r.flowId ?? r.workflowId ?? r.promptFlowId
+  const status = normalizePublishStatus(r.status)
+  const createdAt = r.createdAt ?? r.submitAt ?? r.submittedAt ?? r.createTime ?? r.createdTime ?? 0
+  const reviewComment = r.reviewComment ?? r.auditComment ?? r.reason ?? ''
+  return {
+    id,
+    flowId: flowId == null ? '' : String(flowId),
+    status,
+    createdAt: Number(createdAt) || 0,
+    reviewComment: String(reviewComment || '')
+  }
+}
+
+const mergePublishStatusToWorkflows = (workflows, requests) => {
+  const list = Array.isArray(workflows) ? workflows : []
+  const reqs = Array.isArray(requests) ? requests : []
+  const latestByFlowId = new Map()
+
+  for (const raw of reqs) {
+    const r = normalizePublishRequest(raw)
+    if (!r?.flowId) continue
+    const prev = latestByFlowId.get(r.flowId)
+    if (!prev || (r.createdAt || 0) >= (prev.createdAt || 0)) {
+      latestByFlowId.set(r.flowId, r)
+    }
+  }
+
+  return list.map(w => {
+    const flowId = w?.id == null ? '' : String(w.id)
+    const req = latestByFlowId.get(flowId)
+    return {
+      ...w,
+      publishStatus: req?.status || w?.publishStatus || '',
+      publishRequestId: req?.id || w?.publishRequestId || '',
+      publishReviewComment: req?.reviewComment || (req?.status === 'REJECTED' ? '' : (w?.publishReviewComment || ''))
+    }
+  })
+}
 
 const normalizeWorkflow = (w) => {
   if (!w) return null
@@ -11,7 +62,10 @@ const normalizeWorkflow = (w) => {
     id,
     tags: Array.isArray(w.tags) ? w.tags : [],
     nodes: Array.isArray(w.nodes) ? w.nodes : [],
-    edges: Array.isArray(w.edges) ? w.edges : []
+    edges: Array.isArray(w.edges) ? w.edges : [],
+    publishStatus: normalizePublishStatus(w.publishStatus),
+    publishRequestId: w.publishRequestId == null ? '' : String(w.publishRequestId),
+    publishReviewComment: String(w.publishReviewComment || '')
   }
 }
 
@@ -24,7 +78,14 @@ export const loadMyWorkflows = async (params = {}) => {
       ...params
     })
     const list = Array.isArray(res?.list) ? res.list : []
-    myWorkflows.value = list.map(normalizeWorkflow).filter(Boolean)
+    const normalized = list.map(normalizeWorkflow).filter(Boolean)
+    myWorkflows.value = normalized
+
+    try {
+      const reqRes = await promptFlowPublishMy()
+      const reqList = Array.isArray(reqRes?.list) ? reqRes.list : (Array.isArray(reqRes) ? reqRes : [])
+      myWorkflows.value = mergePublishStatusToWorkflows(myWorkflows.value, reqList)
+    } catch (err) {}
   } catch (err) {
     myWorkflows.value = []
   }
@@ -53,14 +114,15 @@ export const upsertMyWorkflow = async (payload) => {
   const data = await promptFlowUpdate({ ...payload, id: String(payload.id) })
   const id = String(payload.id)
   const now = Date.now()
+  const list = myWorkflows.value || []
+  const idx = list.findIndex(w => String(w.id) === id)
+  const prev = idx === -1 ? null : list[idx]
   const wf = normalizeWorkflow({
+    ...(prev || {}),
     ...payload,
     id,
     updatedAt: data?.updatedAt || now
   })
-
-  const list = myWorkflows.value || []
-  const idx = list.findIndex(w => String(w.id) === id)
   if (idx === -1) {
     myWorkflows.value = wf ? [wf, ...list] : list
   } else {
