@@ -1,18 +1,34 @@
 <template>
-  <div 
-    class="group-node-container relative w-full h-full rounded-lg border border-[var(--xy-selection-background-color,rgba(0,89,220,0.08))]"
-    :style="{ backgroundColor: 'var(--xy-selection-background-color, rgba(0, 89, 220, 0.08))' }"
+  <div
+    :class="['group-node-container relative w-full h-full rounded-lg border', isDraft ? 'group-node--draft' : 'border-[var(--xy-selection-background-color,rgba(0,89,220,0.08))]']"
+    :style="{ backgroundColor: isDraft ? 'rgba(245, 158, 11, 0.04)' : 'var(--xy-selection-background-color, rgba(0, 89, 220, 0.08))' }"
     @mouseenter="showUngroup = true"
     @mouseleave="showUngroup = false"
   >
+    <!-- Draft mode header | 草稿态标题栏 -->
+    <div v-if="isDraft" class="draft-header">
+      <div class="draft-header-left">
+        <span class="draft-badge">草稿</span>
+        <span class="draft-label">{{ data.label }}</span>
+      </div>
+      <div class="draft-header-right">
+        <n-button size="tiny" type="primary" @click.stop="handleConfirmDraft">
+          确认添加
+        </n-button>
+        <n-button size="tiny" quaternary @click.stop="handleCancelDraft">
+          取消
+        </n-button>
+      </div>
+    </div>
+
     <!-- Ungroup Button | 解组按钮 -->
-    <div 
-      v-if="showUngroup"
+    <div
+      v-if="showUngroup && !isDraft"
       class="absolute -top-12 left-1/2 -translate-x-1/2 z-50 pt-2 pb-2 px-4 cursor-pointer"
       @mouseenter="showUngroup = true"
     >
       <div class="flex items-center gap-2">
-        <button 
+        <button
           @click.stop="handleUngroup"
           class="flex items-center gap-2 bg-[var(--bg-secondary)]/90 backdrop-blur-md rounded-full px-4 py-2 border border-[var(--border-color)] shadow-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
         >
@@ -120,7 +136,7 @@ import { computed, ref } from 'vue'
 import { NButton, NIcon, NInput, NModal } from 'naive-ui'
 import { CloseOutline, CreateOutline, ImageOutline, UnlinkOutline } from '@vicons/ionicons5'
 import { myWorkflows, upsertMyWorkflow } from '@/stores/workflows'
-import { edges, nodes, ungroupNodes, updateNode } from '@/stores/canvas'
+import { edges, nodes, ungroupNodes, updateNode, confirmDraft, cancelDraft } from '@/stores/canvas'
 
 const props = defineProps({
   id: {
@@ -134,6 +150,26 @@ const props = defineProps({
 })
 
 const showUngroup = ref(false)
+
+// Draft mode | 草稿模式
+const isDraft = computed(() => props.data?.isDraft === true)
+const draftId = computed(() => props.data?.draftId)
+
+const handleConfirmDraft = () => {
+  if (draftId.value) {
+    confirmDraft(draftId.value)
+  }
+}
+
+const handleCancelDraft = () => {
+  if (draftId.value) {
+    cancelDraft(draftId.value)
+    // Send hidden message to agent | 发送隐藏消息通知 Agent
+    window.dispatchEvent(new CustomEvent('draft-cancelled', {
+      detail: { draftId: draftId.value }
+    }))
+  }
+}
 
 const showCreateWorkflowModal = ref(false)
 const workflowName = ref('工作流')
@@ -401,5 +437,46 @@ const handleSaveWorkflow = () => {
   pointer-events: all;
   min-width: 100px;
   min-height: 100px;
+}
+
+.group-node--draft {
+  border: 2px dashed #f59e0b !important;
+}
+
+.draft-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  position: absolute;
+  top: -36px;
+  left: 0;
+  right: 0;
+  z-index: 10;
+}
+
+.draft-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.draft-badge {
+  font-size: 10px;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.draft-label {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.draft-header-right {
+  display: flex;
+  gap: 8px;
 }
 </style>

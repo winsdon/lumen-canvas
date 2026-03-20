@@ -145,7 +145,7 @@ import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NIcon, NDropdown, NSpin } from 'naive-ui'
 import { ChevronForwardOutline, ChevronDownOutline, TrashOutline, VideocamOutline, CopyOutline, AddCircle } from '@vicons/ionicons5'
 import { useVideoGeneration } from '../../hooks'
-import { updateNode, removeNode, duplicateNode, addNode, addEdge, nodes, edges } from '../../stores/canvas'
+import { updateNode, removeNode, duplicateNode, addNode, addEdge, nodes, edges, isDraftNode } from '../../stores/canvas'
 import { videoModelOptions, VIDEO_RESOLUTION_OPTIONS, getModelDurationOptions, getModelConfig, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_RESOLUTION } from '../../stores/models'
 
 const props = defineProps({
@@ -300,6 +300,10 @@ const createdVideoNodeId = ref(null)
 
 // Handle generate action | 处理生成操作
 const handleGenerate = async () => {
+  if (isDraftNode(props.id)) {
+    window.$message?.warning('草稿中的节点请先确认后再执行')
+    return
+  }
   const { prompt, images, hasUnsupportedImage } = getConnectedInputs()
 
   const hasInput = prompt || images.length > 0

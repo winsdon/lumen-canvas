@@ -170,7 +170,7 @@ import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NSpin } from 'naive-ui'
 import { computed, h, onMounted, onUnmounted, ref } from 'vue'
 import { useChat } from '../../hooks'
-import { duplicateNode, removeNode, updateNode, edges, nodes } from '../../stores/canvas'
+import { duplicateNode, removeNode, updateNode, edges, nodes, isDraftNode } from '../../stores/canvas'
 import { DEFAULT_CHAT_MODEL, chatModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
@@ -331,8 +331,12 @@ const handleModelSelect = (key) => {
 }
 
 const handleGenerate = async () => {
+  if (isDraftNode(props.id)) {
+    window.$message?.warning('草稿中的节点请先确认后再执行')
+    return
+  }
   if (!content.value.trim() && !connectedImage.value && !connectedText.value) return
-  
+
   generatedContent.value = ''
   updateNode(props.id, { loading: true, error: null, generatedContent: '' })
   

@@ -309,7 +309,7 @@ import { NDropdown, NIcon, NImage, NPopover, NSpin } from 'naive-ui'
 import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useImageGeneration } from '../../hooks'
-import { addEdge, addNode, duplicateNode, edges, nodes, removeEdge, removeNode, updateNode } from '../../stores/canvas'
+import { addEdge, addNode, duplicateNode, edges, nodes, removeEdge, removeNode, updateNode, isDraftNode } from '../../stores/canvas'
 import { DEFAULT_IMAGE_MODEL, getModelConfig, imageModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
@@ -552,6 +552,10 @@ const handleModelSelect = (key) => {
 }
 
 const handleGenerate = async () => {
+  if (isDraftNode(props.id)) {
+    window.$message?.warning('草稿中的节点请先确认后再执行')
+    return
+  }
   const promptToUse = content.value.trim() || connectedText.value
   if (!promptToUse) return
   

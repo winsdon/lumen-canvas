@@ -6,6 +6,8 @@
 
 import ImageCardsRenderer from './tool-renderers/ImageCardsRenderer.vue'
 import GenerateImageRenderer from './tool-renderers/GenerateImageRenderer.vue'
+import DraftCreatedRenderer from './tool-renderers/DraftCreatedRenderer.vue'
+import ListTemplatesRenderer from './tool-renderers/ListTemplatesRenderer.vue'
 import DefaultRenderer from './tool-renderers/DefaultRenderer.vue'
 
 // Tool renderer configurations | 工具渲染器配置
@@ -21,6 +23,29 @@ const REGISTRY = Object.freeze({
     label: '生成图片',
     icon: '🎨',
     summarize: () => '图片生成完成'
+  },
+  create_workflow_draft: {
+    component: DraftCreatedRenderer,
+    label: '创建工作流草稿',
+    icon: '📋',
+    summarize: () => '草稿已创建',
+  },
+  update_draft: {
+    component: DefaultRenderer,
+    label: '更新草稿',
+    icon: '✏️',
+    summarize: () => '草稿已更新',
+  },
+  list_templates: {
+    component: ListTemplatesRenderer,
+    label: '工作流模板',
+    icon: '📑',
+    summarize: (data) => {
+      try {
+        const list = typeof data === 'string' ? JSON.parse(data) : data
+        return `${Array.isArray(list) ? list.length : '?'} 个模板`
+      } catch { return '模板列表' }
+    },
   },
   __default__: {
     component: DefaultRenderer,

@@ -19,6 +19,9 @@ export const currentProjectId = ref(null)
 export const nodes = ref([])
 export const edges = ref([])
 
+// Draft workflow state | 草稿工作流状态
+export const currentDraftId = ref(null)
+
 let isPropagating = false
 
 const propagateReferenceToTarget = (sourceNodeId, targetNodeId) => {
@@ -351,6 +354,157 @@ export const clearCanvas = () => {
   nodeId = 0
 }
 
+// Draft workflow management | 草稿工作流管理
+export const addDraft = (draftId, label, draftNodes, draftEdges) => {
+  // Clear existing draft | 清理已有草稿
+  if (currentDraftId.value) {
+    cancelDraft(currentDraftId.value)
+  }
+
+  // Calculate position at viewport center | 在视口中心计算位置
+  const vp = canvasViewport.value || { x: 0, y: 0, zoom: 1 }
+  const centerX = (-vp.x + window.innerWidth / 2) / vp.zoom - 200
+  const centerY = (-vp.y + window.innerHeight / 2) / vp.zoom - 100
+
+  // Create group node as draft | 创建草稿分组节点
+  const groupId = getNodeId()
+  const groupNode = {
+    id: groupId,
+    type: 'group',
+    position: { x: centerX, y: centerY },
+    data: {
+      ...getDefaultNodeData('group'),
+      label,
+      isDraft: true,
+      draftId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    },
+    style: {},
+    zIndex: 0,
+  }
+
+  // Create child nodes with parentNode | 创建子节点
+  const nodeIdMap = [] // index -> actual node id
+  const childNodes = draftNodes.map((n, i) => {
+    const id = getNodeId()
+    nodeIdMap.push(id)
+    return {
+      id,
+      type: n.type,
+      position: { x: n.offset.x, y: n.offset.y },
+      parentNode: groupId,
+      data: {
+        ...getDefaultNodeData(n.type),
+        ...n.data,
+        autoExecute: false, // Draft nodes cannot auto-execute | 草稿节点禁止自动执行
+        draftIndex: i, // Stable ordering for updateDraft | 稳定排序用于 updateDraft
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    }
+  })
+
+  // Create edges with actual node IDs | 创建连线（索引转 ID）
+  const newEdges = draftEdges.map((e, i) => ({
+    id: `edge_draft_${i}_${Date.now()}`,
+    source: nodeIdMap[e.source],
+    target: nodeIdMap[e.target],
+    sourceHandle: e.sourceHandle || 'right',
+    targetHandle: e.targetHandle || 'left',
+    type: e.type || 'deletable',
+    data: e.data || {},
+  }))
+
+  // Calculate group size based on children | 根据子节点计算分组大小
+  const padding = 20
+  let maxX = 0
+  let maxY = 0
+  childNodes.forEach(n => {
+    const nodeWidth = 280
+    const nodeHeight = 180
+    maxX = Math.max(maxX, n.position.x + nodeWidth)
+    maxY = Math.max(maxY, n.position.y + nodeHeight)
+  })
+  groupNode.style = {
+    width: `${maxX + padding}px`,
+    height: `${maxY + padding}px`,
+  }
+
+  // Immutable updates | 不可变更新
+  nodes.value = [...nodes.value, groupNode, ...childNodes]
+  edges.value = [...edges.value, ...newEdges]
+  currentDraftId.value = draftId
+  saveToHistory()
+
+  return groupId
+}
+
+export const updateDraft = (draftId, changes) => {
+  if (currentDraftId.value !== draftId) return
+
+  // Find draft group node | 查找草稿分组节点
+  const groupNode = nodes.value.find(
+    n => n.type === 'group' && n.data?.draftId === draftId
+  )
+  if (!groupNode) return
+
+  // Get child nodes in order | 获取子节点（按创建顺序）
+  const children = nodes.value
+    .filter(n => n.parentNode === groupNode.id)
+    .sort((a, b) => (a.data?.draftIndex ?? 0) - (b.data?.draftIndex ?? 0))
+
+  // Apply changes | 应用变更
+  changes.forEach(({ node_index, data }) => {
+    const child = children[node_index]
+    if (!child || !data) return
+    updateNode(child.id, { ...child.data, ...data, updatedAt: Date.now() })
+  })
+}
+
+export const confirmDraft = (draftId) => {
+  const groupNode = nodes.value.find(
+    n => n.type === 'group' && n.data?.draftId === draftId
+  )
+  if (!groupNode) return
+
+  // Remove isDraft flag | 移除草稿标记
+  updateNode(groupNode.id, { ...groupNode.data, isDraft: false })
+  currentDraftId.value = null
+  saveToHistory()
+}
+
+export const cancelDraft = (draftId) => {
+  const groupNode = nodes.value.find(
+    n => n.type === 'group' && n.data?.draftId === draftId
+  )
+  if (!groupNode) return
+
+  // Find all child node IDs | 查找所有子节点 ID
+  const childIds = new Set(
+    nodes.value.filter(n => n.parentNode === groupNode.id).map(n => n.id)
+  )
+  childIds.add(groupNode.id)
+
+  // Remove nodes and related edges | 移除节点和相关连线
+  nodes.value = nodes.value.filter(n => !childIds.has(n.id))
+  edges.value = edges.value.filter(
+    e => !childIds.has(e.source) && !childIds.has(e.target)
+  )
+  currentDraftId.value = null
+  saveToHistory()
+}
+
+/**
+ * Check if a node belongs to a draft group | 检查节点是否属于草稿分组
+ */
+export const isDraftNode = (nodeId) => {
+  const node = nodes.value.find(n => n.id === nodeId)
+  if (!node?.parentNode) return false
+  const parent = nodes.value.find(n => n.id === node.parentNode)
+  return parent?.data?.isDraft === true
+}
+
 /**
  * Group nodes | 组合节点
  * @param {Array} nodesToGroup - Nodes to group (must include dimensions)
@@ -555,10 +709,29 @@ export const loadProject = async (projectId) => {
  */
 export const saveProject = async () => {
   if (!currentProjectId.value) return
+
+  // Filter out draft nodes | 过滤草稿节点
+  const draftGroupIds = new Set(
+    nodes.value
+      .filter(n => n.type === 'group' && n.data?.isDraft)
+      .map(n => n.id)
+  )
+  const draftChildIds = new Set(
+    nodes.value
+      .filter(n => draftGroupIds.has(n.parentNode))
+      .map(n => n.id)
+  )
+  const allDraftIds = new Set([...draftGroupIds, ...draftChildIds])
+
+  const savedNodes = nodes.value.filter(n => !allDraftIds.has(n.id))
+  const savedEdges = edges.value.filter(
+    e => !allDraftIds.has(e.source) && !allDraftIds.has(e.target)
+  )
+
   await updateProjectCanvas(currentProjectId.value, {
-    nodes: nodes.value,
-    edges: edges.value,
-    viewport: canvasViewport.value
+    nodes: savedNodes,
+    edges: savedEdges,
+    viewport: canvasViewport.value,
   })
 }
 

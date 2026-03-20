@@ -167,7 +167,7 @@ import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NSpin } from 'naive-ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useImageGeneration } from '../../hooks'
-import { addEdge, addNode, duplicateNode, edges, nodes, removeNode, updateNode } from '../../stores/canvas'
+import { addEdge, addNode, duplicateNode, edges, nodes, removeNode, updateNode, isDraftNode } from '../../stores/canvas'
 import { DEFAULT_IMAGE_MODEL, getModelConfig, getModelQualityOptions, getModelSizeOptions, imageModelSelectOptions } from '../../stores/models'
 
 const props = defineProps({
@@ -370,6 +370,10 @@ const hasConnectedImageWithContent = computed(() => {
 // Handle generate action | 处理生成操作
 // mode: 'auto' = 自动判断, 'replace' = 替换现有, 'new' = 新建节点
 const handleGenerate = async (mode = 'auto') => {
+  if (isDraftNode(props.id)) {
+    window.$message?.warning('草稿中的节点请先确认后再执行')
+    return
+  }
   const { prompt, prompts, refImages } = getConnectedInputs()
 
   if (!prompt && refImages.length === 0) {

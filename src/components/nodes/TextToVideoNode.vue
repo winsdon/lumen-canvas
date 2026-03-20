@@ -369,7 +369,7 @@ import { NDropdown, NIcon, NImage, NSpin } from 'naive-ui'
 import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useVideoGeneration } from '../../hooks'
-import { duplicateNode, edges, nodes, removeEdge, removeNode, updateNode } from '../../stores/canvas'
+import { duplicateNode, edges, nodes, removeEdge, removeNode, updateNode, isDraftNode } from '../../stores/canvas'
 import { DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RESOLUTION, getModelConfig, getModelDurationOptions, videoModelSelectOptions, VIDEO_RESOLUTION_OPTIONS } from '../../stores/models'
 
 const props = defineProps({
@@ -952,6 +952,10 @@ const syncReferencesFromSources = async (sources) => {
 }
 
 const handleGenerate = async () => {
+  if (isDraftNode(props.id)) {
+    window.$message?.warning('草稿中的节点请先确认后再执行')
+    return
+  }
   if (!content.value.trim()) return
 
   updateNode(props.id, { loading: true, error: null })
