@@ -3,10 +3,11 @@
  * Manages agent conversation state and SSE streaming | 管理智能体对话状态和 SSE 流式通信
  */
 
-import { ref } from 'vue'
+import { ref, onScopeDispose } from 'vue'
 import { streamAgentChat } from '@/api/agent'
-import { addNode, canvasViewport, nodes } from '@/stores/canvas'
-import { getToolRenderer, getToolLabel } from '@/components/agent/toolRendererRegistry'
+import { addNode, canvasViewport, nodes, addDraft, updateDraft } from '@/stores/canvas'
+import { getToolRenderer } from '@/components/agent/toolRendererRegistry'
+import { getAccessToken } from '@/utils'
 
 // Auto-increment message ID counter | 消息自增 ID 计数器
 let msgId = 0
@@ -67,24 +68,24 @@ export function useAgent() {
             break
 
           case 'tool_call': {
-            // Flush accumulated text before tool status | 工具调用前先刷新文本
+            // Flush accumulated text before tool call | 工具调用前先刷新文本
             if (textBuffer.trim()) {
               messages.value = [...messages.value, createMessage({ role: 'assistant', content: textBuffer })]
               textBuffer = ''
               currentResponse.value = ''
             }
-            // Insert tool_status message | 插入工具状态消息
             const toolName = data.name
             const toolConfig = getToolRenderer(toolName)
             messages.value = [
               ...messages.value,
               createMessage({
-                role: 'tool_status',
+                role: 'tool_call',
                 toolName,
                 toolLabel: toolConfig.label,
                 icon: toolConfig.icon,
                 status: 'running',
                 args: data.args || {},
+                result: null,
                 resultSummary: ''
               })
             ]
@@ -98,34 +99,67 @@ export function useAgent() {
               textBuffer = ''
               currentResponse.value = ''
             }
-            // Immutably update FIRST matching tool_status → completed | 不可变更新第一个匹配的工具状态
-            // Uses findIndex to avoid race condition with concurrent same-name tools
             const resultToolName = data.name
             const resultConfig = getToolRenderer(resultToolName)
             const summary = resultConfig.summarize(data.result || {})
+            const isError = data.result?.status === 'fail' || data.result?.error
+
+            // Update existing tool_call message (immutable) | 不可变更新现有工具调用消息
             const statusIdx = messages.value.findIndex(
-              msg => msg.role === 'tool_status' && msg.toolName === resultToolName && msg.status === 'running'
+              msg => msg.role === 'tool_call' && msg.toolName === resultToolName && msg.status === 'running'
             )
             if (statusIdx !== -1) {
               messages.value = messages.value.map((msg, i) =>
-                i === statusIdx ? { ...msg, status: 'completed', resultSummary: summary } : msg
+                i === statusIdx
+                  ? {
+                      ...msg,
+                      status: isError ? 'error' : 'completed',
+                      result: data.result || {},
+                      resultSummary: isError ? (data.result?.error || '执行失败') : summary
+                    }
+                  : msg
               )
             }
-            // Append tool result message | 追加工具结果消息
-            messages.value = [
-              ...messages.value,
-              createMessage({
-                role: 'tool_result',
-                toolName: resultToolName,
-                data: data.result || {}
-              })
-            ]
             break
           }
 
-          case 'thinking':
-            // Ignored in this iteration | 本次迭代忽略
+          case 'draft_created': {
+            const { draft_id, label, nodes: draftNodes, edges: draftEdges } = data
+            addDraft(draft_id, label, draftNodes, draftEdges)
             break
+          }
+
+          case 'draft_updated': {
+            const { draft_id, changes } = data
+            updateDraft(draft_id, changes)
+            break
+          }
+
+          case 'thinking': {
+            const lastMsg = messages.value[messages.value.length - 1]
+            if (lastMsg && lastMsg.role === 'thinking') {
+              // Accumulate into existing thinking block | 追加到现有 thinking 块
+              messages.value = messages.value.map((msg, i) =>
+                i === messages.value.length - 1
+                  ? { ...msg, content: msg.content + '\n' + (data.content || '') }
+                  : msg
+              )
+            } else {
+              // Flush text buffer first, then create new thinking block
+              // 先刷新文本缓冲，再创建新 thinking 块
+              if (textBuffer.trim()) {
+                messages.value = [...messages.value, createMessage({ role: 'assistant', content: textBuffer })]
+                textBuffer = ''
+                currentResponse.value = ''
+              }
+              // Create new thinking block | 创建新 thinking 块
+              messages.value = [
+                ...messages.value,
+                createMessage({ role: 'thinking', content: data.content || '' })
+              ]
+            }
+            break
+          }
 
           case 'done':
             // Flush remaining text | 刷新剩余文本
@@ -158,6 +192,36 @@ export function useAgent() {
       abortController = null
     }
   }
+
+  // Listen for draft cancellation | 监听草稿取消事件
+  const handleDraftCancelled = (e) => {
+    const { draftId } = e.detail
+    if (draftId) {
+      // Send hidden notification to agent backend | 发送隐藏通知到 Agent 后端
+      const cancelMsg = `[system] 用户已取消草稿 ${draftId}，请勿继续修改该草稿。`
+      messages.value = [...messages.value, createMessage({
+        role: 'user',
+        content: cancelMsg,
+        hidden: true,
+      })]
+      // Actually send to backend so Agent knows | 实际发送到后端让 Agent 知晓
+      const accessToken = getAccessToken()
+      const agentUrl = import.meta.env.VITE_AGENT_URL || 'http://localhost:8100'
+      fetch(`${agentUrl}/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ content: cancelMsg }),
+      }).catch(() => {}) // Fire-and-forget | 发完即忘
+    }
+  }
+
+  window.addEventListener('draft-cancelled', handleDraftCancelled)
+  onScopeDispose(() => {
+    window.removeEventListener('draft-cancelled', handleDraftCancelled)
+  })
 
   /**
    * Regenerate the response for a given assistant message | 重新生成指定消息的回复
