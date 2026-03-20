@@ -6,11 +6,25 @@
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
-// Custom renderer: open links in new tab | 自定义渲染器：链接在新标签页打开
+/**
+ * Escape string for safe HTML attribute insertion | 转义字符串用于安全的 HTML 属性插入
+ */
+const escapeAttr = (s) => (s || '').replace(/[&"'<>]/g, c =>
+  ({ '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' }[c])
+)
+
+// Custom renderer: open links in new tab, wrap images with add-to-canvas overlay
+// 自定义渲染器：链接在新标签页打开，图片包装添加到画布覆盖层
 const renderer = {
   link({ href, title, text }) {
     const titleAttr = title ? ` title="${title}"` : ''
     return `<a href="${href}"${titleAttr} target="_blank" rel="noopener">${text}</a>`
+  },
+
+  image({ href, text }) {
+    // Wrap all images with add-to-canvas overlay | 包装图片，添加到画布覆盖层
+    const alt = text || ''
+    return `<div class="md-image-wrapper" data-image-url="${escapeAttr(href)}" data-prompt="${escapeAttr(alt)}"><img src="${escapeAttr(href)}" alt="${escapeAttr(alt)}" loading="lazy" /><div class="md-image-overlay"><span class="md-prompt-text">${escapeAttr(alt)}</span><span role="button" tabindex="0" class="add-to-canvas-btn" data-action="add-to-canvas">➕ 添加到画布</span></div></div>`
   }
 }
 
@@ -22,9 +36,9 @@ marked.setOptions({
   async: false   // Ensure synchronous parsing (critical for v-html bindings)
 })
 
-// Configure DOMPurify to allow target and rel on links | 允许链接的 target 和 rel 属性
+// Configure DOMPurify to allow custom attrs | 允许自定义属性
 const PURIFY_CONFIG = {
-  ADD_ATTR: ['target', 'rel']
+  ADD_ATTR: ['target', 'rel', 'data-image-url', 'data-prompt', 'data-action', 'role', 'tabindex']
 }
 
 /**
