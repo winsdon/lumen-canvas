@@ -22,7 +22,7 @@
 
       <!-- Messages area (scrollable) | 消息列表（可滚动区域） -->
       <n-scrollbar ref="scrollbarRef" class="agent-messages">
-        <div class="messages-inner">
+        <div class="messages-inner" @click="handleMessagesClick">
           <!-- Empty state | 空状态 -->
           <div v-if="messages.length === 0 && !loading" class="empty-state">
             <n-icon :size="40" class="empty-icon">
@@ -44,6 +44,24 @@
               <p class="message-text">{{ msg.content }}</p>
             </div>
 
+            <!-- Thinking block (collapsible) | 思考块（可折叠） -->
+            <div v-else-if="msg.role === 'thinking'" class="thinking-block">
+              <div
+                class="thinking-toggle"
+                :class="{ expanded: expandedIds.has(msg.id) }"
+                @click="toggleExpanded(msg.id)"
+              >
+                <span class="brain-icon">🧠</span>
+                <span class="thinking-summary">思考中 · {{ thinkingSummary(msg.content) }}</span>
+                <span class="thinking-arrow">▶</span>
+              </div>
+              <Transition name="thinking-expand">
+                <div v-if="expandedIds.has(msg.id)" class="thinking-content">
+                  {{ msg.content }}
+                </div>
+              </Transition>
+            </div>
+
             <!-- Assistant text message with hover actions | AI 文本消息带悬浮操作 -->
             <div v-else-if="msg.role === 'assistant'" class="message-hover-container">
               <div class="message-bubble assistant-bubble">
@@ -55,24 +73,38 @@
               />
             </div>
 
-            <!-- Tool status card | 工具状态卡片 -->
-            <div v-else-if="msg.role === 'tool_status'">
-              <ToolStatusCard
-                :tool-name="msg.toolName"
-                :tool-label="msg.toolLabel"
-                :status="msg.status"
-                :icon="msg.icon"
-                :result-summary="msg.resultSummary"
-              />
-            </div>
-
-            <!-- Tool result (dynamic component from registry) | 工具结果（注册表动态组件） -->
-            <div v-else-if="msg.role === 'tool_result'" class="message-tool-result">
-              <component
-                :is="getToolRenderer(msg.toolName).component"
-                :data="msg.data"
-                @add-to-canvas="handleAddToCanvas"
-              />
+            <!-- Unified tool card (collapsible) | 统一工具卡片（可折叠） -->
+            <div v-else-if="msg.role === 'tool_call'" class="tool-card" :class="`status-${msg.status}`">
+              <div
+                class="tool-card-header"
+                :class="[`status-${msg.status}`, { expanded: expandedIds.has(msg.id) }]"
+                @click="toggleExpanded(msg.id)"
+              >
+                <div v-if="msg.status === 'running'" class="tool-spinner"></div>
+                <span v-else-if="msg.status === 'error'" class="tool-error-icon">✕</span>
+                <span v-else class="tool-icon-emoji">{{ msg.icon }}</span>
+                <span class="tool-label">{{ msg.status === 'running' ? `正在${msg.toolLabel}...` : msg.toolLabel }}</span>
+                <span class="tool-status-badge" :class="msg.status">
+                  {{ msg.status === 'running' ? '执行中' : msg.status === 'error' ? '失败' : `✓ ${msg.resultSummary}` }}
+                </span>
+                <span class="tool-arrow">▶</span>
+              </div>
+              <Transition name="tool-expand">
+                <div v-if="expandedIds.has(msg.id)" class="tool-card-body">
+                  <div v-if="msg.args && Object.keys(msg.args).length" class="tool-args">
+                    <code v-for="(val, key) in msg.args" :key="key" class="tool-arg-line">
+                      {{ key }}: {{ typeof val === 'string' ? val : JSON.stringify(val) }}
+                    </code>
+                  </div>
+                  <div v-if="msg.result" class="tool-result-inner">
+                    <component
+                      :is="getToolRenderer(msg.toolName).component"
+                      :data="msg.result"
+                      @add-to-canvas="handleAddToCanvas"
+                    />
+                  </div>
+                </div>
+              </Transition>
             </div>
           </div>
 
@@ -126,7 +158,6 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { NIcon, NScrollbar } from 'naive-ui'
 import { CloseOutline, SendOutline, SparklesOutline } from '@vicons/ionicons5'
-import ToolStatusCard from './agent/ToolStatusCard.vue'
 import MessageActions from './agent/MessageActions.vue'
 import { getToolRenderer } from './agent/toolRendererRegistry'
 import { renderMarkdown } from '@/utils/markdown'
@@ -174,6 +205,26 @@ const inputText = ref('')
 const canSend = computed(() => {
   return inputText.value.trim().length > 0 && !props.loading
 })
+
+// Track which message IDs are expanded | 追踪展开的消息 ID
+const expandedIds = ref(new Set())
+
+// Toggle expand/collapse for thinking blocks and tool cards | 切换展开/折叠
+const toggleExpanded = (msgId) => {
+  const next = new Set(expandedIds.value)
+  if (next.has(msgId)) {
+    next.delete(msgId)
+  } else {
+    next.add(msgId)
+  }
+  expandedIds.value = next
+}
+
+// Truncate thinking content for summary display | 截断思考内容用于摘要显示
+const thinkingSummary = (content) => {
+  const firstLine = (content || '').split('\n')[0]
+  return firstLine.length > 40 ? firstLine.slice(0, 40) + '...' : firstLine
+}
 
 /**
  * Lightweight format for streaming text (basic markdown-like) | 流式文本轻量格式化
@@ -232,6 +283,17 @@ const handleRegenerate = (msgId) => {
   emit('regenerate', msgId)
 }
 
+// Event delegation for markdown image add-to-canvas buttons | 事件委托：Markdown 图片添加到画布按钮
+const handleMessagesClick = (e) => {
+  const btn = e.target.closest('[data-action="add-to-canvas"]')
+  if (!btn) return
+  const wrapper = btn.closest('.md-image-wrapper')
+  if (!wrapper) return
+  const imageUrl = wrapper.dataset.imageUrl
+  const prompt = wrapper.dataset.prompt || ''
+  emit('add-to-canvas', { pic_url: imageUrl, prompt })
+}
+
 // Auto-scroll when messages change | 消息变化时自动滚动
 watch(
   () => props.messages.length,
@@ -255,6 +317,25 @@ watch(
       })
     }
   }
+)
+
+// Auto-expand running tool cards, auto-collapse on completion | 自动展开运行中的工具卡片，完成后折叠
+watch(
+  () => props.messages,
+  (msgs) => {
+    const next = new Set(expandedIds.value)
+    for (const msg of msgs) {
+      if (msg.role === 'tool_call') {
+        if (msg.status === 'running') {
+          next.add(msg.id)
+        } else if (msg.status === 'completed' || msg.status === 'error') {
+          next.delete(msg.id)
+        }
+      }
+    }
+    expandedIds.value = next
+  },
+  { deep: true }
 )
 </script>
 
