@@ -228,6 +228,7 @@
       :current-response="agentCurrentResponse"
       @send="agentSend"
       @add-to-canvas="addImageToCanvas"
+      @regenerate="agentRegenerate"
     />
   </div>
 </template>
@@ -347,6 +348,7 @@ const {
   loading: agentLoading,
   currentResponse: agentCurrentResponse,
   send: agentSend,
+  regenerate: agentRegenerate,
   addImageToCanvas
 } = useAgent()
 
