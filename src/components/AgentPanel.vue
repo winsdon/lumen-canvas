@@ -473,8 +473,8 @@ watch(
 }
 
 .message-assistant,
-.message-tool_status,
-.message-tool_result {
+.message-thinking,
+.message-tool_call {
   justify-content: flex-start;
 }
 
@@ -520,9 +520,300 @@ watch(
   max-width: 85%;
 }
 
-/* Tool result container | 工具结果容器 */
-.message-tool-result {
+/* ============================================
+   Thinking block | 思考块
+   ============================================ */
+.thinking-block {
   width: 100%;
+  max-width: 92%;
+}
+
+.thinking-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.thinking-toggle:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.brain-icon {
+  font-size: 14px;
+}
+
+.thinking-summary {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thinking-arrow {
+  font-size: 10px;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.thinking-toggle.expanded .thinking-arrow {
+  transform: rotate(90deg);
+}
+
+.thinking-content {
+  margin-top: 6px;
+  padding: 10px 14px;
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 0 0 10px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+/* Thinking expand transition | 思考块展开过渡 */
+.thinking-expand-enter-active,
+.thinking-expand-leave-active {
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.thinking-expand-enter-from,
+.thinking-expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* ============================================
+   Unified tool card | 统一工具卡片
+   ============================================ */
+.tool-card {
+  width: 100%;
+  max-width: 92%;
+}
+
+.tool-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.tool-card-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tool-card-header.status-running {
+  border-color: rgba(139, 92, 246, 0.3);
+  background: rgba(139, 92, 246, 0.06);
+}
+
+.tool-card-header.status-completed {
+  border-color: rgba(74, 222, 128, 0.2);
+  background: rgba(74, 222, 128, 0.06);
+}
+
+.tool-card-header.status-error {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.tool-card-header.expanded {
+  border-radius: 10px 10px 0 0;
+}
+
+.tool-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(139, 92, 246, 0.2);
+  border-top-color: rgb(139, 92, 246);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.tool-icon-emoji {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.tool-error-icon {
+  font-size: 16px;
+  color: #ef4444;
+  flex-shrink: 0;
+}
+
+.tool-label {
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.tool-status-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.tool-status-badge.running {
+  background: rgba(139, 92, 246, 0.15);
+  color: rgb(139, 92, 246);
+}
+
+.tool-status-badge.completed {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+.tool-status-badge.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.tool-arrow {
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.tool-card-header.expanded .tool-arrow {
+  transform: rotate(90deg);
+}
+
+.tool-card-body {
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+
+.status-completed .tool-card-body {
+  border-color: rgba(74, 222, 128, 0.2);
+}
+
+.status-error .tool-card-body {
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.tool-args {
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tool-arg-line {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: block;
+  word-break: break-all;
+}
+
+.tool-result-inner {
+  padding: 12px 14px;
+}
+
+/* Tool expand transition | 工具卡片展开过渡 */
+.tool-expand-enter-active,
+.tool-expand-leave-active {
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.tool-expand-enter-from,
+.tool-expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* ============================================
+   Markdown image add-to-canvas overlay | Markdown 图片添加到画布覆盖层
+   ============================================ */
+.markdown-body :deep(.md-image-wrapper) {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.markdown-body :deep(.md-image-wrapper img) {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+}
+
+.markdown-body :deep(.md-image-overlay) {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.markdown-body :deep(.md-image-wrapper:hover .md-image-overlay) {
+  opacity: 1;
+}
+
+.markdown-body :deep(.md-prompt-text) {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  flex: 1;
+  margin-right: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.markdown-body :deep(.add-to-canvas-btn) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: var(--accent-color);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.markdown-body :deep(.add-to-canvas-btn:hover) {
+  background: var(--accent-hover);
 }
 
 /* ============================================
