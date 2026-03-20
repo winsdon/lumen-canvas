@@ -34,32 +34,50 @@
 
           <!-- Message list | 消息列表 -->
           <div
-            v-for="(msg, index) in messages"
-            :key="index"
+            v-for="msg in messages"
+            :key="msg.id"
             class="message-wrapper"
             :class="[`message-${msg.role}`]"
           >
-            <!-- User message (right-aligned bubble) | 用户消息（右对齐气泡） -->
+            <!-- User message | 用户消息 -->
             <div v-if="msg.role === 'user'" class="message-bubble user-bubble">
               <p class="message-text">{{ msg.content }}</p>
             </div>
 
-            <!-- Assistant text message (left-aligned) | AI 文本消息（左对齐） -->
-            <div v-else-if="msg.role === 'assistant'" class="message-bubble assistant-bubble">
-              <p class="message-text" v-html="formatMessage(msg.content)"></p>
+            <!-- Assistant text message with hover actions | AI 文本消息带悬浮操作 -->
+            <div v-else-if="msg.role === 'assistant'" class="message-hover-container">
+              <div class="message-bubble assistant-bubble">
+                <div class="message-text markdown-body" v-html="renderMarkdown(msg.content)"></div>
+              </div>
+              <MessageActions
+                :content="msg.content"
+                @regenerate="handleRegenerate(msg.id)"
+              />
             </div>
 
-            <!-- Image cards message | 图片卡片消息 -->
-            <div v-else-if="msg.role === 'image_cards'" class="message-cards">
-              <ImageCardMessage
-                :cards="msg.cards"
+            <!-- Tool status card | 工具状态卡片 -->
+            <div v-else-if="msg.role === 'tool_status'">
+              <ToolStatusCard
+                :tool-name="msg.toolName"
+                :tool-label="msg.toolLabel"
+                :status="msg.status"
+                :icon="msg.icon"
+                :result-summary="msg.resultSummary"
+              />
+            </div>
+
+            <!-- Tool result (dynamic component from registry) | 工具结果（注册表动态组件） -->
+            <div v-else-if="msg.role === 'tool_result'" class="message-tool-result">
+              <component
+                :is="getToolRenderer(msg.toolName).component"
+                :data="msg.data"
                 @add-to-canvas="handleAddToCanvas"
               />
             </div>
           </div>
 
-          <!-- Loading indicator (three bouncing dots) | 加载动画（三个跳动的点） -->
-          <div v-if="loading" class="message-wrapper message-assistant">
+          <!-- Loading indicator | 加载动画 -->
+          <div v-if="loading && !currentResponse" class="message-wrapper message-assistant">
             <div class="message-bubble assistant-bubble loading-bubble">
               <div class="typing-dots">
                 <span class="dot"></span>
@@ -69,7 +87,7 @@
             </div>
           </div>
 
-          <!-- Streaming response | 流式响应 -->
+          <!-- Streaming response (uses lightweight regex, not marked) | 流式响应（使用轻量正则） -->
           <div v-if="currentResponse" class="message-wrapper message-assistant">
             <div class="message-bubble assistant-bubble">
               <p class="message-text" v-html="formatMessage(currentResponse)"></p>
@@ -78,7 +96,7 @@
         </div>
       </n-scrollbar>
 
-      <!-- Input area (fixed bottom) | 输入区域（固定底部） -->
+      <!-- Input area | 输入区域 -->
       <div class="agent-input-area">
         <div class="input-wrapper">
           <textarea
@@ -108,7 +126,10 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { NIcon, NScrollbar } from 'naive-ui'
 import { CloseOutline, SendOutline, SparklesOutline } from '@vicons/ionicons5'
-import ImageCardMessage from './agent/ImageCardMessage.vue'
+import ToolStatusCard from './agent/ToolStatusCard.vue'
+import MessageActions from './agent/MessageActions.vue'
+import { getToolRenderer } from './agent/toolRendererRegistry'
+import { renderMarkdown } from '@/utils/markdown'
 
 // Props | 属性
 const props = defineProps({
@@ -116,17 +137,14 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  // Message list from parent/hook | 从父组件或 hook 传入的消息列表
   messages: {
     type: Array,
     default: () => []
   },
-  // Loading state | 加载状态
   loading: {
     type: Boolean,
     default: false
   },
-  // Streaming response text | 流式响应文本
   currentResponse: {
     type: String,
     default: ''
@@ -137,7 +155,8 @@ const props = defineProps({
 const emit = defineEmits([
   'update:show',
   'send',
-  'add-to-canvas'
+  'add-to-canvas',
+  'regenerate'
 ])
 
 // Two-way binding for show | show 双向绑定
@@ -157,7 +176,8 @@ const canSend = computed(() => {
 })
 
 /**
- * Format message text (basic markdown-like) | 格式化消息文本（基础 markdown）
+ * Lightweight format for streaming text (basic markdown-like) | 流式文本轻量格式化
+ * Used only for currentResponse during streaming, not for completed messages.
  */
 const formatMessage = (text) => {
   if (!text) return ''
@@ -170,10 +190,6 @@ const formatMessage = (text) => {
     .replace(/`([^`]+)`/g, '<code>$1</code>')
 }
 
-/**
- * Handle keyboard events | 处理键盘事件
- * Enter to send, Shift+Enter for newline | Enter 发送，Shift+Enter 换行
- */
 const handleKeydown = (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
@@ -181,17 +197,11 @@ const handleKeydown = (e) => {
   }
 }
 
-/**
- * Send message | 发送消息
- */
 const handleSend = () => {
   const text = inputText.value.trim()
   if (!text || props.loading) return
-
   emit('send', text)
   inputText.value = ''
-
-  // Reset textarea height | 重置输入框高度
   nextTick(() => {
     if (inputRef.value) {
       inputRef.value.style.height = 'auto'
@@ -199,9 +209,6 @@ const handleSend = () => {
   })
 }
 
-/**
- * Auto-resize textarea | 自动调整输入框高度
- */
 const autoResize = () => {
   const el = inputRef.value
   if (!el) return
@@ -209,9 +216,6 @@ const autoResize = () => {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px'
 }
 
-/**
- * Scroll to bottom of message list | 滚动到消息列表底部
- */
 const scrollToBottom = () => {
   nextTick(() => {
     if (scrollbarRef.value) {
@@ -220,11 +224,12 @@ const scrollToBottom = () => {
   })
 }
 
-/**
- * Handle add image card to canvas | 处理添加图片卡片到画布
- */
 const handleAddToCanvas = (card) => {
   emit('add-to-canvas', card)
+}
+
+const handleRegenerate = (msgId) => {
+  emit('regenerate', msgId)
 }
 
 // Auto-scroll when messages change | 消息变化时自动滚动
@@ -278,9 +283,7 @@ watch(
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
-/* ============================================
-   Slide animation (from right) | 滑入动画（从右侧）
-   ============================================ */
+/* Slide animation | 滑入动画 */
 .agent-slide-enter-active,
 .agent-slide-leave-active {
   transition: all 0.25s ease;
@@ -292,9 +295,7 @@ watch(
   transform: translateX(12px);
 }
 
-/* ============================================
-   Header | 头部
-   ============================================ */
+/* Header | 头部 */
 .agent-header {
   display: flex;
   align-items: center;
@@ -328,9 +329,7 @@ watch(
   border: none;
   cursor: pointer;
   color: var(--text-secondary);
-  transition:
-    background 0.2s,
-    color 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 
 .close-btn:hover {
@@ -338,9 +337,7 @@ watch(
   color: var(--text-primary);
 }
 
-/* ============================================
-   Messages area | 消息区域
-   ============================================ */
+/* Messages area | 消息区域 */
 .agent-messages {
   flex: 1;
   min-height: 0;
@@ -384,9 +381,7 @@ watch(
   max-width: 280px;
 }
 
-/* ============================================
-   Message bubbles | 消息气泡
-   ============================================ */
+/* Message layout | 消息布局 */
 .message-wrapper {
   display: flex;
   max-width: 100%;
@@ -397,7 +392,8 @@ watch(
 }
 
 .message-assistant,
-.message-image_cards {
+.message-tool_status,
+.message-tool_result {
   justify-content: flex-start;
 }
 
@@ -408,14 +404,12 @@ watch(
   word-break: break-word;
 }
 
-/* User bubble (right-aligned, accent background) | 用户气泡（右对齐，强调色背景） */
 .user-bubble {
   background: var(--accent-color);
   color: #fff;
   border-bottom-right-radius: 4px;
 }
 
-/* Assistant bubble (left-aligned, tertiary background) | AI 气泡（左对齐，三级背景色） */
 .assistant-bubble {
   background: var(--bg-tertiary);
   color: var(--text-primary);
@@ -440,14 +434,100 @@ watch(
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Image cards message | 图片卡片消息 */
-.message-cards {
+/* Hover container for message actions | 消息操作悬浮容器 */
+.message-hover-container {
+  max-width: 85%;
+}
+
+/* Tool result container | 工具结果容器 */
+.message-tool-result {
   width: 100%;
 }
 
 /* ============================================
-   Loading dots animation | 加载动画（三点跳动）
+   Markdown body styles | Markdown 正文样式
    ============================================ */
+.markdown-body :deep(p) {
+  margin: 0 0 8px;
+}
+
+.markdown-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.markdown-body :deep(li) {
+  margin: 2px 0;
+}
+
+.markdown-body :deep(pre) {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+:global(.dark) .markdown-body :deep(pre) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.markdown-body :deep(pre code) {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+.markdown-body :deep(blockquote) {
+  border-left: 3px solid var(--accent-color);
+  margin: 8px 0;
+  padding: 4px 12px;
+  color: var(--text-secondary);
+}
+
+.markdown-body :deep(table) {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+  width: 100%;
+}
+
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.markdown-body :deep(th) {
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+
+.markdown-body :deep(a) {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.markdown-body :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.markdown-body :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 12px 0;
+}
+
+/* Loading dots | 加载动画 */
 .loading-bubble {
   padding: 12px 18px;
 }
@@ -467,18 +547,11 @@ watch(
   animation: dot-bounce 1.4s ease-in-out infinite;
 }
 
-.dot:nth-child(2) {
-  animation-delay: 0.16s;
-}
-
-.dot:nth-child(3) {
-  animation-delay: 0.32s;
-}
+.dot:nth-child(2) { animation-delay: 0.16s; }
+.dot:nth-child(3) { animation-delay: 0.32s; }
 
 @keyframes dot-bounce {
-  0%,
-  60%,
-  100% {
+  0%, 60%, 100% {
     transform: translateY(0);
     opacity: 0.4;
   }
@@ -488,9 +561,7 @@ watch(
   }
 }
 
-/* ============================================
-   Input area | 输入区域
-   ============================================ */
+/* Input area | 输入区域 */
 .agent-input-area {
   padding: 12px 16px 16px;
   border-top: 1px solid var(--border-color);
@@ -543,10 +614,7 @@ watch(
   background: var(--accent-color);
   color: #fff;
   cursor: pointer;
-  transition:
-    background 0.2s,
-    transform 0.15s,
-    opacity 0.2s;
+  transition: background 0.2s, transform 0.15s, opacity 0.2s;
 }
 
 .send-btn:hover:not(.disabled) {
