@@ -27,12 +27,3 @@ export const promptFlowPublishSubmit = (data) => {
 export const promptFlowPublishMy = (params = {}) => {
   return authRequest.get('/prompt/flow/publish/my', { params })
 }
-
-export const promptFlowPublicPage = (params = {}) => {
-  return authRequest.get('/prompt/flow/public/page', { params })
-}
-
-// Review API (no auth required) | 审核详情接口（免登录）
-export const promptFlowReviewGet = (id) => {
-  return authRequest.get('/prompt/flow/review/get', { params: { id } })
-}
