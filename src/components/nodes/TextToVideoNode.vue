@@ -47,7 +47,7 @@
       @click="toggleInputPanel"
     >
 
-      <div class="relative bg-[var(--bg-tertiary)] group/video cursor-pointer transition-all duration-300" style="aspect-ratio: 16 / 9;">
+      <div class="relative bg-[var(--bg-tertiary)] group/video cursor-pointer transition-all duration-300" :style="{ aspectRatio: (localRatio === '9:16' ? '9 / 16' : '16 / 9') }">
         <div v-if="nodeLoading" class="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[var(--bg-tertiary)]">
           <div class="w-full h-full bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-amber-500/20 animate-pulse absolute inset-0"></div>
           <div class="relative z-10 flex flex-col items-center gap-3">
@@ -318,6 +318,19 @@
             </n-dropdown>
 
             <n-dropdown
+              :options="ratioOptions"
+              :menu-props="getModelMenuProps"
+              @select="handleRatioSelect"
+              trigger="click"
+              placement="top"
+            >
+              <button class="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                <span class="font-medium">{{ localRatio }}</span>
+                <n-icon :size="12"><ChevronDownOutline /></n-icon>
+              </button>
+            </n-dropdown>
+
+            <n-dropdown
               :options="durationOptions"
               :menu-props="getModelMenuProps"
               @select="handleDurationSelect"
@@ -370,7 +383,7 @@ import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
 import { useVideoGeneration } from '../../hooks'
 import { duplicateNode, edges, nodes, removeEdge, removeNode, updateNode, isDraftNode } from '../../stores/canvas'
-import { DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RESOLUTION, getModelConfig, getModelDurationOptions, videoModelSelectOptions, VIDEO_RESOLUTION_OPTIONS } from '../../stores/models'
+import { DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RESOLUTION, DEFAULT_VIDEO_RATIO, getModelConfig, getModelDurationOptions, videoModelSelectOptions, VIDEO_RESOLUTION_OPTIONS, VIDEO_RATIO_OPTIONS } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -401,6 +414,7 @@ const content = ref(props.data?.content || '')
 const localModel = ref(props.data?.model || DEFAULT_VIDEO_MODEL)
 const localResolution = ref(props.data?.resolution || DEFAULT_VIDEO_RESOLUTION)
 const localDuration = ref(props.data?.dur || DEFAULT_VIDEO_DURATION)
+const localRatio = ref(props.data?.ratio || DEFAULT_VIDEO_RATIO)
 const hasManualModelSelection = ref(false)
 const isInputExpanded = ref(false)
 const nodeWrapperRef = ref(null)
@@ -414,11 +428,12 @@ const isLastFrameUploading = ref(false)
 
 let hideTimer = null
 
-const { loading, error, video, taskId, generate } = useVideoGeneration()
+const { loading, error, video, taskId, generate, resumePoll } = useVideoGeneration()
 
 const modelOptions = videoModelSelectOptions
 const resolutionOptions = computed(() => VIDEO_RESOLUTION_OPTIONS)
 const durationOptions = computed(() => getModelDurationOptions(localModel.value))
+const ratioOptions = computed(() => (VIDEO_RATIO_OPTIONS || []).filter(o => o.key === '16:9' || o.key === '9:16'))
 
 const currentModelPoints = computed(() => {
   const model = modelOptions.value.find(m => m.value === localModel.value || m.key === localModel.value)
@@ -588,6 +603,7 @@ const updateNodeData = () => {
     model: localModel.value,
     resolution: localResolution.value,
     dur: localDuration.value,
+    ratio: localRatio.value,
     inputMode: inputMode.value
   })
 }
@@ -612,6 +628,11 @@ const handleModelSelect = (key) => {
 
 const handleResolutionSelect = (key) => {
   localResolution.value = key
+  updateNodeData()
+}
+
+const handleRatioSelect = (key) => {
+  localRatio.value = key
   updateNodeData()
 }
 
@@ -965,7 +986,8 @@ const handleGenerate = async () => {
       model: localModel.value,
       prompt: content.value,
       resolution: localResolution.value,
-      duration: localDuration.value
+      duration: localDuration.value,
+      ratio: localRatio.value
     }
 
     // Add images based on mode | 根据模式添加图片
@@ -1063,6 +1085,28 @@ onMounted(() => {
     updateNodeData()
   }
   syncReferenceImagesFromData()
+
+  // Resume polling if task was in progress | 恢复进行中的任务轮询
+  if (props.data?.taskId && props.data?.loading && !props.data?.url) {
+    resumePoll(props.data.taskId).then(result => {
+      if (result?.url) {
+        updateNode(props.id, {
+          url: result.url,
+          loading: false,
+          error: null,
+          taskId: result.id || props.data?.taskId,
+          updatedAt: Date.now()
+        })
+        window.$message?.success('视频生成成功')
+      }
+    }).catch(err => {
+      updateNode(props.id, {
+        loading: false,
+        error: err.message || '生成失败',
+        updatedAt: Date.now()
+      })
+    })
+  }
 })
 
 onUnmounted(() => {

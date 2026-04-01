@@ -344,7 +344,10 @@ export const useVideoGeneration = () => {
       if (params.seed !== undefined) requestData.seed = params.seed
       if (params.shotType) requestData.shotType = params.shotType
       if (params.audio !== undefined) requestData.audio = params.audio
-      if (params.options) requestData.options = params.options
+      // 将 ratio 合并到 options 中（后端从 options.ratio 读取）
+      const mergedOptions = { ...(params.options || {}) }
+      if (params.ratio) mergedOptions.ratio = params.ratio
+      if (Object.keys(mergedOptions).length > 0) requestData.options = mergedOptions
 
       const id = await aiVideoGenerate(requestData)
 
@@ -397,7 +400,58 @@ export const useVideoGeneration = () => {
     }
   }
 
-  return { loading, error, status, video, taskId, progress, generate, reset }
+  /**
+   * Resume polling for an existing task | 恢复已有任务的轮询
+   * @param {number|string} existingTaskId - 已有的视频记录 ID
+   */
+  const resumePoll = async (existingTaskId) => {
+    if (!existingTaskId) return null
+    setLoading(true)
+    taskId.value = existingTaskId
+    status.value = 'polling'
+    progress.attempt = 0
+    progress.percentage = 0
+
+    try {
+      const maxAttempts = 120
+      const interval = 5000
+
+      for (let i = 0; i < maxAttempts; i++) {
+        progress.attempt = i + 1
+        progress.percentage = Math.min(Math.round((i / maxAttempts) * 100), 99)
+
+        const record = await getAiVideoMy(existingTaskId)
+        const recordStatus = record?.status
+
+        if (recordStatus === 30) {
+          if (!record?.videoUrl) {
+            throw new Error('已完成但未返回视频地址')
+          }
+          progress.percentage = 100
+          video.value = { url: record.videoUrl, id: existingTaskId, ...record }
+          setSuccess()
+          return video.value
+        }
+
+        if (recordStatus === 40) {
+          throw new Error(record?.errorMessage || '视频生成失败')
+        }
+
+        if (recordStatus === 50) {
+          throw new Error('视频生成已取消')
+        }
+
+        await new Promise(resolve => setTimeout(resolve, interval))
+      }
+
+      throw new Error('视频生成超时')
+    } catch (err) {
+      setError(err)
+      throw err
+    }
+  }
+
+  return { loading, error, status, video, taskId, progress, generate, resumePoll, reset }
 }
 
 /**

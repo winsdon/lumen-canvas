@@ -42,6 +42,19 @@
           </n-dropdown>
         </div>
 
+        <!-- Ratio selector | 比例选择 -->
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-[var(--text-secondary)]">比例</span>
+          <n-dropdown :options="ratioOptions" @select="handleRatioSelect">
+            <button class="flex items-center gap-1 text-sm text-[var(--text-primary)] hover:text-[var(--accent-color)]">
+              {{ localRatio }}
+              <n-icon :size="12">
+                <ChevronForwardOutline />
+              </n-icon>
+            </button>
+          </n-dropdown>
+        </div>
+
         <!-- Duration selector | 时长选择 -->
         <div class="flex items-center justify-between">
           <span class="text-xs text-[var(--text-secondary)]">时长</span>
@@ -146,7 +159,7 @@ import { NIcon, NDropdown, NSpin } from 'naive-ui'
 import { ChevronForwardOutline, ChevronDownOutline, TrashOutline, VideocamOutline, CopyOutline, AddCircle } from '@vicons/ionicons5'
 import { useVideoGeneration } from '../../hooks'
 import { updateNode, removeNode, duplicateNode, addNode, addEdge, nodes, edges, isDraftNode } from '../../stores/canvas'
-import { videoModelOptions, VIDEO_RESOLUTION_OPTIONS, getModelDurationOptions, getModelConfig, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_RESOLUTION } from '../../stores/models'
+import { videoModelOptions, VIDEO_RESOLUTION_OPTIONS, VIDEO_RATIO_OPTIONS, getModelDurationOptions, getModelConfig, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_RESOLUTION, DEFAULT_VIDEO_RATIO } from '../../stores/models'
 
 const props = defineProps({
   id: String,
@@ -157,7 +170,7 @@ const props = defineProps({
 const { updateNodeInternals } = useVueFlow()
 
 // Video generation hook | 视频生成 hook
-const { loading, error, status, video: generatedVideo, taskId, progress, generate } = useVideoGeneration()
+const { loading, error, status, video: generatedVideo, taskId, progress, generate, resumePoll } = useVideoGeneration()
 
 // Hover state | 悬浮状态
 const showActions = ref(false)
@@ -166,6 +179,7 @@ const showActions = ref(false)
 const localModel = ref(props.data?.model || DEFAULT_VIDEO_MODEL)
 const localResolution = ref(props.data?.resolution || DEFAULT_VIDEO_RESOLUTION)
 const localDuration = ref(props.data?.dur || parseInt(String(props.data?.duration || ''), 10) || DEFAULT_VIDEO_DURATION)
+const localRatio = ref(props.data?.ratio || DEFAULT_VIDEO_RATIO)
 
 // Get connected images with roles | 获取连接的图片及其角色
 const connectedImages = computed(() => {
@@ -222,6 +236,10 @@ const resolutionOptions = computed(() => {
   return VIDEO_RESOLUTION_OPTIONS
 })
 
+const ratioOptions = computed(() => {
+  return (VIDEO_RATIO_OPTIONS || []).filter(o => o.key === '16:9' || o.key === '9:16')
+})
+
 // Handle model selection | 处理模型选择
 const handleModelSelect = (key) => {
   localModel.value = key
@@ -249,6 +267,11 @@ const handleDuplicate = () => {
 const handleResolutionSelect = (key) => {
   localResolution.value = key
   updateNode(props.id, { resolution: key })
+}
+
+const handleRatioSelect = (key) => {
+  localRatio.value = key
+  updateNode(props.id, { ratio: key })
 }
 
 // Handle duration selection | 处理时长选择
@@ -350,7 +373,8 @@ const handleGenerate = async () => {
     const params = {
       model: localModel.value,
       resolution: localResolution.value,
-      duration: localDuration.value
+      duration: localDuration.value,
+      ratio: localRatio.value
     }
 
     // Add prompt if provided | 如果有提示词则添加
@@ -408,6 +432,35 @@ onMounted(() => {
   if (!localModel.value) {
     localModel.value = DEFAULT_VIDEO_MODEL
     updateNode(props.id, { model: localModel.value })
+  }
+
+  // Resume polling if task was in progress | 恢复进行中的任务轮询
+  const savedTaskId = props.data?.taskId
+  const outputNodeId = props.data?.outputNodeId
+  if (savedTaskId && outputNodeId) {
+    const outputNode = nodes.value.find(n => n.id === outputNodeId)
+    if (outputNode?.data?.loading && !outputNode?.data?.url) {
+      resumePoll(savedTaskId).then(result => {
+        if (result?.url) {
+          updateNode(outputNodeId, {
+            url: result.url,
+            loading: false,
+            label: '视频生成',
+            taskId: result.id || savedTaskId,
+            updatedAt: Date.now()
+          })
+          updateNode(props.id, { executed: true })
+          window.$message?.success('视频生成成功')
+        }
+      }).catch(err => {
+        updateNode(outputNodeId, {
+          loading: false,
+          error: err.message || '生成失败',
+          label: '生成失败',
+          updatedAt: Date.now()
+        })
+      })
+    }
   }
 })
 

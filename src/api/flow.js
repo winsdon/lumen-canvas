@@ -27,3 +27,11 @@ export const promptFlowPublishSubmit = (data) => {
 export const promptFlowPublishMy = (params = {}) => {
   return authRequest.get('/prompt/flow/publish/my', { params })
 }
+
+export const promptFlowPublicPage = (params = {}) => {
+  return authRequest.get('/prompt/flow/public/page', { params })
+}
+
+export const promptFlowReviewGet = (id) => {
+  return authRequest.get('/prompt/flow/publish/get', { params: { id } })
+}
