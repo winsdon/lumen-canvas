@@ -41,3 +41,24 @@ export const submitPayOrder = (data) => {
 export const getPayOrder = (params) => {
   return authRequest.get('/pay/order/get', { params })
 }
+
+/**
+ * 预估积分消耗
+ * @param {number} modelId - 模型ID
+ * @param {Object} params - 业务参数 (duration, resolution 等)
+ */
+export const estimatePoint = (modelId, params) => {
+  return authRequest.get('/ai/point/estimate', {
+    params: { modelId, ...params }
+  })
+}
+
+/**
+ * 获取模型积分规则
+ * @param {number} modelId - 模型ID
+ */
+export const getPointRules = (modelId) => {
+  return authRequest.get('/ai/point/rules', {
+    params: { modelId }
+  })
+}

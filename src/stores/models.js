@@ -187,11 +187,12 @@ export const imageModelSelectOptions = computed(() =>
   }))
 )
 
-export const videoModelSelectOptions = computed(() => 
-  videoModels.value.map(m => ({ 
-    label: m.label, 
-    value: m.key, 
+export const videoModelSelectOptions = computed(() =>
+  videoModels.value.map(m => ({
+    label: m.label,
+    value: m.key,
     key: m.key,
+    id: m.id,
     imagePoint: m.imagePoint,
     point: m.point
   }))

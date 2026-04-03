@@ -381,6 +381,7 @@ import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NDropdown, NIcon, NImage, NSpin } from 'naive-ui'
 import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getFilePresignedUrl, uploadFileToUrl } from '../../api'
+import { estimatePoint } from '../../api/point'
 import { useVideoGeneration } from '../../hooks'
 import { duplicateNode, edges, nodes, removeEdge, removeNode, updateNode, isDraftNode } from '../../stores/canvas'
 import { DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_MODEL, DEFAULT_VIDEO_RESOLUTION, DEFAULT_VIDEO_RATIO, getModelConfig, getModelDurationOptions, videoModelSelectOptions, VIDEO_RESOLUTION_OPTIONS, VIDEO_RATIO_OPTIONS } from '../../stores/models'
@@ -435,10 +436,37 @@ const resolutionOptions = computed(() => VIDEO_RESOLUTION_OPTIONS)
 const durationOptions = computed(() => getModelDurationOptions(localModel.value))
 const ratioOptions = computed(() => (VIDEO_RATIO_OPTIONS || []).filter(o => o.key === '16:9' || o.key === '9:16'))
 
-const currentModelPoints = computed(() => {
+const currentModelPoints = ref(null)
+
+const currentModelId = computed(() => {
   const model = modelOptions.value.find(m => m.value === localModel.value || m.key === localModel.value)
-  return model?.point ?? model?.imagePoint
+  return model?.id
 })
+
+const updatePointEstimate = async () => {
+  const modelId = currentModelId.value
+  if (!modelId) {
+    // Fallback to static points
+    const model = modelOptions.value.find(m => m.value === localModel.value || m.key === localModel.value)
+    currentModelPoints.value = model?.point ?? model?.imagePoint
+    return
+  }
+  try {
+    const params = {}
+    if (localDuration.value) {
+      params.duration = String(localDuration.value)
+    }
+    if (localResolution.value) {
+      params.resolution = localResolution.value
+    }
+    const res = await estimatePoint(modelId, params)
+    currentModelPoints.value = res?.point ?? res?.data?.point ?? null
+  } catch {
+    // Fallback to static points on error
+    const model = modelOptions.value.find(m => m.value === localModel.value || m.key === localModel.value)
+    currentModelPoints.value = model?.point ?? model?.imagePoint
+  }
+}
 
 const renderDropdownLabel = (option) => {
   const points = option?.point ?? option?.imagePoint
@@ -1181,6 +1209,15 @@ watch(
       }
     }
     lastSyncedSourcesSignature.value = null
+  },
+  { immediate: true }
+)
+
+// Watch model/duration/resolution changes → update point estimate | 监听参数变化更新积分预估
+watch(
+  [() => localModel.value, () => localDuration.value, () => localResolution.value, () => currentModelId.value],
+  () => {
+    updatePointEstimate()
   },
   { immediate: true }
 )
