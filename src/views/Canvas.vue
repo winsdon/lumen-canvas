@@ -46,6 +46,7 @@
         @connect-start="onConnectStart" @connect-end="onConnectEnd" @node-click="onNodeClick" @pane-click="onPaneClick"
         @viewport-change="handleViewportChange" @edges-change="onEdgesChange" @selection-change="handleSelectionChange"
         @selection-end="handleSelectionEnd" @node-drag="handleNodeDrag" @node-drag-stop="handleNodeDragStop"
+        @dragover="onAssetDragOver" @drop="onAssetDrop"
         class="canvas-flow">
         <Background v-if="showGrid" :gap="20" :size="1" />
         <MiniMap v-if="!isMobile" position="bottom-right" :pannable="true" :zoomable="true" />
@@ -81,6 +82,14 @@
           title="创意助手">
           <n-icon :size="20">
             <SparklesOutline />
+          </n-icon>
+        </button>
+        <button @click="showAssetPanel = true"
+          class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors"
+          :class="{ 'text-[var(--accent-color)]': showAssetPanel }"
+          title="资产库">
+          <n-icon :size="20">
+            <LibraryOutline />
           </n-icon>
         </button>
         <div class="w-full h-px bg-[var(--border-color)] my-1"></div>
@@ -230,6 +239,9 @@
       @add-to-canvas="addImageToCanvas"
       @regenerate="agentRegenerate"
     />
+
+    <!-- Asset Library Panel | 资产库面板 -->
+    <AssetLibraryPanel v-model:show="showAssetPanel" />
   </div>
 </template>
 
@@ -248,6 +260,7 @@ import {
   ColorPaletteOutline,
   DownloadOutline,
   ImageOutline,
+  LibraryOutline,
   LinkOutline,
   LocateOutline,
   MoonOutline,
@@ -276,6 +289,7 @@ import UserAvatar from '../components/UserAvatar.vue'
 import AgentPanel from '../components/AgentPanel.vue'
 import GenerationHistoryPanel from '../components/GenerationHistoryPanel.vue'
 import WorkflowPanel from '../components/WorkflowPanel.vue'
+import AssetLibraryPanel from '../components/AssetLibraryPanel.vue'
 import { useAgent } from '../hooks/useAgent'
 
 // Initialize models on page load | 页面加载时初始化模型
@@ -343,6 +357,7 @@ const edgeTypes = {
 
 // Agent state | 智能体状态
 const showAgentPanel = ref(false)
+const showAssetPanel = ref(false)
 const {
   messages: agentMessages,
   loading: agentLoading,
@@ -504,6 +519,63 @@ const handleNodeDrag = (payload) => {
 
 const handleNodeDragStop = (payload) => {
   clampDraggedNodes(payload)
+}
+
+/**
+ * Handle dragover from AssetLibraryPanel — required for drop event to fire.
+ */
+function onAssetDragOver(e) {
+  if (e.dataTransfer.types.includes('application/x-lumeng-asset')) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+}
+
+/**
+ * Handle asset drop — create ImageNode (and TextNode if prompt present).
+ * Field mapping (verified against node component implementations):
+ *   ImageNode: data.url
+ *   VideoNode: data.url
+ *   TextNode:  data.content
+ */
+function onAssetDrop(e) {
+  const raw = e.dataTransfer.getData('application/x-lumeng-asset')
+  if (!raw) return
+  e.preventDefault()
+  let payload
+  try {
+    payload = JSON.parse(raw)
+  } catch {
+    console.warn('Invalid asset payload', raw)
+    return
+  }
+  // Convert screen coords to flow coords using vue-flow's `project`.
+  const pos = project({ x: e.clientX, y: e.clientY })
+
+  if (payload.assetType === 'video') {
+    addNode('video', pos, {
+      url: payload.videoUrl || payload.imageUrl,
+      label: '视频素材',
+      assetId: payload.id
+    })
+    return
+  }
+
+  // image
+  addNode('image', pos, {
+    url: payload.imageUrl,
+    label: '图片素材',
+    assetId: payload.id
+  })
+
+  // If prompt present, add a TextNode side-by-side (no edge — by design).
+  if (payload.prompt) {
+    addNode('text', { x: pos.x - 320, y: pos.y }, {
+      content: payload.prompt,
+      label: '采集提示词',
+      assetId: payload.id
+    })
+  }
 }
 
 const connectNodeMenuRef = ref(null)
