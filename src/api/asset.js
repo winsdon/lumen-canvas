@@ -29,9 +29,8 @@ export const importAsset = (fields, imageFile) => {
     if (v !== undefined && v !== null) fd.append(k, v)
   })
   fd.append('image', imageFile)
-  return authRequest.post('/asset/import', fd, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
+  // Note: do NOT set Content-Type header manually — axios sets it (with boundary) when body is FormData.
+  return authRequest.post('/asset/import', fd)
 }
 
 /**
