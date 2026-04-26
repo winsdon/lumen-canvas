@@ -7,6 +7,9 @@
  */
 import { ref, reactive } from 'vue'
 import { getAssetPage, importAsset, deleteAsset, updateAssetTags } from '@/api/asset'
+import { getFilePresignedUrl, uploadFileToUrl } from '@/api/file'
+
+const USE_MOCK = import.meta.env.VITE_USE_ASSET_MOCK === 'true'
 
 const PAGE_SIZE = 24
 
@@ -73,16 +76,32 @@ export const reload = async () => {
 }
 
 /**
- * Local file upload — calls /asset/import with source=local.
- * 本地文件上传
+ * Local file upload — follows canvas image/video upload pattern.
+ * 1) presigned URL  2) PUT to OSS  3) /asset/import with the URL.
+ *
+ * In mock mode, uses a blob URL so dev workflow doesn't hit the network.
+ * 本地文件上传：参考画布图片/视频节点，先直传 OSS 再入库元数据。
  */
 export const upload = async (file) => {
   uploading.value = true
   try {
-    const resp = await importAsset(
-      { source: 'local', assetType: 'image' },
-      file
-    )
+    let imageUrl
+    if (USE_MOCK) {
+      imageUrl = URL.createObjectURL(file)
+    } else {
+      // 1. presigned URL
+      const presigned = await getFilePresignedUrl(file.name)
+      // 2. direct PUT to OSS
+      await uploadFileToUrl(presigned.uploadUrl, file)
+      imageUrl = presigned.url
+    }
+    // 3. metadata insert
+    const resp = await importAsset({
+      source: 'local',
+      assetType: 'image',
+      imageUrl,
+      fileSize: file.size
+    })
     // Refresh from page 1 to surface the new item at top.
     await reload()
     return resp

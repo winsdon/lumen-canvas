@@ -26,6 +26,29 @@ npm run dev
    当前后端只暴露 `/admin-api/asset/...`，正式联调前需要后端补一个 App-side controller，权限切换为登录用户校验（不用 `@PreAuthorize`，或换 `@PermitAll` + 内部 `getLoginUserId()`）。
 4. 用户必须先登录（token 走 `authRequest` 的现有流程）
 
+## 上传流程（与画布图片/视频节点一致）
+
+后端不再代理文件字节。`importAsset` 走两步：
+
+1. **`GET /infra/file/presigned-url?name={file.name}`** → `{ uploadUrl, url }`
+2. **`PUT {uploadUrl}`**（前端直传 OSS，body 是 `File`，`Content-Type` 用文件 mime）
+3. **`POST /app-api/asset/import`** body JSON：
+   ```json
+   {
+     "source": "local|jimeng|huaban",
+     "assetType": "image",
+     "imageUrl": "<step1.url>",
+     "sourceUrl": "<原页面URL，可选>",
+     "prompt": "<可选>",
+     "fileSize": 12345,
+     "width": 512, "height": 512,
+     "metadata": "<JSON 字符串，可选>"
+   }
+   ```
+   返回 `{ id, imageUrl, videoUrl, duplicated }`。
+
+Chrome 采集插件按相同顺序：先用前端拿到的 token 调 `/infra/file/presigned-url`、`PUT` 到 OSS，再调 `/asset/import`。
+
 ## 端到端验收场景（顶层 spec §7）
 
 1. **A** 即梦图+提示词：插件采集 → canvas 抽屉刷新 → 拖入 → ImageNode + TextNode（无连边）

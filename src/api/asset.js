@@ -1,5 +1,12 @@
 /**
  * Asset Library API | 资产库 API
+ *
+ * Upload pattern mirrors canvas image/video nodes (see ImageNode.vue):
+ *   1. getFilePresignedUrl(name) → { uploadUrl, url }
+ *   2. uploadFileToUrl(uploadUrl, file)  // PUT directly to OSS
+ *   3. importAsset({ ..., imageUrl: url }) // backend stores metadata only
+ *
+ * 上传流程参考画布图片/视频节点：先取预签名地址直传 OSS，再调用入库接口。
  */
 import { authRequest } from '@/utils/request'
 import { mockListPage, mockImport, mockDelete, mockUpdateTags } from '@/components/asset/_mock-data'
@@ -16,21 +23,19 @@ export const getAssetPage = (params = {}) => {
 }
 
 /**
- * Import an asset (used for local upload here; collector plugin uses same endpoint).
- * @param {Object} fields - { source, sourceUrl, assetType, prompt, metadata, videoUrl }
- * @param {File} imageFile - Image file
+ * Import an asset (metadata only — image must already be uploaded to OSS).
+ * 入库（图片字节请先通过 /infra/file/presigned-url 直传 OSS，本接口只存元数据）。
+ *
+ * @param {Object} fields - {
+ *   source, assetType, imageUrl,           // required
+ *   sourceUrl, prompt, videoUrl,           // optional
+ *   width, height, fileSize, contentHash,  // optional, frontend-precomputed
+ *   metadata                               // optional JSON string
+ * }
  */
-export const importAsset = (fields, imageFile) => {
-  if (USE_MOCK) {
-    return mockImport({ ...fields, imageUrl: URL.createObjectURL(imageFile) })
-  }
-  const fd = new FormData()
-  Object.entries(fields).forEach(([k, v]) => {
-    if (v !== undefined && v !== null) fd.append(k, v)
-  })
-  fd.append('image', imageFile)
-  // Note: do NOT set Content-Type header manually — axios sets it (with boundary) when body is FormData.
-  return authRequest.post('/asset/import', fd)
+export const importAsset = (fields) => {
+  if (USE_MOCK) return mockImport(fields)
+  return authRequest.post('/asset/import', fields)
 }
 
 /**

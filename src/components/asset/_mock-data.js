@@ -47,7 +47,7 @@ export function mockListPage({ pageNo = 1, pageSize = 20, source, assetType, key
   return Promise.resolve({ list: slice, total })
 }
 
-export function mockImport({ source, sourceUrl, assetType, prompt, imageUrl }) {
+export function mockImport({ source, sourceUrl, assetType, prompt, imageUrl, videoUrl } = {}) {
   const dup = MOCK_ASSETS.find(a => a.source === source && a.sourceUrl === sourceUrl && sourceUrl)
   if (dup) {
     return Promise.resolve({ id: dup.id, imageUrl: dup.imageUrl, videoUrl: dup.videoUrl, duplicated: true })
@@ -56,13 +56,13 @@ export function mockImport({ source, sourceUrl, assetType, prompt, imageUrl }) {
   const newAsset = {
     id, source, sourceUrl: sourceUrl || null, assetType: assetType || 'image',
     imageUrl: imageUrl || `https://picsum.photos/seed/upload${id}/512/512`,
-    videoUrl: null, prompt: prompt || null,
+    videoUrl: videoUrl || null, prompt: prompt || null,
     width: 512, height: 512, fileSize: 100000,
     metadata: null, tags: [],
     createTime: new Date().toISOString()
   }
   MOCK_ASSETS.unshift(newAsset)
-  return Promise.resolve({ id, imageUrl: newAsset.imageUrl, videoUrl: null, duplicated: false })
+  return Promise.resolve({ id, imageUrl: newAsset.imageUrl, videoUrl: newAsset.videoUrl, duplicated: false })
 }
 
 export function mockDelete(id) {
