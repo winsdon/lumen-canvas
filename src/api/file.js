@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+import { authRequest } from '@/utils/request'
 
 /**
  * Get file presigned URL for upload
@@ -7,7 +7,7 @@ import request from '@/utils/request'
  * @param {string} [directory] - Directory / 文件目录
  */
 export const getFilePresignedUrl = (name, directory) => {
-  return request({
+  return authRequest({
     url: '/infra/file/presigned-url',
     method: 'get',
     params: {
