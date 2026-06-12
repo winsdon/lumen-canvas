@@ -295,7 +295,7 @@ import { fetchUserInfo, userInfo as storeUserInfo } from '@/stores/user'
 import { DEFAULT_AVATAR_URL, SMS_SCENE } from '@/utils/constants'
 import { ArrowBackOutline, CameraOutline, CheckmarkOutline, CloseOutline, CreateOutline } from '@vicons/ionicons5'
 import { NIcon } from 'naive-ui'
-import { nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -342,6 +342,11 @@ const mobileForm = reactive({
 
 const mobileSmsCountdown = ref(0)
 const oldMobileSmsCountdown = ref(0)
+
+// SMS countdown timers — held so they can be cleared on unmount | 倒计时定时器引用，卸载时清理
+let passwordTimer = null
+let mobileTimer = null
+let oldMobileTimer = null
 
 // 返回上一页
 const goBack = () => {
@@ -518,11 +523,13 @@ const sendPasswordSmsCode = async () => {
 }
 
 const startPasswordCountdown = () => {
+  if (passwordTimer) clearInterval(passwordTimer)
   passwordSmsCountdown.value = 60
-  const timer = setInterval(() => {
+  passwordTimer = setInterval(() => {
     passwordSmsCountdown.value--
     if (passwordSmsCountdown.value <= 0) {
-      clearInterval(timer)
+      clearInterval(passwordTimer)
+      passwordTimer = null
     }
   }, 1000)
 }
@@ -588,11 +595,13 @@ const sendMobileSmsCode = async () => {
 }
 
 const startMobileCountdown = () => {
+  if (mobileTimer) clearInterval(mobileTimer)
   mobileSmsCountdown.value = 60
-  const timer = setInterval(() => {
+  mobileTimer = setInterval(() => {
     mobileSmsCountdown.value--
     if (mobileSmsCountdown.value <= 0) {
-      clearInterval(timer)
+      clearInterval(mobileTimer)
+      mobileTimer = null
     }
   }, 1000)
 }
@@ -614,11 +623,13 @@ const sendOldMobileSmsCode = async () => {
 }
 
 const startOldMobileCountdown = () => {
+  if (oldMobileTimer) clearInterval(oldMobileTimer)
   oldMobileSmsCountdown.value = 60
-  const timer = setInterval(() => {
+  oldMobileTimer = setInterval(() => {
     oldMobileSmsCountdown.value--
     if (oldMobileSmsCountdown.value <= 0) {
-      clearInterval(timer)
+      clearInterval(oldMobileTimer)
+      oldMobileTimer = null
     }
   }, 1000)
 }
@@ -666,6 +677,17 @@ const handleUpdateMobile = async () => {
 
 onMounted(() => {
   loadUserInfo()
+})
+
+// Clear all SMS countdown timers on unmount to avoid writing to unmounted refs
+// 卸载时清理所有短信倒计时定时器，避免向已卸载组件的 ref 写值
+onUnmounted(() => {
+  if (passwordTimer) clearInterval(passwordTimer)
+  if (mobileTimer) clearInterval(mobileTimer)
+  if (oldMobileTimer) clearInterval(oldMobileTimer)
+  passwordTimer = null
+  mobileTimer = null
+  oldMobileTimer = null
 })
 
 // 监听 store 中的用户信息变化

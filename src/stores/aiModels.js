@@ -13,6 +13,9 @@ export const isLoading = ref(false)
 // Initialized flags by type (use array for Vue reactivity) | 各类型的初始化标志（使用数组保证 Vue 响应式）
 export const initializedTypes = ref([])
 
+// In-flight fetch promises by type, for concurrent-call dedup | 各类型进行中的请求，用于并发去重
+const inFlight = new Map()
+
 /**
  * Fetch and cache models | 获取并缓存模型
  * type: 2 (Image Generation) based on convention
@@ -26,25 +29,32 @@ export const initializedTypes = ref([])
  * 6: RERANK (重排序)
  */
 export const fetchModels = async (type = 2) => {
-  // If already initialized for this type, skip
+  // If already initialized for this type, skip | 已初始化则跳过
   if (initializedTypes.value.includes(type)) return
-  
-  // We don't block by global isLoading because we might want parallel fetches for different types.
-  // Ideally we should have per-type loading state, but for simplicity:
-  
-  try {
-    const res = await getAiModelList({ type, status: 1 })
-    if (res) {
-      // Store by type
-      aiModels.value = {
-        ...aiModels.value,
-        [type]: res
+
+  // Dedup concurrent callers: reuse the in-flight promise | 并发去重：复用进行中的请求
+  if (inFlight.has(type)) return inFlight.get(type)
+
+  const promise = (async () => {
+    try {
+      const res = await getAiModelList({ type, status: 1 })
+      if (res) {
+        // Store by type | 按类型存储
+        aiModels.value = {
+          ...aiModels.value,
+          [type]: res
+        }
+        initializedTypes.value = [...initializedTypes.value, type]
       }
-      initializedTypes.value = [...initializedTypes.value, type]
+    } catch (error) {
+      console.error(`Failed to fetch AI models (type ${type}):`, error)
+    } finally {
+      inFlight.delete(type)
     }
-  } catch (error) {
-    console.error(`Failed to fetch AI models (type ${type}):`, error)
-  }
+  })()
+
+  inFlight.set(type, promise)
+  return promise
 }
 
 /**

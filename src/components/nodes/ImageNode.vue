@@ -9,7 +9,7 @@
     <div
       class="image-node bg-[var(--bg-secondary)] rounded-xl border min-w-[200px] max-w-[280px] relative transition-all duration-200"
       :class="
-        data.selected
+        selected
           ? 'border-1 border-blue-500 shadow-lg shadow-blue-500/20'
           : 'border border-[var(--border-color)]'
       "
@@ -383,7 +383,10 @@ import { DEFAULT_IMAGE_MODEL, DEFAULT_IMAGE_SIZE } from "../../stores/models";
 
 const props = defineProps({
   id: String,
-  data: Object,
+  data: {
+    type: Object,
+    default: () => ({}),
+  },
   type: String,
   selected: Boolean,
   position: Object,

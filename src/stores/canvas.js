@@ -2,8 +2,8 @@
  * Canvas store | 画布状态管理
  * Manages nodes, edges and canvas state
  */
-import { ref, watch } from 'vue'
-import { getProjectCanvas, updateProjectCanvas } from './projects'
+import { nextTick, ref, watch } from 'vue'
+import { currentProjectId, getProjectCanvas, updateProjectCanvas } from './projects'
 
 // Node ID counter | 节点ID计数器
 let nodeId = 0
@@ -12,8 +12,22 @@ const getNodeId = () => `node_${nodeId++}`
 let edgeId = 0
 const getEdgeId = () => `edge_${edgeId++}`
 
-// Current project ID | 当前项目ID
-export const currentProjectId = ref(null)
+// Deep clone helper: prefer structuredClone, fallback to JSON | 深拷贝工具：优先 structuredClone，回退 JSON
+const deepClone = (value) => {
+  if (value == null) return value
+  if (typeof structuredClone === 'function') {
+    try {
+      return structuredClone(value)
+    } catch {
+      // Fall through to JSON clone for non-cloneable values | 不可克隆值回退 JSON
+    }
+  }
+  return JSON.parse(JSON.stringify(value))
+}
+
+// Current project ID — single source of truth lives in projects store | 当前项目ID（单一来源在 projects store）
+// Re-export so existing canvas-store consumers keep working | 重新导出以兼容现有引用
+export { currentProjectId }
 
 // Nodes and edges | 节点和边
 export const nodes = ref([])
@@ -61,6 +75,9 @@ export const selectedNode = ref(null)
 // Auto-save flag | 自动保存标志
 let autoSaveEnabled = false
 let saveTimeout = null
+
+// Load sequence token: guards against rapid project switching races | 加载序号：防止快速切换项目的竞态
+let loadToken = 0
 
 // History for undo/redo | 撤销/重做历史
 const history = ref([])
@@ -244,7 +261,7 @@ export const duplicateNode = (id) => {
       x: sourceNode.position.x + 50,
       y: sourceNode.position.y + 50
     },
-    data: { ...sourceNode.data },
+    data: deepClone(sourceNode.data),
     zIndex: maxZIndex + 1
   }
   nodes.value = [...nodes.value, newNode]
@@ -652,12 +669,19 @@ export const initSampleData = () => {
  * @param {string} projectId - Project ID | 项目ID
  */
 export const loadProject = async (projectId) => {
+  // Bump token; only the latest load may mutate canvas / enable autosave
+  // 自增 token；仅最新一次加载可写入画布 / 开启自动保存
+  const token = ++loadToken
   autoSaveEnabled = false
   isRestoring = true
   currentProjectId.value = projectId
-  
+
   const canvasData = await getProjectCanvas(projectId)
-  
+
+  // A newer load started while awaiting — discard this stale response
+  // await 期间有更新的加载启动 —— 丢弃本次过期响应
+  if (token !== loadToken) return
+
   if (canvasData) {
     // Restore nodes | 恢复节点
     nodes.value = canvasData.nodes || []
@@ -666,7 +690,7 @@ export const loadProject = async (projectId) => {
       type: edge?.type || 'deletable'
     }))
     canvasViewport.value = canvasData.viewport || { x: 100, y: 50, zoom: 0.8 }
-    
+
     // Update node ID counter | 更新节点ID计数器
     const maxId = nodes.value.reduce((max, node) => {
       const match = node.id.match(/node_(\d+)/)
@@ -689,19 +713,25 @@ export const loadProject = async (projectId) => {
     // Empty project | 空项目
     clearCanvas()
   }
-  
+
   // Initialize history with current state | 用当前状态初始化历史
   history.value = [{
     nodes: JSON.parse(JSON.stringify(nodes.value)),
     edges: JSON.parse(JSON.stringify(edges.value))
   }]
   historyIndex.value = 0
-  
-  // Enable auto-save after loading | 加载后启用自动保存
-  setTimeout(() => {
-    autoSaveEnabled = true
-    isRestoring = false
-  }, 100)
+
+  // Enable auto-save AFTER the restore mutations' watcher has flushed.
+  // 在恢复赋值触发的 watcher flush 之后再开启自动保存。
+  // Re-assigning nodes/edges above queues the [nodes, edges] watcher; waiting a
+  // tick lets that flush run while autoSaveEnabled is still false, so the freshly
+  // loaded data is NOT persisted back redundantly. The token guard keeps it race-free.
+  // 上面的赋值已排队 watcher；等待一个 tick 让其在 autoSaveEnabled 仍为 false 时 flush，
+  // 从而避免把刚加载的数据冗余写回。token 守卫保证无竞态。
+  await nextTick()
+  if (token !== loadToken) return
+  autoSaveEnabled = true
+  isRestoring = false
 }
 
 /**
@@ -793,9 +823,12 @@ const restoreState = (state) => {
   isRestoring = true
   nodes.value = JSON.parse(JSON.stringify(state.nodes))
   edges.value = JSON.parse(JSON.stringify(state.edges))
-  setTimeout(() => {
+  // Clear the flag AFTER the restore mutations' watcher flushes, not on a fixed
+  // timer — rapid undo/redo no longer races interleaved timeouts.
+  // 在恢复赋值触发的 watcher flush 之后清除标志，而非固定定时器 —— 快速 undo/redo 不再有定时器交错竞态。
+  nextTick(() => {
     isRestoring = false
-  }, 100)
+  })
 }
 
 /**

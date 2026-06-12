@@ -57,38 +57,50 @@ export const streamChatCompletions = async function* (data, signal) {
   const decoder = new TextDecoder()
   let buffer = ''
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
 
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    // Keep the last incomplete line in buffer
-    buffer = lines.pop() || ''
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      // Keep the last incomplete line in buffer
+      buffer = lines.pop() || ''
 
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed || !trimmed.startsWith('data:')) continue
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || !trimmed.startsWith('data:')) continue
 
-      const dataStr = trimmed.slice(5).trim()
-      if (!dataStr) continue
+        const dataStr = trimmed.slice(5).trim()
+        if (!dataStr) continue
 
-      try {
-        const parsed = JSON.parse(dataStr)
-        if (parsed.code === 0 && parsed.data) {
-          yield parsed.data
-        } else if (parsed.code && parsed.code !== 0) {
-          const msg = parsed?.msg || parsed?.error?.message || parsed?.message || '文本生成异常'
-          const streamError = new Error(msg)
-          streamError.__handled = true
-          window.$message?.error(msg)
-          throw streamError
-        }
-      } catch (e) {
-        if (e?.message) {
-          throw e
+        try {
+          const parsed = JSON.parse(dataStr)
+          if (parsed.code === 0 && parsed.data) {
+            yield parsed.data
+          } else if (parsed.code && parsed.code !== 0) {
+            const msg = parsed?.msg || parsed?.error?.message || parsed?.message || '文本生成异常'
+            const streamError = new Error(msg)
+            streamError.__handled = true
+            window.$message?.error(msg)
+            throw streamError
+          }
+        } catch (e) {
+          // Only re-throw deliberate stream errors; ignore non-JSON keep-alive/comment lines
+          // 仅重抛主动构造的流错误；忽略非 JSON 的心跳/注释行
+          if (e?.__handled) {
+            throw e
+          }
         }
       }
+    }
+  } finally {
+    // Release the reader so the HTTP body connection is freed on early exit
+    // 释放 reader，避免消费方提前退出时连接泄漏
+    try {
+      await reader.cancel()
+    } catch {
+      // ignore
     }
   }
 }

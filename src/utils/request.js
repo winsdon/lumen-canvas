@@ -95,43 +95,55 @@ let isRefreshing = false
 let refreshSubscribers = []
 
 const onRefreshed = (token) => {
-  refreshSubscribers.forEach(callback => callback(token))
+  refreshSubscribers.forEach(({ resolve }) => resolve(token))
   refreshSubscribers = []
 }
 
-const addRefreshSubscriber = (callback) => {
-  refreshSubscribers.push(callback)
+// Reject all queued requests when refresh fails | 刷新失败时拒绝所有排队请求
+const onRefreshFailed = (error) => {
+  refreshSubscribers.forEach(({ reject }) => reject(error))
+  refreshSubscribers = []
+}
+
+const addRefreshSubscriber = (resolve, reject) => {
+  refreshSubscribers.push({ resolve, reject })
 }
 
 const handle401Error = async (config) => {
   if (!config._retry) {
     if (isRefreshing) {
-      return new Promise((resolve) => {
-        addRefreshSubscriber((token) => {
-          config.headers['Authorization'] = `Bearer ${token}`
-          resolve(authInstance(config))
-        })
+      return new Promise((resolve, reject) => {
+        addRefreshSubscriber(
+          (token) => {
+            config._retry = true
+            config.headers['Authorization'] = `Bearer ${token}`
+            resolve(authInstance(config))
+          },
+          reject
+        )
       })
     }
-    
+
     config._retry = true
     isRefreshing = true
-    
+
     try {
       const refreshTokenValue = getRefreshToken()
       if (!refreshTokenValue) {
         throw new Error('No refresh token')
       }
-      
+
       const res = await axios.post(
         `${AUTH_BASE_URL}/member/auth/refresh-token`,
-        null,
+        { refreshToken: refreshTokenValue },
         {
-          params: { refreshToken: refreshTokenValue },
-          headers: { 'tenant-id': TENANT_ID }
+          headers: {
+            'tenant-id': TENANT_ID,
+            'Content-Type': 'application/json'
+          }
         }
       )
-      
+
       if (res.data?.code === 0) {
         const { accessToken, refreshToken, expiresTime } = res.data.data
         setTokens({ accessToken, refreshToken, expiresTime })
@@ -139,9 +151,11 @@ const handle401Error = async (config) => {
         config.headers['Authorization'] = `Bearer ${accessToken}`
         return authInstance(config)
       }
-      
+
       throw new Error('Refresh token failed')
     } catch (refreshError) {
+      // Reject all queued requests so callers stop hanging | 拒绝所有排队请求，避免调用方无限挂起
+      onRefreshFailed(refreshError)
       window.$handleSessionExpire?.()
       return Promise.reject(refreshError)
     } finally {

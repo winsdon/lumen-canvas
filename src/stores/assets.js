@@ -28,6 +28,10 @@ export const filters = reactive({
   tag: null
 })
 
+// Request sequence token: bumped on reload so an in-flight loadMore can be discarded
+// 请求序号 token：reload 时自增，使进行中的 loadMore 响应作废
+let requestToken = 0
+
 /** Build a filters object with empty/null values pruned. */
 const prunedFilters = () => {
   const out = {}
@@ -43,6 +47,7 @@ const prunedFilters = () => {
  */
 export const loadMore = async () => {
   if (loading.value || !hasMore.value) return
+  const token = requestToken
   loading.value = true
   try {
     const result = await getAssetPage({
@@ -50,6 +55,9 @@ export const loadMore = async () => {
       pageSize: PAGE_SIZE,
       ...prunedFilters()
     })
+    // A reload happened during the request — discard this stale response
+    // 请求期间发生了 reload —— 丢弃过期响应
+    if (token !== requestToken) return
     const newItems = result?.list || []
     list.value = [...list.value, ...newItems]
     total.value = result?.total ?? list.value.length
@@ -57,21 +65,27 @@ export const loadMore = async () => {
     page.value += 1
   } catch (error) {
     console.error('[assets] loadMore failed:', error)
-    throw error
+    if (token === requestToken) throw error
   } finally {
-    loading.value = false
+    // Only clear loading if this request still owns the token
+    // 仅当本请求仍持有 token 时才清除 loading
+    if (token === requestToken) loading.value = false
   }
 }
 
 /**
  * Reset list and reload from page 1 with current filters.
- * 重置并从第一页重新加载
+ * 重置并从第一页重新加载。自增 token 使任何进行中的 loadMore 作废。
  */
 export const reload = async () => {
+  requestToken += 1
   list.value = []
   page.value = 1
   hasMore.value = true
   total.value = 0
+  // Force-clear loading so the stale in-flight request can't block this reload
+  // 强制清除 loading，避免进行中的过期请求阻塞本次 reload
+  loading.value = false
   await loadMore()
 }
 

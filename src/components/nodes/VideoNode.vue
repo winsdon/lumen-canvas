@@ -9,7 +9,7 @@
     <div
       class="video-node bg-[var(--bg-secondary)] rounded-xl border min-w-[300px] max-w-[500px] relative transition-all duration-200"
       :class="
-        data.selected
+        selected
           ? 'border-1 border-blue-500 shadow-lg shadow-blue-500/20'
           : 'border border-[var(--border-color)]'
       "
@@ -228,7 +228,11 @@ import { getFilePresignedUrl, uploadFileToUrl } from "@/api";
 
 const props = defineProps({
   id: String,
-  data: Object,
+  data: {
+    type: Object,
+    default: () => ({}),
+  },
+  selected: Boolean,
 });
 
 const { updateNodeInternals } = useVueFlow();

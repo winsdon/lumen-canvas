@@ -345,8 +345,8 @@
           </div>
 
           <div class="flex items-center gap-3">
-            <div v-if="currentModelPoints" class="text-sm text-[var(--accent-color)] font-medium px-1.5 py-0.5 rounded">
-              {{ currentModelPoints }} 积分
+            <div v-if="currentModelPoints !== undefined && currentModelPoints !== null" class="text-sm text-[var(--accent-color)] font-medium px-1.5 py-0.5 rounded">
+              {{ currentModelPoints > 0 ? currentModelPoints + ' 积分' : '免费' }}
             </div>
             <button
               @click="handleGenerate"
@@ -1139,6 +1139,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
+  if (hideTimer) clearTimeout(hideTimer)
 })
 
 watch(

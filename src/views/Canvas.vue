@@ -331,7 +331,7 @@ const router = useRouter()
 const route = useRoute()
 
 // Vue Flow instance | Vue Flow 实例
-const { viewport, zoomIn, zoomOut, fitView, updateNodeInternals, project, removeSelectedElements, findNode, updateNode: updateFlowNode } = useVueFlow()
+const { viewport, zoomIn, zoomOut, fitView, updateNodeInternals, screenToFlowCoordinate, removeSelectedElements, findNode, updateNode: updateFlowNode } = useVueFlow()
 
 // Register custom node types | 注册自定义节点类型
 const nodeTypes = {
@@ -399,7 +399,7 @@ const onPaneDblClick = (e) => {
   menuPosition.value = { x: event.clientX, y: event.clientY }
 
   // Store target node position (converted to canvas coordinates) | 存储目标节点位置（转换为画布坐标）
-  targetNodePosition.value = project({ x: event.clientX, y: event.clientY })
+  targetNodePosition.value = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
 
   showNodeMenu.value = true
 }
@@ -549,8 +549,9 @@ function onAssetDrop(e) {
     console.warn('Invalid asset payload', raw)
     return
   }
-  // Convert screen coords to flow coords using vue-flow's `project`.
-  const pos = project({ x: e.clientX, y: e.clientY })
+  // Convert screen coords to flow coords using vue-flow's `screenToFlowCoordinate`.
+  // 用 vue-flow 的 screenToFlowCoordinate 把屏幕坐标转为画布坐标（已扣除画布容器偏移）。
+  const pos = screenToFlowCoordinate({ x: e.clientX, y: e.clientY })
 
   if (payload.assetType === 'video') {
     addNode('video', pos, {
@@ -863,7 +864,7 @@ const onConnectEnd = (payload) => {
   const safeY = Math.min(event.clientY, window.innerHeight - 360)
   connectMenuPosition.value = { x: Math.max(8, safeX), y: Math.max(8, safeY) }
 
-  const position = project({ x: event.clientX, y: event.clientY })
+  const position = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
   const placeholderNodeId = addNode('connectPlaceholder', position)
 
   const direction = start.handleType === 'target' ? 'reverse' : 'forward'

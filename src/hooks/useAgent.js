@@ -54,12 +54,15 @@ export function useAgent() {
     if (abortController) {
       abortController.abort()
     }
-    abortController = new AbortController()
+    // Capture controller locally so a later send/abort can't corrupt this run's cleanup
+    // 捕获局部 controller，避免后续 send/abort 干扰本次请求的状态清理
+    const localController = new AbortController()
+    abortController = localController
 
     try {
       let textBuffer = ''
 
-      for await (const { event, data } of streamAgentChat(content, abortController.signal)) {
+      for await (const { event, data } of streamAgentChat(content, localController.signal)) {
         switch (event) {
           case 'text':
             // Accumulate text deltas | 累积文本增量
@@ -187,9 +190,13 @@ export function useAgent() {
         window.$message?.error(err.message || '请求失败')
       }
     } finally {
-      loading.value = false
-      currentResponse.value = ''
-      abortController = null
+      // Only clear shared state if this run still owns the controller
+      // 仅当本次请求仍持有 controller 时才清理共享状态，避免覆盖新请求
+      if (abortController === localController) {
+        loading.value = false
+        currentResponse.value = ''
+        abortController = null
+      }
     }
   }
 
@@ -229,6 +236,9 @@ export function useAgent() {
    * @param {number} assistantMsgId - The id of the assistant message to regenerate
    */
   const regenerate = (assistantMsgId) => {
+    // Guard: don't destroy messages while a stream is active — send() would no-op
+    // 守卫：流式进行中不要销毁消息，否则 send() 会被 loading 守卫静默跳过导致消息丢失
+    if (loading.value) return
     const msgIndex = messages.value.findIndex(m => m.id === assistantMsgId)
     if (msgIndex === -1) return
 

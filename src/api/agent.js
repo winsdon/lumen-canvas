@@ -50,42 +50,54 @@ export const streamAgentChat = async function* (content, signal) {
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  // Track SSE event type across chunk boundaries | 跨 chunk 边界保留事件类型
+  // 必须在 while 外声明：一帧可能被拆分到多个 chunk，event 行与 data 行分属不同读取
+  let currentEvent = 'message'
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
 
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    // Keep the last incomplete line in buffer | 保留最后一行不完整的数据
-    buffer = lines.pop() || ''
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      // Keep the last incomplete line in buffer | 保留最后一行不完整的数据
+      buffer = lines.pop() || ''
 
-    let currentEvent = 'message'
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
+      for (const line of lines) {
+        const trimmed = line.trim()
+        // 空行是 SSE 帧分隔符：一帧结束后重置事件类型 | Empty line ends an SSE frame
+        if (!trimmed) {
+          currentEvent = 'message'
+          continue
+        }
 
-      // Parse SSE event type | 解析 SSE 事件类型
-      if (trimmed.startsWith('event:')) {
-        currentEvent = trimmed.slice(6).trim()
-        continue
+        // Parse SSE event type | 解析 SSE 事件类型
+        if (trimmed.startsWith('event:')) {
+          currentEvent = trimmed.slice(6).trim()
+          continue
+        }
+
+        if (!trimmed.startsWith('data:')) continue
+
+        const dataStr = trimmed.slice(5).trim()
+        if (!dataStr) continue
+
+        try {
+          const parsed = JSON.parse(dataStr)
+          yield { event: currentEvent, data: parsed }
+        } catch {
+          // Non-JSON data, yield as raw text | 非 JSON 数据，原样返回
+          yield { event: currentEvent, data: { content: dataStr } }
+        }
       }
-
-      if (!trimmed.startsWith('data:')) continue
-
-      const dataStr = trimmed.slice(5).trim()
-      if (!dataStr) continue
-
-      try {
-        const parsed = JSON.parse(dataStr)
-        yield { event: currentEvent, data: parsed }
-      } catch {
-        // Non-JSON data, yield as raw text | 非 JSON 数据，原样返回
-        yield { event: currentEvent, data: { content: dataStr } }
-      }
-
-      // Reset event type after yielding | 返回后重置事件类型
-      currentEvent = 'message'
+    }
+  } finally {
+    // Release the reader / cancel the body on early exit | 提前退出时释放 reader、取消响应体
+    try {
+      await reader.cancel()
+    } catch {
+      // ignore | 忽略取消异常
     }
   }
 }

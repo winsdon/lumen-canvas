@@ -10,7 +10,7 @@
 
 import { streamChatCompletions } from '@/api'
 import { DEFAULT_CHAT_MODEL } from '@/config/models'
-import { fetchModels, getModelId } from '@/stores/aiModels'
+import { aiModels, fetchModels, getModelId } from '@/stores/aiModels'
 import {
     addEdge,
     addNode,

@@ -121,8 +121,17 @@ export const updateProjectCanvas = async (id, canvasData) => {
     })
     
     if (project) {
-        project.thumbnail = thumbnail
-        project.updatedAt = new Date()
+      // Immutable update: rebuild the array element instead of mutating in place
+      // 不可变更新：重建数组元素而非原地修改
+      const index = projects.value.findIndex(p => p.id === id)
+      if (index !== -1) {
+        const updated = {
+          ...projects.value[index],
+          thumbnail,
+          updatedAt: new Date()
+        }
+        projects.value = projects.value.map((p, i) => (i === index ? updated : p))
+      }
     }
     return true
   } catch (err) {

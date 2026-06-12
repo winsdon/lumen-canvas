@@ -32,9 +32,7 @@ export const getWechatAuthUrl = (redirectUri) => {
 }
 
 export const refreshToken = (refreshTokenValue) => {
-  return authRequest.post('/member/auth/refresh-token', null, {
-    params: { refreshToken: refreshTokenValue }
-  })
+  return authRequest.post('/member/auth/refresh-token', { refreshToken: refreshTokenValue })
 }
 
 export const logout = () => {

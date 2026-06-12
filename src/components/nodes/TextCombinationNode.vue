@@ -439,6 +439,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
+  if (hideTimer) clearTimeout(hideTimer)
 })
 
 </script>
