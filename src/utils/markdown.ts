@@ -3,25 +3,31 @@
  * Uses marked for parsing and DOMPurify for XSS prevention
  */
 
-import { marked } from 'marked'
+import { marked, type RendererObject, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
 
 /**
  * Escape string for safe HTML attribute insertion | 转义字符串用于安全的 HTML 属性插入
  */
-const escapeAttr = (s) => (s || '').replace(/[&"'<>]/g, c =>
-  ({ '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' }[c])
-)
+const ESCAPE_MAP: Record<string, string> = {
+  '&': '&amp;',
+  '"': '&quot;',
+  "'": '&#39;',
+  '<': '&lt;',
+  '>': '&gt;'
+}
+const escapeAttr = (s: string | null | undefined): string =>
+  (s || '').replace(/[&"'<>]/g, (c) => ESCAPE_MAP[c] ?? c)
 
 // Custom renderer: open links in new tab, wrap images with add-to-canvas overlay
 // 自定义渲染器：链接在新标签页打开，图片包装添加到画布覆盖层
-const renderer = {
-  link({ href, title, text }) {
+const renderer: RendererObject = {
+  link({ href, title, text }: Tokens.Link) {
     const titleAttr = title ? ` title="${title}"` : ''
     return `<a href="${href}"${titleAttr} target="_blank" rel="noopener">${text}</a>`
   },
 
-  image({ href, text }) {
+  image({ href, text }: Tokens.Image) {
     // Wrap all images with add-to-canvas overlay | 包装图片，添加到画布覆盖层
     const alt = text || ''
     return `<div class="md-image-wrapper" data-image-url="${escapeAttr(href)}" data-prompt="${escapeAttr(alt)}"><img src="${escapeAttr(href)}" alt="${escapeAttr(alt)}" loading="lazy" /><div class="md-image-overlay"><span class="md-prompt-text">${escapeAttr(alt)}</span><span role="button" tabindex="0" class="add-to-canvas-btn" data-action="add-to-canvas">➕ 添加到画布</span></div></div>`
@@ -46,8 +52,9 @@ const PURIFY_CONFIG = {
  * @param {string} text - Raw markdown text
  * @returns {string} Sanitized HTML string
  */
-export const renderMarkdown = (text) => {
+export const renderMarkdown = (text: string | null | undefined): string => {
   if (!text) return ''
-  const html = marked.parse(text)
+  // async:false guarantees a synchronous string | async:false 保证同步返回 string
+  const html = marked.parse(text) as string
   return DOMPurify.sanitize(html, PURIFY_CONFIG)
 }

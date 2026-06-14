@@ -3,7 +3,125 @@
  * Manages nodes, edges and canvas state
  */
 import { nextTick, ref, watch } from 'vue'
+import type { Ref } from 'vue'
+import type { CanvasData, NodeType, Viewport } from '@/types/node'
 import { currentProjectId, getProjectCanvas, updateProjectCanvas } from './projects'
+
+// Reference image attached to combination nodes | 组合节点携带的参考图
+interface FlowReferenceImage {
+  url?: string
+  base64?: string
+  sourceNodeId?: string
+  fileName?: string | null
+  [key: string]: unknown
+}
+
+// Node data bag: superset of all node-type data shapes plus orchestrator runtime fields.
+// All optional + index signature because getDefaultNodeData returns partial shapes and
+// the store mutates data dynamically. | 节点 data 集合：所有节点类型 data 的超集，外加编排运行时字段。
+interface FlowNodeData {
+  label?: string
+  content?: string
+  url?: string
+  base64?: string
+  fileName?: string | null
+  createdAt?: number
+  updatedAt?: number
+  autoExecute?: boolean
+  loading?: boolean
+  error?: string | null
+  // image/video config | 图片/视频配置
+  prompt?: string
+  model?: string
+  size?: string
+  ratio?: string
+  quality?: string
+  resolution?: string
+  dur?: number
+  duration?: number
+  n?: number
+  thumbnail?: string
+  // textToVideo / textToImage | 组合节点
+  inputMode?: 'frame' | 'reference'
+  firstFrameUrl?: string | null
+  lastFrameUrl?: string | null
+  firstFrameSourceNodeId?: string | null
+  lastFrameSourceNodeId?: string | null
+  referenceImages?: FlowReferenceImage[]
+  referenceImageUrl?: string | null
+  referenceImageFileName?: string | null
+  referenceImageFileType?: string | null
+  // enhance | 图片增强
+  sourceImageUrl?: string
+  sourceImageId?: string
+  enhanceType?: string
+  upscaleModel?: string
+  upscaleStyle?: string
+  upscaleScale?: number
+  skinMode?: string
+  skinIntensity?: number
+  resultUrl?: string
+  // group / draft | 分组与草稿
+  isDraft?: boolean
+  draftId?: string
+  draftIndex?: number
+  // orchestrator runtime | 编排运行时
+  executed?: boolean
+  outputNodeId?: string
+  isCharacterRef?: boolean
+  [key: string]: unknown
+}
+
+// Canvas node: persisted CanvasNode fields plus Vue Flow runtime-only fields
+// (computedPosition/dimensions/selected/...). | 画布节点：持久化字段 + Vue Flow 运行时字段
+interface FlowNode {
+  id: string
+  type: NodeType | string
+  position: { x: number; y: number }
+  data: FlowNodeData
+  parentNode?: string
+  zIndex?: number
+  style?: Record<string, string>
+  width?: number
+  height?: number
+  selected?: boolean
+  extent?: unknown
+  positionAbsolute?: { x: number; y: number }
+  computedPosition?: { x: number; y: number }
+  dimensions?: { width?: number; height?: number }
+}
+
+// Canvas edge | 画布连线
+interface FlowEdge {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string
+  targetHandle?: string
+  type?: string
+  data?: Record<string, unknown>
+}
+
+// Draft template node/edge passed by the agent | 智能体传入的草稿模板节点/连线
+interface DraftTemplateNode {
+  type: NodeType | string
+  offset: { x: number; y: number }
+  data?: FlowNodeData
+}
+interface DraftTemplateEdge {
+  source: number
+  target: number
+  sourceHandle?: string
+  targetHandle?: string
+  type?: string
+  data?: Record<string, unknown>
+}
+
+// History snapshot | 历史快照
+interface HistoryState {
+  nodes: FlowNode[]
+  edges: FlowEdge[]
+}
 
 // Node ID counter | 节点ID计数器
 let nodeId = 0
@@ -13,7 +131,7 @@ let edgeId = 0
 const getEdgeId = () => `edge_${edgeId++}`
 
 // Deep clone helper: prefer structuredClone, fallback to JSON | 深拷贝工具：优先 structuredClone，回退 JSON
-const deepClone = (value) => {
+const deepClone = <T>(value: T): T => {
   if (value == null) return value
   if (typeof structuredClone === 'function') {
     try {
@@ -30,15 +148,15 @@ const deepClone = (value) => {
 export { currentProjectId }
 
 // Nodes and edges | 节点和边
-export const nodes = ref([])
-export const edges = ref([])
+export const nodes: Ref<FlowNode[]> = ref([])
+export const edges: Ref<FlowEdge[]> = ref([])
 
 // Draft workflow state | 草稿工作流状态
-export const currentDraftId = ref(null)
+export const currentDraftId = ref<string | null>(null)
 
 let isPropagating = false
 
-const propagateReferenceToTarget = (sourceNodeId, targetNodeId) => {
+const propagateReferenceToTarget = (sourceNodeId: string, targetNodeId: string) => {
   const sourceNode = nodes.value.find(n => n.id === sourceNodeId)
   const targetNode = nodes.value.find(n => n.id === targetNodeId)
   if (!sourceNode || !targetNode) return
@@ -70,17 +188,17 @@ const propagateReferenceToTarget = (sourceNodeId, targetNodeId) => {
 export const canvasViewport = ref({ x: 100, y: 50, zoom: 0.8 })
 
 // Selected node | 选中的节点
-export const selectedNode = ref(null)
+export const selectedNode = ref<FlowNode | null>(null)
 
 // Auto-save flag | 自动保存标志
 let autoSaveEnabled = false
-let saveTimeout = null
+let saveTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Load sequence token: guards against rapid project switching races | 加载序号：防止快速切换项目的竞态
 let loadToken = 0
 
 // History for undo/redo | 撤销/重做历史
-const history = ref([])
+const history: Ref<HistoryState[]> = ref([])
 const historyIndex = ref(-1)
 const MAX_HISTORY = 50
 let isRestoring = false
@@ -113,10 +231,14 @@ const saveToHistory = () => {
 }
 
 // Add a new node | 添加新节点
-export const addNode = (type, position = { x: 100, y: 100 }, data = {}) => {
+export const addNode = (
+  type: NodeType | string,
+  position: { x: number; y: number } = { x: 100, y: 100 },
+  data: FlowNodeData = {}
+): string => {
   const id = getNodeId()
   const now = Date.now()
-  const newNode = {
+  const newNode: FlowNode = {
     id,
     type,
     position,
@@ -133,7 +255,7 @@ export const addNode = (type, position = { x: 100, y: 100 }, data = {}) => {
 }
 
 // Get default data for node type | 获取节点类型的默认数据
-const getDefaultNodeData = (type) => {
+const getDefaultNodeData = (type: NodeType | string): FlowNodeData => {
   switch (type) {
     case 'text':
       return {
@@ -221,7 +343,7 @@ const getDefaultNodeData = (type) => {
 }
 
 // Update node data | 更新节点数据
-export const updateNode = (id, data) => {
+export const updateNode = (id: string, data: FlowNodeData) => {
   nodes.value = nodes.value.map(node => 
     node.id === id ? { ...node, data: { ...node.data, ...data } } : node
   )
@@ -238,23 +360,23 @@ export const updateNode = (id, data) => {
 }
 
 // Remove node | 删除节点
-export const removeNode = (id) => {
+export const removeNode = (id: string) => {
   nodes.value = nodes.value.filter(node => node.id !== id)
   edges.value = edges.value.filter(edge => edge.source !== id && edge.target !== id)
   saveToHistory() // Save after removing node | 删除节点后保存
 }
 
 // Duplicate node | 复制节点
-export const duplicateNode = (id) => {
+export const duplicateNode = (id: string) => {
   const sourceNode = nodes.value.find(node => node.id === id)
   if (!sourceNode) return null
-  
+
   const newId = getNodeId()
-  
+
   // Calculate max z-index | 计算最大层级
   const maxZIndex = Math.max(0, ...nodes.value.map(n => n.zIndex || 0))
-  
-  const newNode = {
+
+  const newNode: FlowNode = {
     id: newId,
     type: sourceNode.type,
     position: {
@@ -270,7 +392,7 @@ export const duplicateNode = (id) => {
 }
 
 // Add edge | 添加边
-const getUniqueEdgeId = (baseId) => {
+const getUniqueEdgeId = (baseId: string): string => {
   if (!edges.value.some(edge => edge.id === baseId)) return baseId
   let nextId = baseId
   while (edges.value.some(edge => edge.id === nextId)) {
@@ -279,9 +401,9 @@ const getUniqueEdgeId = (baseId) => {
   return nextId
 }
 
-export const addEdge = (params) => {
+export const addEdge = (params: Partial<FlowEdge> & { source: string; target: string }) => {
   const baseId = params?.id || getEdgeId()
-  const newEdge = {
+  const newEdge: FlowEdge = {
     ...params,
     id: getUniqueEdgeId(baseId)
   }
@@ -293,7 +415,7 @@ export const addEdge = (params) => {
 }
 
 // Update edge data | 更新边数据
-export const updateEdge = (id, data) => {
+export const updateEdge = (id: string, data: Record<string, unknown>) => {
   edges.value = edges.value.map(edge => 
     edge.id === id ? { ...edge, data: { ...edge.data, ...data } } : edge
   )
@@ -301,7 +423,7 @@ export const updateEdge = (id, data) => {
 }
 
 // Remove edge | 删除边
-export const removeEdge = (id) => {
+export const removeEdge = (id: string) => {
   const removed = edges.value.find(edge => edge.id === id)
   edges.value = edges.value.filter(edge => edge.id !== id)
   if (removed) {
@@ -309,7 +431,7 @@ export const removeEdge = (id) => {
     const sourceId = removed.source
     const targetNode = nodes.value.find(node => node.id === targetId)
     if (targetNode?.type === 'textToImage') {
-      const updates = {}
+      const updates: FlowNodeData = {}
       const current = Array.isArray(targetNode.data?.referenceImages) ? targetNode.data.referenceImages : []
       const filtered = current.filter(img => img?.sourceNodeId !== sourceId)
       if (filtered.length !== current.length) {
@@ -331,7 +453,7 @@ export const removeEdge = (id) => {
       }
     }
     if (targetNode?.type === 'textToVideo') {
-      const updates = {}
+      const updates: FlowNodeData = {}
       if (targetNode.data?.firstFrameSourceNodeId === sourceId) {
         updates.firstFrameUrl = null
         updates.firstFrameSourceNodeId = null
@@ -372,7 +494,12 @@ export const clearCanvas = () => {
 }
 
 // Draft workflow management | 草稿工作流管理
-export const addDraft = (draftId, label, draftNodes, draftEdges) => {
+export const addDraft = (
+  draftId: string,
+  label: string,
+  draftNodes: DraftTemplateNode[],
+  draftEdges: DraftTemplateEdge[]
+): string => {
   // Clear existing draft | 清理已有草稿
   if (currentDraftId.value) {
     cancelDraft(currentDraftId.value)
@@ -385,7 +512,7 @@ export const addDraft = (draftId, label, draftNodes, draftEdges) => {
 
   // Create group node as draft | 创建草稿分组节点
   const groupId = getNodeId()
-  const groupNode = {
+  const groupNode: FlowNode = {
     id: groupId,
     type: 'group',
     position: { x: centerX, y: centerY },
@@ -402,8 +529,8 @@ export const addDraft = (draftId, label, draftNodes, draftEdges) => {
   }
 
   // Create child nodes with parentNode | 创建子节点
-  const nodeIdMap = [] // index -> actual node id
-  const childNodes = draftNodes.map((n, i) => {
+  const nodeIdMap: string[] = [] // index -> actual node id
+  const childNodes: FlowNode[] = draftNodes.map((n, i) => {
     const id = getNodeId()
     nodeIdMap.push(id)
     return {
@@ -423,7 +550,7 @@ export const addDraft = (draftId, label, draftNodes, draftEdges) => {
   })
 
   // Create edges with actual node IDs | 创建连线（索引转 ID）
-  const newEdges = draftEdges.map((e, i) => ({
+  const newEdges: FlowEdge[] = draftEdges.map((e, i) => ({
     id: `edge_draft_${i}_${Date.now()}`,
     source: nodeIdMap[e.source],
     target: nodeIdMap[e.target],
@@ -457,7 +584,10 @@ export const addDraft = (draftId, label, draftNodes, draftEdges) => {
   return groupId
 }
 
-export const updateDraft = (draftId, changes) => {
+export const updateDraft = (
+  draftId: string,
+  changes: Array<{ node_index: number; data?: FlowNodeData }>
+) => {
   if (currentDraftId.value !== draftId) return
 
   // Find draft group node | 查找草稿分组节点
@@ -479,7 +609,7 @@ export const updateDraft = (draftId, changes) => {
   })
 }
 
-export const confirmDraft = (draftId) => {
+export const confirmDraft = (draftId: string) => {
   const groupNode = nodes.value.find(
     n => n.type === 'group' && n.data?.draftId === draftId
   )
@@ -491,7 +621,7 @@ export const confirmDraft = (draftId) => {
   saveToHistory()
 }
 
-export const cancelDraft = (draftId) => {
+export const cancelDraft = (draftId: string) => {
   const groupNode = nodes.value.find(
     n => n.type === 'group' && n.data?.draftId === draftId
   )
@@ -515,7 +645,7 @@ export const cancelDraft = (draftId) => {
 /**
  * Check if a node belongs to a draft group | 检查节点是否属于草稿分组
  */
-export const isDraftNode = (nodeId) => {
+export const isDraftNode = (nodeId: string) => {
   const node = nodes.value.find(n => n.id === nodeId)
   if (!node?.parentNode) return false
   const parent = nodes.value.find(n => n.id === node.parentNode)
@@ -526,10 +656,10 @@ export const isDraftNode = (nodeId) => {
  * Group nodes | 组合节点
  * @param {Array} nodesToGroup - Nodes to group (must include dimensions)
  */
-export const groupNodes = (nodesToGroup) => {
+export const groupNodes = (nodesToGroup: FlowNode[]) => {
   if (nodesToGroup.length < 2) return null
 
-  const absById = new Map()
+  const absById = new Map<string, { x: number; y: number; w: number; h: number; z: number }>()
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -559,7 +689,7 @@ export const groupNodes = (nodesToGroup) => {
   const groupNodeId = getNodeId()
   const groupX = minX - padding
   const groupY = minY - padding
-  const groupNode = {
+  const groupNode: FlowNode = {
     id: groupNodeId,
     type: 'group',
     position: { x: groupX, y: groupY },
@@ -609,7 +739,7 @@ export const groupNodes = (nodesToGroup) => {
  * Ungroup nodes | 解组节点
  * @param {string} groupId - Group node ID
  */
-export const ungroupNodes = (groupId) => {
+export const ungroupNodes = (groupId: string) => {
   const groupNode = nodes.value.find(n => n.id === groupId)
   if (!groupNode) return
 
@@ -668,7 +798,7 @@ export const initSampleData = () => {
  * Load project data | 加载项目数据
  * @param {string} projectId - Project ID | 项目ID
  */
-export const loadProject = async (projectId) => {
+export const loadProject = async (projectId: string) => {
   // Bump token; only the latest load may mutate canvas / enable autosave
   // 自增 token；仅最新一次加载可写入画布 / 开启自动保存
   const token = ++loadToken
@@ -684,11 +814,13 @@ export const loadProject = async (projectId) => {
 
   if (canvasData) {
     // Restore nodes | 恢复节点
-    nodes.value = canvasData.nodes || []
-    edges.value = (canvasData.edges || []).map(edge => ({
+    // Persisted CanvasNode → runtime FlowNode: structural superset, safe to widen.
+    // 持久化 CanvasNode → 运行时 FlowNode：结构超集，可安全放宽。
+    nodes.value = (canvasData.nodes || []) as unknown as FlowNode[]
+    edges.value = (canvasData.edges || []).map((edge) => ({
       ...edge,
       type: edge?.type || 'deletable'
-    }))
+    })) as FlowEdge[]
     canvasViewport.value = canvasData.viewport || { x: 100, y: 50, zoom: 0.8 }
 
     // Update node ID counter | 更新节点ID计数器
@@ -748,7 +880,7 @@ export const saveProject = async () => {
   )
   const draftChildIds = new Set(
     nodes.value
-      .filter(n => draftGroupIds.has(n.parentNode))
+      .filter(n => n.parentNode != null && draftGroupIds.has(n.parentNode))
       .map(n => n.id)
   )
   const allDraftIds = new Set([...draftGroupIds, ...draftChildIds])
@@ -758,11 +890,13 @@ export const saveProject = async () => {
     e => !allDraftIds.has(e.source) && !allDraftIds.has(e.target)
   )
 
+  // Runtime FlowNode/FlowEdge → persisted CanvasData: drop Vue Flow runtime-only
+  // fields by structural narrowing. | 运行时模型 → 持久化模型：收窄丢弃运行时字段。
   await updateProjectCanvas(currentProjectId.value, {
     nodes: savedNodes,
     edges: savedEdges,
     viewport: canvasViewport.value,
-  })
+  } as unknown as CanvasData)
 }
 
 /**
@@ -783,7 +917,7 @@ const debouncedSave = () => {
 /**
  * Update viewport and save | 更新视口并保存
  */
-export const updateViewport = (viewport) => {
+export const updateViewport = (viewport: Viewport) => {
   canvasViewport.value = viewport
   debouncedSave()
 }
@@ -819,7 +953,7 @@ export const redo = () => {
 /**
  * Restore state from history | 从历史恢复状态
  */
-const restoreState = (state) => {
+const restoreState = (state: HistoryState) => {
   isRestoring = true
   nodes.value = JSON.parse(JSON.stringify(state.nodes))
   edges.value = JSON.parse(JSON.stringify(state.edges))

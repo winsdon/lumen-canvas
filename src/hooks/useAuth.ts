@@ -17,51 +17,57 @@ import {
 } from '@/stores/user'
 import { generateState } from '@/utils/auth'
 import { ref } from 'vue'
+import type { Ref } from 'vue'
+import type { TokenBundle } from '@/types/api'
+
+// Extract a message from an unknown caught error | 从未知错误中提取消息
+const errMessage = (e: unknown): string | undefined =>
+  (e as { message?: string })?.message
 
 export const useAuth = () => {
   const loading = ref(false)
-  const error = ref(null)
+  const error: Ref<string | null> = ref(null)
 
-  const handleLoginSuccess = async (data) => {
+  const handleLoginSuccess = async (data: TokenBundle) => {
     const { accessToken, refreshToken, expiresTime } = data
     setTokens({ accessToken, refreshToken, expiresTime })
   }
 
-  const loginByPassword = async (mobile, password) => {
+  const loginByPassword = async (mobile: string, password: string) => {
     loading.value = true
     error.value = null
     try {
       const data = await apiLoginByPassword(mobile, password)
-      await handleLoginSuccess(data)
+      await handleLoginSuccess(data as TokenBundle)
       window.$message?.success('登录成功')
       window.location.reload()
       return data
     } catch (e) {
-      error.value = e.message || '登录失败'
+      error.value = errMessage(e) || '登录失败'
       throw e
     } finally {
       loading.value = false
     }
   }
 
-  const loginBySms = async (mobile, code) => {
+  const loginBySms = async (mobile: string, code: string) => {
     loading.value = true
     error.value = null
     try {
       const data = await apiLoginBySms(mobile, code)
-      await handleLoginSuccess(data)
+      await handleLoginSuccess(data as TokenBundle)
       window.$message?.success('登录成功')
       window.location.reload()
       return data
     } catch (e) {
-      error.value = e.message || '登录失败'
+      error.value = errMessage(e) || '登录失败'
       throw e
     } finally {
       loading.value = false
     }
   }
 
-  const sendSmsCode = async (mobile, scene) => {
+  const sendSmsCode = async (mobile: string, scene: number) => {
     loading.value = true
     error.value = null
     try {
@@ -69,26 +75,26 @@ export const useAuth = () => {
       window.$message?.success('验证码已发送')
       return true
     } catch (e) {
-      error.value = e.message || '发送失败'
+      error.value = errMessage(e) || '发送失败'
       throw e
     } finally {
       loading.value = false
     }
   }
 
-  const loginByWechat = async (code, state, shouldReload = true) => {
+  const loginByWechat = async (code: string, state: string, shouldReload = true) => {
     loading.value = true
     error.value = null
     try {
       const data = await apiWechatLogin(code, state)
-      await handleLoginSuccess(data)
+      await handleLoginSuccess(data as TokenBundle)
       window.$message?.success('登录成功')
       if (shouldReload) {
         window.location.reload()
       }
       return data
     } catch (e) {
-      error.value = e.message || '微信登录失败'
+      error.value = errMessage(e) || '微信登录失败'
       throw e
     } finally {
       loading.value = false
@@ -102,21 +108,21 @@ export const useAuth = () => {
       const state = generateState()
       const redirectUri = `${window.location.origin}${window.location.pathname}#/auth/callback`
       const authUrl = await apiGetWechatAuthUrl(encodeURIComponent(redirectUri))
-      
+
       const width = 600
       const height = 500
       const left = (window.screen.width - width) / 2
       const top = (window.screen.height - height) / 2
-      
+
       window.open(
-        authUrl,
+        authUrl as string,
         'wechat_login',
         `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
       )
-      
+
       return { state, redirectUri }
     } catch (e) {
-      error.value = e.message || '获取微信授权链接失败'
+      error.value = errMessage(e) || '获取微信授权链接失败'
       throw e
     } finally {
       loading.value = false
@@ -145,7 +151,7 @@ export const useAuth = () => {
       setUserInfo(info)
       return info
     } catch (e) {
-      error.value = e.message || '获取用户信息失败'
+      error.value = errMessage(e) || '获取用户信息失败'
       throw e
     } finally {
       loading.value = false

@@ -6,7 +6,7 @@ import { authRequest } from '@/utils/request'
  * @param {string} name - File name / 文件名称
  * @param {string} [directory] - Directory / 文件目录
  */
-export const getFilePresignedUrl = (name, directory) => {
+export const getFilePresignedUrl = (name: string, directory?: string) => {
   return authRequest({
     url: '/infra/file/presigned-url',
     method: 'get',
@@ -23,7 +23,7 @@ export const getFilePresignedUrl = (name, directory) => {
  * @param {string} uploadUrl - Presigned upload URL / 预签名上传地址
  * @param {File} file - File object / 文件对象
  */
-export const uploadFileToUrl = (uploadUrl, file) => {
+export const uploadFileToUrl = (uploadUrl: string, file: File) => {
   // Use fetch to avoid any interceptors from axios
   // 使用 fetch 避免 axios 拦截器的干扰
   return fetch(uploadUrl, {

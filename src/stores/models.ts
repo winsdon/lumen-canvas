@@ -22,12 +22,35 @@ import {
   VIDEO_RATIO_LIST,
   VIDEO_RATIO_OPTIONS
 } from '@/config/models'
-import { aiModels as dynamicAiModels, fetchModels, isLoading as isModelsLoading } from '@/stores/aiModels'
-import { computed, ref } from 'vue'
+import { aiModels as dynamicAiModels, fetchModels, isLoading as isModelsLoading, type AiModel } from '@/stores/aiModels'
+import { computed, ref, type ComputedRef } from 'vue'
+
+// Static capability config shape (from @/config/models) | 静态能力配置结构
+interface StaticCapability {
+  pattern?: RegExp
+  key?: string
+  label?: string
+  tips?: string
+  sizes?: string[]
+  qualities?: Array<{ label: string; key: string }>
+  ratios?: string[]
+  durs?: Array<{ label: string; key: number }>
+  getSizesByQuality?: (quality: string) => unknown
+  defaultParams?: Record<string, unknown>
+}
+
+// Resolved model option = static capability enriched with backend data | 解析后的模型选项
+interface ModelOption extends StaticCapability {
+  value?: string
+  id?: string | number
+  platform?: string
+  imagePoint?: number | null
+  point?: number | null
+}
 
 // Loading state
 const loading = computed(() => isModelsLoading.value)
-const error = ref(null)
+const error = ref<unknown>(null)
 
 /**
  * Initialize models | 初始化模型
@@ -56,7 +79,11 @@ export const loadAllModels = async () => {
 /**
  * Helper to compute models based on dynamic data and static capabilities
  */
-const computeModels = (type, staticCapabilities, defaultLabelFn) => {
+const computeModels = (
+  type: number,
+  staticCapabilities: StaticCapability[],
+  defaultLabelFn?: (key: string) => string
+): ComputedRef<ModelOption[]> => {
   return computed(() => {
     const backendModels = dynamicAiModels.value[type] || []
     
@@ -90,7 +117,7 @@ const computeModels = (type, staticCapabilities, defaultLabelFn) => {
        // 查找匹配的配置：使用正则表达式匹配 model key 或 name
        const config = staticCapabilities.find(c => {
          if (c.pattern) {
-           return c.pattern.test(m.model) || c.pattern.test(m.name)
+           return c.pattern.test(m.model as string) || c.pattern.test(m.name as string)
          }
          return c.key === m.model
        }) || {}
@@ -123,7 +150,7 @@ const chatModels = computeModels(1, STATIC_CHAT_CAPABILITIES)
 /**
  * Get model config by name | 根据名称获取模型配置
  */
-export const getModelConfig = (modelKey) => {
+export const getModelConfig = (modelKey: string) => {
   const allModels = [...imageModels.value, ...videoModels.value, ...chatModels.value]
   return allModels.find(m => m.key === modelKey)
 }
@@ -132,7 +159,7 @@ export const getModelConfig = (modelKey) => {
  * Get size options for image model | 获取图片模型尺寸选项
  * Returns options based on model's sizes array and quality
  */
-export const getModelSizeOptions = (modelKey, quality = 'standard') => {
+export const getModelSizeOptions = (modelKey: string, quality = 'standard') => {
   const baseOptions = quality === '4k' ? SEEDREAM_4K_SIZE_OPTIONS : SEEDREAM_SIZE_OPTIONS
   return baseOptions.map(o => ({ label: `${o.key} (${o.label})`, key: o.key }))
 }
@@ -140,7 +167,7 @@ export const getModelSizeOptions = (modelKey, quality = 'standard') => {
 /**
  * Get quality options for image model | 获取图片模型画质选项
  */
-export const getModelQualityOptions = (modelKey) => {
+export const getModelQualityOptions = (modelKey: string) => {
   const model = imageModels.value.find(m => m.key === modelKey)
   return model?.qualities || []
 }
@@ -149,7 +176,7 @@ export const getModelQualityOptions = (modelKey) => {
  * Get ratio options for video model | 获取视频模型比例选项
  * Returns options based on model's ratios array
  */
-export const getModelRatioOptions = (modelKey) => {
+export const getModelRatioOptions = (modelKey: string) => {
   const model = videoModels.value.find(m => m.key === modelKey)
   if (!model?.ratios || model.ratios.length === 0) return VIDEO_RATIO_OPTIONS
   
@@ -164,7 +191,7 @@ export const getModelRatioOptions = (modelKey) => {
  * Get duration options for video model | 获取视频模型时长选项
  * Returns options based on model's durs array
  */
-export const getModelDurationOptions = (modelKey) => {
+export const getModelDurationOptions = (modelKey: string) => {
   const model = videoModels.value.find(m => m.key === modelKey)
   if (!model?.durs || model.durs.length === 0) return VIDEO_DURATION_OPTIONS
   

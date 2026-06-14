@@ -9,8 +9,41 @@ import scene01 from '@/assets/scene01.jpeg'
 import shot01 from '@/assets/shot01.jpeg'
 import { DEFAULT_IMAGE_MODEL } from '@/config/models'
 
+// Canvas position | 画布坐标
+interface Position {
+  x: number
+  y: number
+}
+
+// Workflow node (loose shape for template construction) | 工作流节点（模板构造用的宽松结构）
+interface WorkflowNode {
+  id: string
+  type: string
+  position: Position
+  data: Record<string, unknown>
+  [k: string]: unknown
+}
+
+// Workflow edge (loose shape for template construction) | 工作流连线（模板构造用的宽松结构）
+interface WorkflowEdge {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string
+  targetHandle?: string
+  type?: string
+  data?: Record<string, unknown>
+  [k: string]: unknown
+}
+
 // Multi-angle prompts | 多角度提示词模板
-export const MULTI_ANGLE_PROMPTS = {
+interface AnglePrompt {
+  label: string
+  english: string
+  prompt: (character: string) => string
+}
+
+export const MULTI_ANGLE_PROMPTS: Record<string, AnglePrompt> = {
   front: {
     label: '正视',
     english: 'Front View',
@@ -53,13 +86,13 @@ export const WORKFLOW_TEMPLATES = [
     category: 'storyboard',
     cover: workflowCover1,
     // 节点配置
-    createNodes: (startPosition) => {
+    createNodes: (startPosition: Position) => {
       const nodeSpacing = 400
       const rowSpacing = 280
       const angles = ['front', 'side', 'back', 'top']
       
-      const nodes = []
-      const edges = []
+      const nodes: WorkflowNode[] = []
+      const edges: WorkflowEdge[] = []
       let nodeIdCounter = 0
       const getNodeId = () => `workflow_node_${Date.now()}_${nodeIdCounter++}`
       
@@ -181,12 +214,12 @@ export const WORKFLOW_TEMPLATES = [
     category: 'ecommerce',
     cover: workflowCover2,
     // 节点配置
-    createNodes: (startPosition) => {
+    createNodes: (startPosition: Position) => {
       const colSpacing = 500  // 列间距
       const rowSpacing = 350  // 行间距
       
-      const nodes = []
-      const edges = []
+      const nodes: WorkflowNode[] = []
+      const edges: WorkflowEdge[] = []
       let nodeIdCounter = 0
       const getNodeId = () => `workflow_node_${Date.now()}_${nodeIdCounter++}`
       
@@ -442,12 +475,12 @@ export const WORKFLOW_TEMPLATES = [
     icon: 'PersonOutline',
     category: 'drama',
     cover: shot01,
-    createNodes: (startPosition) => {
+    createNodes: (startPosition: Position) => {
       const colSpacing = 400
       const rowSpacing = 280
       
-      const nodes = []
-      const edges = []
+      const nodes: WorkflowNode[] = []
+      const edges: WorkflowEdge[] = []
       let nodeIdCounter = 0
       const getNodeId = () => `workflow_node_${Date.now()}_${nodeIdCounter++}`
       
@@ -692,12 +725,12 @@ export const WORKFLOW_TEMPLATES = [
     icon: 'ImageOutline',
     category: 'drama',
     cover: scene01,
-    createNodes: (startPosition) => {
+    createNodes: (startPosition: Position) => {
       const colSpacing = 400
       const rowSpacing = 260
       
-      const nodes = []
-      const edges = []
+      const nodes: WorkflowNode[] = []
+      const edges: WorkflowEdge[] = []
       let nodeIdCounter = 0
       const getNodeId = () => `workflow_node_${Date.now()}_${nodeIdCounter++}`
       
@@ -1022,14 +1055,14 @@ export const WORKFLOW_TEMPLATES = [
 /**
  * Get workflow template by ID | 根据ID获取工作流模板
  */
-export const getWorkflowById = (id) => {
+export const getWorkflowById = (id: string) => {
   return WORKFLOW_TEMPLATES.find(w => w.id === id)
 }
 
 /**
  * Get workflows by category | 根据分类获取工作流
  */
-export const getWorkflowsByCategory = (category) => {
+export const getWorkflowsByCategory = (category: string) => {
   return WORKFLOW_TEMPLATES.filter(w => w.category === category)
 }
 

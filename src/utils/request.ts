@@ -4,8 +4,31 @@
  */
 
 import axios from 'axios'
+import type { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios'
 import { getAccessToken, getRefreshToken, setTokens } from './auth'
 import { AUTH_BASE_URL, DEFAULT_API_BASE_URL, TENANT_ID } from './constants'
+
+// Queued subscriber waiting for token refresh | 等待 token 刷新的排队订阅者
+interface RefreshSubscriber {
+  resolve: (token: string) => void
+  reject: (error: unknown) => void
+}
+
+// Extend axios config with internal retry flag | 扩展 axios 配置，加入内部重试标志
+type RetryableConfig = AxiosRequestConfig & { _retry?: boolean }
+
+// Both instances run a response interceptor that unwraps the backend envelope and
+// resolves with the inner `data` (not the AxiosResponse). This interface models that
+// real runtime behavior so callers get the unwrapped payload type directly.
+// 两个实例的响应拦截器都会解包后端信封、以内层 data（而非 AxiosResponse）resolve。
+// 该接口如实描述运行时行为，使调用方直接拿到解包后的负载类型。
+export interface UnwrappedClient {
+  <T = unknown>(config: AxiosRequestConfig): Promise<T>
+  get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>
+  delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>
+  post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
+  put<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
+}
 
 const instance = axios.create({
   baseURL: DEFAULT_API_BASE_URL,
@@ -91,32 +114,40 @@ const authInstance = axios.create({
   }
 })
 
-let isRefreshing = false
-let refreshSubscribers = []
+interface RefreshSubscriber {
+  resolve: (token: string) => void
+  reject: (error: unknown) => void
+}
 
-const onRefreshed = (token) => {
+let isRefreshing = false
+let refreshSubscribers: RefreshSubscriber[] = []
+
+const onRefreshed = (token: string) => {
   refreshSubscribers.forEach(({ resolve }) => resolve(token))
   refreshSubscribers = []
 }
 
 // Reject all queued requests when refresh fails | 刷新失败时拒绝所有排队请求
-const onRefreshFailed = (error) => {
+const onRefreshFailed = (error: unknown) => {
   refreshSubscribers.forEach(({ reject }) => reject(error))
   refreshSubscribers = []
 }
 
-const addRefreshSubscriber = (resolve, reject) => {
+const addRefreshSubscriber = (
+  resolve: (token: string) => void,
+  reject: (error: unknown) => void
+) => {
   refreshSubscribers.push({ resolve, reject })
 }
 
-const handle401Error = async (config) => {
+const handle401Error = async (config: RetryableConfig) => {
   if (!config._retry) {
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         addRefreshSubscriber(
           (token) => {
             config._retry = true
-            config.headers['Authorization'] = `Bearer ${token}`
+            config.headers = { ...config.headers, Authorization: `Bearer ${token}` }
             resolve(authInstance(config))
           },
           reject
@@ -148,7 +179,7 @@ const handle401Error = async (config) => {
         const { accessToken, refreshToken, expiresTime } = res.data.data
         setTokens({ accessToken, refreshToken, expiresTime })
         onRefreshed(accessToken)
-        config.headers['Authorization'] = `Bearer ${accessToken}`
+        config.headers = { ...config.headers, Authorization: `Bearer ${accessToken}` }
         return authInstance(config)
       }
 
@@ -212,6 +243,9 @@ authInstance.interceptors.response.use(
   }
 )
 
-export const authRequest = authInstance
+// Cast to UnwrappedClient: the response interceptors resolve with the inner data
+// rather than the AxiosResponse, so callers receive the unwrapped payload.
+// 转型为 UnwrappedClient：响应拦截器以内层 data resolve，调用方拿到解包后的负载。
+export const authRequest = authInstance as unknown as UnwrappedClient
 
-export default instance
+export default instance as unknown as UnwrappedClient

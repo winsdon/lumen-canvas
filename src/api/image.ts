@@ -8,7 +8,7 @@ import { authRequest } from '@/utils/request'
  * Get AI Model List | 获取 AI 模型列表
  * @param {Object} params - { type, platform }
  */
-export const getAiModelList = (params = {}) => {
+export const getAiModelList = (params: Record<string, unknown> = {}) => {
   return authRequest.get('/ai/model/simple-list', { params })
 }
 
@@ -16,7 +16,7 @@ export const getAiModelList = (params = {}) => {
  * Draw Image | 生成图片
  * @param {Object} data - { modelId, prompt, width, height, ... }
  */
-export const aiImageDraw = (data) => {
+export const aiImageDraw = (data: Record<string, unknown>) => {
   return authRequest.post('/ai/image/draw', data)
 }
 
@@ -24,12 +24,12 @@ export const aiImageDraw = (data) => {
  * Get Image List by IDs | 根据 ID 数组获取图片列表
  * @param {Array} ids - Array of image IDs
  */
-export const getAiImageListByIds = (ids) => {
+export const getAiImageListByIds = (ids: Array<string | number>) => {
   return authRequest.get('/ai/image/my-list-by-ids', {
     params: { ids: ids.join(',') }
   })
 }
 
-export const getAiImagePageMy = (params = {}) => {
+export const getAiImagePageMy = (params: Record<string, unknown> = {}) => {
   return authRequest.get('/ai/image/my-page', { params })
 }

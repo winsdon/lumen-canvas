@@ -8,13 +8,25 @@ import { getAccessToken, TENANT_ID } from '@/utils'
 // Agent API Base URL | 智能体 API 基础地址
 const AGENT_BASE_URL = import.meta.env.VITE_AGENT_URL || 'http://localhost:8100'
 
+// Error carrying a flag marking it as already surfaced to the user | 标记已向用户提示过的错误
+type HandledError = Error & { __handled?: boolean }
+
+// One streamed SSE frame | 单个 SSE 流式帧
+export interface AgentSSEEvent {
+  event: string
+  data: unknown
+}
+
 /**
  * Stream agent chat via SSE | 通过 SSE 流式对话
  * @param {string} content - User message content | 用户消息内容
  * @param {AbortSignal} [signal] - Optional abort signal | 可选中断信号
  * @yields {{ event: string, data: object }} SSE events
  */
-export const streamAgentChat = async function* (content, signal) {
+export const streamAgentChat = async function* (
+  content: string,
+  signal?: AbortSignal
+): AsyncGenerator<AgentSSEEvent> {
   const accessToken = getAccessToken()
 
   const response = await fetch(`${AGENT_BASE_URL}/chat/stream`, {
@@ -41,12 +53,13 @@ export const streamAgentChat = async function* (content, signal) {
       // ignore
     }
     const msg = error?.detail || error?.message || 'Agent request failed'
-    const streamError = new Error(msg)
+    const streamError: HandledError = new Error(msg)
     streamError.__handled = true
     window.$message?.error(msg)
     throw streamError
   }
 
+  if (!response.body) throw new Error('No response body')
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''

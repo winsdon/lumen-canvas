@@ -4,29 +4,61 @@
  */
 import * as projectApi from '@/api/project'
 import { computed, ref } from 'vue'
+import type { Ref } from 'vue'
+import type { Project } from '@/types/api'
+import type { PageResult } from '@/types/api'
+import type { CanvasData } from '@/types/node'
+
+// Project entry held in the store: dates normalized to Date objects | 存储中的项目条目：日期已归一化为 Date
+// Named props are re-declared explicitly: Omit over a type with an index signature
+// collapses keyof to string|number, erasing specific props into the `unknown` index.
+// 显式重声明具名属性：Omit 作用于带索引签名的类型时会把 keyof 坍缩为 string|number，
+// 导致具名属性退化为索引签名的 unknown，故此处显式恢复。
+export interface ProjectEntry extends Omit<Project, 'createdAt' | 'updatedAt'> {
+  id: string
+  name: string
+  thumbnail?: string
+  canvasData?: CanvasData
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Raw project shape returned by the API (dates as string/number) | API 返回的原始项目结构
+type RawProject = Project & { id: string; createdAt: string | number | Date; updatedAt: string | number | Date }
+
+// Params accepted by the project list endpoint | 项目列表接口参数
+interface LoadProjectsParams {
+  page?: number
+  size?: number
+  keyword?: string
+  [key: string]: unknown
+}
+
+// Normalize a raw API project into a store entry | 将原始项目归一化为存储条目
+const toEntry = (p: RawProject): ProjectEntry => ({
+  ...p,
+  createdAt: new Date(p.createdAt),
+  updatedAt: new Date(p.updatedAt)
+})
 
 // Projects list | 项目列表
-export const projects = ref([])
+export const projects: Ref<ProjectEntry[]> = ref([])
 
 // Current project ID | 当前项目ID
-export const currentProjectId = ref(null)
+export const currentProjectId = ref<string | null>(null)
 
 // Current project | 当前项目
-export const currentProject = computed(() => {
+export const currentProject = computed<ProjectEntry | null>(() => {
   return projects.value.find(p => p.id === currentProjectId.value) || null
 })
 
 /**
  * Load projects from API | 从 API 加载项目
  */
-export const loadProjects = async (params) => {
+export const loadProjects = async (params?: LoadProjectsParams) => {
   try {
-    const res = await projectApi.getProjectList(params)
-    projects.value = res.list.map(p => ({
-      ...p,
-      createdAt: new Date(p.createdAt),
-      updatedAt: new Date(p.updatedAt)
-    }))
+    const res = await projectApi.getProjectList(params) as PageResult<RawProject>
+    projects.value = res.list.map(toEntry)
     return res
   } catch (err) {
     console.error('Failed to load projects:', err)
@@ -62,10 +94,10 @@ export const createProject = async (name = '未命名项目') => {
  * @param {string} id - Project ID | 项目ID
  * @param {object} data - Update data | 更新数据
  */
-export const updateProject = async (id, data) => {
+export const updateProject = async (id: string, data: Partial<Omit<Project, 'createdAt' | 'updatedAt'>>) => {
   try {
     await projectApi.saveProject({ id, ...data })
-    
+
     // Update local state | 更新本地状态
     const index = projects.value.findIndex(p => p.id === id)
     if (index !== -1) {
@@ -90,7 +122,7 @@ export const updateProject = async (id, data) => {
  * @param {string} id - Project ID | 项目ID
  * @param {object} canvasData - Canvas data (nodes, edges, viewport) | 画布数据
  */
-export const updateProjectCanvas = async (id, canvasData) => {
+export const updateProjectCanvas = async (id: string, canvasData: CanvasData) => {
   const project = projects.value.find(p => p.id === id)
   
   // Calculate thumbnail logic | 计算缩略图逻辑
@@ -145,10 +177,10 @@ export const updateProjectCanvas = async (id, canvasData) => {
  * @param {string} id - Project ID | 项目ID
  * @returns {object|null} - Canvas data or null | 画布数据或空
  */
-export const getProjectCanvas = async (id) => {
+export const getProjectCanvas = async (id: string): Promise<CanvasData | null> => {
   try {
     const project = await projectApi.getProjectDetail(id)
-    return project.canvasData
+    return project.canvasData ?? null
   } catch (err) {
     console.error('Failed to get project detail:', err)
     return null
@@ -159,7 +191,7 @@ export const getProjectCanvas = async (id) => {
  * Delete project | 删除项目
  * @param {string} id - Project ID | 项目ID
  */
-export const deleteProject = async (id) => {
+export const deleteProject = async (id: string) => {
   try {
     await projectApi.deleteProject(id)
     projects.value = projects.value.filter(p => p.id !== id)
@@ -174,7 +206,7 @@ export const deleteProject = async (id) => {
  * @param {string} id - Source project ID | 源项目ID
  * @returns {string|null} - New project ID or null | 新项目ID或空
  */
-export const duplicateProject = async (id) => {
+export const duplicateProject = async (id: string) => {
   try {
     // Get full data first | 先获取完整数据
     const source = await projectApi.getProjectDetail(id)
@@ -206,7 +238,7 @@ export const duplicateProject = async (id) => {
  * @param {string} id - Project ID | 项目ID
  * @param {string} name - New name | 新名称
  */
-export const renameProject = async (id, name) => {
+export const renameProject = async (id: string, name: string) => {
   return updateProject(id, { name })
 }
 
@@ -215,7 +247,7 @@ export const renameProject = async (id, name) => {
  * @param {string} id - Project ID | 项目ID
  * @param {string} thumbnail - Thumbnail URL (base64 or URL) | 缩略图URL
  */
-export const updateProjectThumbnail = async (id, thumbnail) => {
+export const updateProjectThumbnail = async (id: string, thumbnail: string) => {
   return updateProject(id, { thumbnail })
 }
 
@@ -224,23 +256,24 @@ export const updateProjectThumbnail = async (id, thumbnail) => {
  * @param {string} sortBy - Sort field (updatedAt, createdAt, name) | 排序字段
  * @param {string} order - Sort order (asc, desc) | 排序顺序
  */
-export const getSortedProjects = (sortBy = 'updatedAt', order = 'desc') => {
+type SortableKey = 'updatedAt' | 'createdAt' | 'name'
+type SortOrder = 'asc' | 'desc'
+
+// Normalize a field into a comparable primitive | 将字段归一化为可比较的原始值
+const toComparable = (value: unknown): string | number => {
+  if (value instanceof Date) return value.getTime()
+  if (typeof value === 'string') return value.toLowerCase()
+  if (typeof value === 'number') return value
+  return ''
+}
+
+export const getSortedProjects = (sortBy: SortableKey = 'updatedAt', order: SortOrder = 'desc') => {
   return computed(() => {
     const sorted = [...projects.value]
     sorted.sort((a, b) => {
-      let valueA = a[sortBy]
-      let valueB = b[sortBy]
-      
-      if (valueA instanceof Date) {
-        valueA = valueA.getTime()
-        valueB = valueB.getTime()
-      }
-      
-      if (typeof valueA === 'string') {
-        valueA = valueA.toLowerCase()
-        valueB = valueB.toLowerCase()
-      }
-      
+      const valueA = toComparable(a[sortBy])
+      const valueB = toComparable(b[sortBy])
+
       if (order === 'asc') {
         return valueA > valueB ? 1 : -1
       } else {

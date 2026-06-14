@@ -33,7 +33,7 @@ export const getUserInfo = () => {
   }
 }
 
-export const setAccessToken = (token) => {
+export const setAccessToken = (token: string | null | undefined) => {
   try {
     if (token) {
       localStorage.setItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN, token)
@@ -45,7 +45,7 @@ export const setAccessToken = (token) => {
   }
 }
 
-export const setRefreshToken = (token) => {
+export const setRefreshToken = (token: string | null | undefined) => {
   try {
     if (token) {
       localStorage.setItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, token)
@@ -57,10 +57,10 @@ export const setRefreshToken = (token) => {
   }
 }
 
-export const setExpiresTime = (time) => {
+export const setExpiresTime = (time: string | number | null | undefined) => {
   try {
     if (time) {
-      localStorage.setItem(AUTH_STORAGE_KEYS.EXPIRES_TIME, time)
+      localStorage.setItem(AUTH_STORAGE_KEYS.EXPIRES_TIME, String(time))
     } else {
       localStorage.removeItem(AUTH_STORAGE_KEYS.EXPIRES_TIME)
     }
@@ -69,7 +69,7 @@ export const setExpiresTime = (time) => {
   }
 }
 
-export const setUserInfo = (info) => {
+export const setUserInfo = (info: unknown) => {
   try {
     if (info) {
       localStorage.setItem(AUTH_STORAGE_KEYS.USER_INFO, JSON.stringify(info))
@@ -81,7 +81,11 @@ export const setUserInfo = (info) => {
   }
 }
 
-export const setTokens = ({ accessToken, refreshToken, expiresTime }) => {
+export const setTokens = ({ accessToken, refreshToken, expiresTime }: {
+  accessToken?: string | null
+  refreshToken?: string | null
+  expiresTime?: string | number | null
+}) => {
   setAccessToken(accessToken)
   setRefreshToken(refreshToken)
   setExpiresTime(expiresTime)
@@ -141,7 +145,7 @@ export const clearStoredState = () => {
   }
 }
 
-export const validateState = (state) => {
+export const validateState = (state: string) => {
   const storedState = getStoredState()
   if (!storedState || !state) return false
   const isValid = storedState === state

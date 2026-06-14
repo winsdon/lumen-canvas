@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Lock files — project uses pnpm exclusively | 项目统一使用 pnpm
+package-lock.json
+yarn.lock
+
 # Environment files
 .env*
 !.env.example

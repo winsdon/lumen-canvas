@@ -18,6 +18,89 @@ import {
 } from '@/stores/canvas'
 import { ref, watch } from 'vue'
 
+// Canvas node element type (from the store's nodes ref) | 画布节点元素类型（取自 store 的 nodes ref）
+type FlowNodeItem = (typeof nodes.value)[number]
+
+// Stop handle returned by Vue's watch | Vue watch 返回的停止句柄
+type WatchStopHandle = ReturnType<typeof watch>
+
+// Execution log entry | 执行日志条目
+interface LogEntry {
+  type: string
+  message: string
+  timestamp: number
+}
+
+// Position passed into workflow builders | 传入工作流构建器的位置
+interface Position {
+  x: number
+  y: number
+}
+
+// Character descriptor for storyboard | 分镜的角色描述
+interface CharacterInfo {
+  name?: string
+  description?: string
+}
+
+// One storyboard shot | 单个分镜
+interface ShotInfo {
+  title: string
+  prompt: string
+}
+
+// Multi-angle descriptor | 多角度描述
+interface MultiAngleInfo {
+  character_description?: string
+}
+
+// Intent analysis result returned by the LLM | LLM 返回的意图分析结果
+interface IntentResult {
+  workflow_type: string
+  description?: string
+  image_prompt?: string
+  video_prompt?: string
+  character?: CharacterInfo
+  shots?: ShotInfo[]
+  multi_angle?: MultiAngleInfo
+}
+
+// Created shot bookkeeping | 已创建分镜记录
+interface CreatedShot {
+  textId: string
+  configId: string
+  imageId: string
+  title: string
+}
+
+// Storyboard created-nodes bookkeeping | 分镜创建节点记录
+interface StoryboardCreatedNodes {
+  characterTextId: string | null
+  characterConfigId: string | null
+  characterImageId: string | null
+  shots: CreatedShot[]
+}
+
+// Created angle bookkeeping | 已创建角度记录
+interface CreatedAngle {
+  key: string
+  label: string
+  english: string
+  textId: string
+  configId: string
+  imageId: string | null
+}
+
+// Multi-angle created-nodes bookkeeping | 多角度创建节点记录
+interface MultiAngleCreatedNodes {
+  characterImageId: string | null
+  angles: CreatedAngle[]
+}
+
+// Message extracted from an unknown caught error | 从未知错误中提取消息
+const errMessage = (e: unknown): string | undefined =>
+  (e as { message?: string })?.message
+
 // Workflow types | 工作流类型
 const WORKFLOW_TYPES = {
   TEXT_TO_IMAGE: 'text_to_image',
@@ -31,28 +114,28 @@ const MULTI_ANGLE_PROMPTS = {
   front: {
     label: '正视',
     english: 'Front View',
-    prompt: (character) => `使用提供的图片，生成四宫格分镜，每张四宫格包括人物正面对着镜头的4个景别（远景、中景、近景、和局部特写），保持场景、产品、人物特征的一致性，宫格里的每一张照片保持和提供图片相同的比例。并在图片下方用英文标注这个景别
+    prompt: (character: string) => `使用提供的图片，生成四宫格分镜，每张四宫格包括人物正面对着镜头的4个景别（远景、中景、近景、和局部特写），保持场景、产品、人物特征的一致性，宫格里的每一张照片保持和提供图片相同的比例。并在图片下方用英文标注这个景别
 
 角色参考: ${character}`
   },
   side: {
     label: '侧视',
     english: 'Side View', 
-    prompt: (character) => `使用提供的图片，分别生成四宫格分镜，每张四宫格包括人物侧面角度的4个景别（远景、中景、近景、和局部特写），保持场景、产品、人物特征的一致性，宫格里的每一张照片保持和提供图片相同的比例。并在图片下方用英文标注这个景别
+    prompt: (character: string) => `使用提供的图片，分别生成四宫格分镜，每张四宫格包括人物侧面角度的4个景别（远景、中景、近景、和局部特写），保持场景、产品、人物特征的一致性，宫格里的每一张照片保持和提供图片相同的比例。并在图片下方用英文标注这个景别
 
 角色参考: ${character}`
   },
   back: {
     label: '后视',
     english: 'Back View',
-    prompt: (character) => `使用提供的图片，分别生成四宫格分镜，每张四宫格包括人物背影角度的4个景别（远景、中景、近景、和局部特写），保持场景、产品、人物特征的一致性，宫格里的每一张照片保持和提供图片相同的比例。并在图片下方用英文标注这个景别
+    prompt: (character: string) => `使用提供的图片，分别生成四宫格分镜，每张四宫格包括人物背影角度的4个景别（远景、中景、近景、和局部特写），保持场景、产品、人物特征的一致性，宫格里的每一张照片保持和提供图片相同的比例。并在图片下方用英文标注这个景别
 
 角色参考: ${character}`
   },
   top: {
     label: '俯视',
     english: 'Top/Bird\'s Eye View',
-    prompt: (character) => `使用提供的图片，分别生成四宫格分镜，每张四宫格包括俯视角度的4个景别（远景、中景、近景、和局部特写），保持场景、产品、人物特征的一致性，宫格里的每一张照片保持和提供图片相同的比例。并在图片下方用英文标注这个景别
+    prompt: (character: string) => `使用提供的图片，分别生成四宫格分镜，每张四宫格包括俯视角度的4个景别（远景、中景、近景、和局部特写），保持场景、产品、人物特征的一致性，宫格里的每一张照片保持和提供图片相同的比例。并在图片下方用英文标注这个景别
 
 角色参考: ${character}`
   }
@@ -139,15 +222,15 @@ export const useWorkflowOrchestrator = () => {
   const isExecuting = ref(false)
   const currentStep = ref(0)
   const totalSteps = ref(0)
-  const executionLog = ref([])
-  
+  const executionLog = ref<LogEntry[]>([])
+
   // Active watchers | 活跃的监听器
-  const activeWatchers = []
-  
+  const activeWatchers: WatchStopHandle[] = []
+
   /**
    * Add log entry | 添加日志
    */
-  const addLog = (type, message) => {
+  const addLog = (type: string, message: string) => {
     executionLog.value.push({ type, message, timestamp: Date.now() })
     if (import.meta.env.DEV) {
       console.log(`[Workflow ${type}] ${message}`)
@@ -161,20 +244,20 @@ export const useWorkflowOrchestrator = () => {
     activeWatchers.forEach(stop => stop())
     activeWatchers.length = 0
   }
-  
+
   /**
    * Wait for config node to complete and return output node ID
    * 等待配置节点完成并返回输出节点 ID
    */
-  const waitForConfigComplete = (configNodeId) => {
-    return new Promise((resolve, reject) => {
+  const waitForConfigComplete = (configNodeId: string): Promise<string> => {
+    return new Promise<string>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('执行超时'))
       }, 5 * 60 * 1000)
-      
-      let stopWatcher = null
-      
-      const checkNode = (node) => {
+
+      let stopWatcher: WatchStopHandle | null = null
+
+      const checkNode = (node: FlowNodeItem | undefined) => {
         if (!node) return false
         
         // Check for error | 检查错误
@@ -215,15 +298,15 @@ export const useWorkflowOrchestrator = () => {
    * Wait for output node (image/video) to be ready
    * 等待输出节点准备好
    */
-  const waitForOutputReady = (outputNodeId) => {
-    return new Promise((resolve, reject) => {
+  const waitForOutputReady = (outputNodeId: string): Promise<FlowNodeItem> => {
+    return new Promise<FlowNodeItem>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('输出节点超时'))
       }, 5 * 60 * 1000)
-      
-      let stopWatcher = null
-      
-      const checkNode = (node) => {
+
+      let stopWatcher: WatchStopHandle | null = null
+
+      const checkNode = (node: FlowNodeItem | undefined) => {
         if (!node) return false
         
         if (node.data?.error) {
@@ -262,7 +345,7 @@ export const useWorkflowOrchestrator = () => {
   /**
    * Analyze user intent | 分析用户意图
    */
-  const analyzeIntent = async (userInput) => {
+  const analyzeIntent = async (userInput: string): Promise<IntentResult> => {
     isAnalyzing.value = true
     
     try {
@@ -290,9 +373,9 @@ export const useWorkflowOrchestrator = () => {
         return { workflow_type: WORKFLOW_TYPES.TEXT_TO_IMAGE }
       }
       
-      return JSON.parse(jsonMatch[0])
+      return JSON.parse(jsonMatch[0]) as IntentResult
     } catch (err) {
-      addLog('error', `分析失败: ${err.message}`)
+      addLog('error', `分析失败: ${errMessage(err)}`)
       return { workflow_type: WORKFLOW_TYPES.TEXT_TO_IMAGE }
     } finally {
       isAnalyzing.value = false
@@ -303,7 +386,7 @@ export const useWorkflowOrchestrator = () => {
    * Execute text-to-image workflow | 执行文生图工作流
    * text → imageConfig (autoExecute) → image
    */
-  const executeTextToImage = async (imagePrompt, position) => {
+  const executeTextToImage = async (imagePrompt: string | undefined, position: Position) => {
     const nodeSpacing = 400
     let x = position.x
     
@@ -345,7 +428,7 @@ export const useWorkflowOrchestrator = () => {
    * videoText → videoConfig → video
    *              image → videoConfig
    */
-  const executeTextToImageToVideo = async (imagePrompt, videoPrompt, position) => {
+  const executeTextToImageToVideo = async (imagePrompt: string | undefined, videoPrompt: string | undefined, position: Position) => {
     const nodeSpacing = 400
     const rowSpacing = 200
     let x = position.x
@@ -429,7 +512,7 @@ export const useWorkflowOrchestrator = () => {
       addLog('success', '文生图生视频工作流已启动')
       return { imageTextNodeId, videoTextNodeId, imageConfigId, imageNodeId, videoConfigId }
     } catch (err) {
-      addLog('error', `工作流执行失败: ${err.message}`)
+      addLog('error', `工作流执行失败: ${err instanceof Error ? err.message : String(err)}`)
       throw err
     }
   }
@@ -444,18 +527,18 @@ export const useWorkflowOrchestrator = () => {
    * [分镜2文本] → [imageConfig] → [分镜2图片]
    * ...
    */
-  const executeStoryboard = async (character, shots, position) => {
+  const executeStoryboard = async (character: CharacterInfo | undefined, shots: ShotInfo[] | undefined, position: Position) => {
     const nodeSpacing = 400
     const rowSpacing = 250
     let x = position.x
     let y = position.y
-    
+
     const shotCount = shots?.length || 0
     addLog('info', `开始执行分镜工作流: ${character?.name || '未知角色'}, ${shotCount} 个分镜`)
     currentStep.value = 1
     totalSteps.value = 2 + shotCount * 2 // 角色生成 + 每个分镜(文本+生成)
-    
-    const createdNodes = {
+
+    const createdNodes: StoryboardCreatedNodes = {
       characterTextId: null,
       characterConfigId: null,
       characterImageId: null,
@@ -500,7 +583,8 @@ export const useWorkflowOrchestrator = () => {
       
       // Step 3+: Create each shot | 创建每个分镜
       for (let i = 0; i < shotCount; i++) {
-        const shot = shots[i]
+        // shotCount derives from shots.length, so shots is defined here | shotCount 源自 shots.length，此处 shots 必存在
+        const shot = shots![i]
         const shotY = y + (i + 1) * rowSpacing
         let shotX = position.x
         
@@ -555,7 +639,7 @@ export const useWorkflowOrchestrator = () => {
       addLog('success', `分镜工作流完成，共生成 ${shotCount} 个分镜`)
       return createdNodes
     } catch (err) {
-      addLog('error', `分镜工作流执行失败: ${err.message}`)
+      addLog('error', `分镜工作流执行失败: ${err instanceof Error ? err.message : String(err)}`)
       throw err
     }
   }
@@ -572,20 +656,20 @@ export const useWorkflowOrchestrator = () => {
    * @param {object} multiAngle - 多角度参数 { character_description }
    * @param {object} position - 起始位置
    */
-  const executeMultiAngleStoryboard = async (multiAngle, position) => {
+  const executeMultiAngleStoryboard = async (multiAngle: MultiAngleInfo | undefined, position: Position) => {
     const nodeSpacing = 400
     const rowSpacing = 300
     let x = position.x
     let y = position.y
     
     const characterDesc = multiAngle?.character_description || ''
-    const angles = ['front', 'side', 'back', 'top']
+    const angles = ['front', 'side', 'back', 'top'] as const
     
     addLog('info', `开始执行多角度分镜工作流: ${characterDesc.slice(0, 30)}...`)
     currentStep.value = 1
     totalSteps.value = 2 + angles.length * 2 // 角色图 + 每个角度(提示词+生成)
     
-    const createdNodes = {
+    const createdNodes: MultiAngleCreatedNodes = {
       characterImageId: null,
       angles: []
     }
@@ -661,7 +745,7 @@ export const useWorkflowOrchestrator = () => {
       
       return createdNodes
     } catch (err) {
-      addLog('error', `多角度分镜工作流执行失败: ${err.message}`)
+      addLog('error', `多角度分镜工作流执行失败: ${err instanceof Error ? err.message : String(err)}`)
       throw err
     }
   }
@@ -672,7 +756,7 @@ export const useWorkflowOrchestrator = () => {
    * @param {object} params - 工作流参数
    * @param {object} position - 起始位置
    */
-  const executeWorkflow = async (params, position) => {
+  const executeWorkflow = async (params: IntentResult, position: Position) => {
     isExecuting.value = true
     clearWatchers()
     executionLog.value = []
@@ -700,7 +784,7 @@ export const useWorkflowOrchestrator = () => {
   /**
    * Convenience method for simple text-to-image | 简便方法
    */
-  const createTextToImageWorkflow = (imagePrompt, position) => {
+  const createTextToImageWorkflow = (imagePrompt: string, position: Position) => {
     return executeWorkflow({ 
       workflow_type: WORKFLOW_TYPES.TEXT_TO_IMAGE, 
       image_prompt: imagePrompt 
@@ -710,7 +794,7 @@ export const useWorkflowOrchestrator = () => {
   /**
    * Convenience method for multi-angle storyboard | 多角度分镜简便方法
    */
-  const createMultiAngleStoryboard = (characterDescription, position) => {
+  const createMultiAngleStoryboard = (characterDescription: string, position: Position) => {
     return executeWorkflow({
       workflow_type: WORKFLOW_TYPES.MULTI_ANGLE_STORYBOARD,
       multi_angle: { character_description: characterDescription }

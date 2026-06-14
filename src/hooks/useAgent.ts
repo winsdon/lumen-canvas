@@ -9,6 +9,54 @@ import { addNode, canvasViewport, nodes, addDraft, updateDraft } from '@/stores/
 import { getToolRenderer } from '@/components/agent/toolRendererRegistry'
 import { getAccessToken } from '@/utils'
 
+// Conversation message displayed in the agent panel | 智能体面板展示的对话消息
+interface AgentMessage {
+  id: number
+  role: string
+  content?: string
+  toolName?: string
+  toolLabel?: string
+  icon?: string
+  status?: string
+  args?: Record<string, unknown>
+  result?: Record<string, unknown> | null
+  resultSummary?: string
+  hidden?: boolean
+}
+
+// SSE payload shapes per event type | 各事件类型的 SSE 数据结构
+interface TextEventData {
+  content?: string
+}
+interface ToolCallEventData {
+  name?: string
+  args?: Record<string, unknown>
+}
+interface ToolResultEventData {
+  name?: string
+  result?: { status?: string; error?: string; [key: string]: unknown }
+}
+interface DraftCreatedEventData {
+  draft_id: string
+  label: string
+  nodes: Parameters<typeof addDraft>[2]
+  edges: Parameters<typeof addDraft>[3]
+}
+interface DraftUpdatedEventData {
+  draft_id: string
+  changes: Parameters<typeof updateDraft>[1]
+}
+interface ErrorEventData {
+  message?: string
+}
+
+// Image payload added to the canvas via addImageToCanvas | 添加到画布的图片数据
+interface AgentImageData {
+  pic_url?: string
+  picUrl?: string
+  prompt?: string
+}
+
 // Auto-increment message ID counter | 消息自增 ID 计数器
 let msgId = 0
 
@@ -17,15 +65,15 @@ let msgId = 0
  * @param {object} fields - Message fields
  * @returns {object} Message with id
  */
-const createMessage = (fields) => ({ id: msgId++, ...fields })
+const createMessage = (fields: Omit<AgentMessage, 'id'>): AgentMessage => ({ id: msgId++, ...fields })
 
 export function useAgent() {
-  const messages = ref([])
+  const messages = ref<AgentMessage[]>([])
   const loading = ref(false)
   const currentResponse = ref('')
 
   // AbortController for cancelling requests | 用于取消请求的 AbortController
-  let abortController = null
+  let abortController: AbortController | null = null
 
   /**
    * Calculate position for new node | 计算新节点的位置
@@ -42,7 +90,7 @@ export function useAgent() {
    * Send a message to the agent | 发送消息给智能体
    * @param {string} content - User message text | 用户消息文本
    */
-  const send = async (content) => {
+  const send = async (content: string) => {
     if (!content.trim() || loading.value) return
 
     // Add user message | 添加用户消息
@@ -64,11 +112,13 @@ export function useAgent() {
 
       for await (const { event, data } of streamAgentChat(content, localController.signal)) {
         switch (event) {
-          case 'text':
+          case 'text': {
             // Accumulate text deltas | 累积文本增量
-            textBuffer += data.content || ''
+            const textData = data as TextEventData
+            textBuffer += textData.content || ''
             currentResponse.value = textBuffer
             break
+          }
 
           case 'tool_call': {
             // Flush accumulated text before tool call | 工具调用前先刷新文本
@@ -77,8 +127,9 @@ export function useAgent() {
               textBuffer = ''
               currentResponse.value = ''
             }
-            const toolName = data.name
-            const toolConfig = getToolRenderer(toolName)
+            const toolData = data as ToolCallEventData
+            const toolName = toolData.name
+            const toolConfig = getToolRenderer(toolName as string)
             messages.value = [
               ...messages.value,
               createMessage({
@@ -87,7 +138,7 @@ export function useAgent() {
                 toolLabel: toolConfig.label,
                 icon: toolConfig.icon,
                 status: 'running',
-                args: data.args || {},
+                args: toolData.args || {},
                 result: null,
                 resultSummary: ''
               })
@@ -102,10 +153,11 @@ export function useAgent() {
               textBuffer = ''
               currentResponse.value = ''
             }
-            const resultToolName = data.name
-            const resultConfig = getToolRenderer(resultToolName)
-            const summary = resultConfig.summarize(data.result || {})
-            const isError = data.result?.status === 'fail' || data.result?.error
+            const resultData = data as ToolResultEventData
+            const resultToolName = resultData.name
+            const resultConfig = getToolRenderer(resultToolName as string)
+            const summary = resultConfig.summarize(resultData.result || {})
+            const isError = resultData.result?.status === 'fail' || resultData.result?.error
 
             // Update existing tool_call message (immutable) | 不可变更新现有工具调用消息
             const statusIdx = messages.value.findIndex(
@@ -117,8 +169,8 @@ export function useAgent() {
                   ? {
                       ...msg,
                       status: isError ? 'error' : 'completed',
-                      result: data.result || {},
-                      resultSummary: isError ? (data.result?.error || '执行失败') : summary
+                      result: resultData.result || {},
+                      resultSummary: isError ? (resultData.result?.error || '执行失败') : summary
                     }
                   : msg
               )
@@ -127,24 +179,25 @@ export function useAgent() {
           }
 
           case 'draft_created': {
-            const { draft_id, label, nodes: draftNodes, edges: draftEdges } = data
+            const { draft_id, label, nodes: draftNodes, edges: draftEdges } = data as DraftCreatedEventData
             addDraft(draft_id, label, draftNodes, draftEdges)
             break
           }
 
           case 'draft_updated': {
-            const { draft_id, changes } = data
+            const { draft_id, changes } = data as DraftUpdatedEventData
             updateDraft(draft_id, changes)
             break
           }
 
           case 'thinking': {
+            const thinkingData = data as TextEventData
             const lastMsg = messages.value[messages.value.length - 1]
             if (lastMsg && lastMsg.role === 'thinking') {
               // Accumulate into existing thinking block | 追加到现有 thinking 块
               messages.value = messages.value.map((msg, i) =>
                 i === messages.value.length - 1
-                  ? { ...msg, content: msg.content + '\n' + (data.content || '') }
+                  ? { ...msg, content: msg.content + '\n' + (thinkingData.content || '') }
                   : msg
               )
             } else {
@@ -158,7 +211,7 @@ export function useAgent() {
               // Create new thinking block | 创建新 thinking 块
               messages.value = [
                 ...messages.value,
-                createMessage({ role: 'thinking', content: data.content || '' })
+                createMessage({ role: 'thinking', content: thinkingData.content || '' })
               ]
             }
             break
@@ -174,7 +227,7 @@ export function useAgent() {
             break
 
           case 'error':
-            window.$message?.error(data.message || '处理失败')
+            window.$message?.error((data as ErrorEventData).message || '处理失败')
             break
         }
       }
@@ -185,9 +238,10 @@ export function useAgent() {
         currentResponse.value = ''
       }
     } catch (err) {
-      if (err.name === 'AbortError') return
-      if (!err.__handled) {
-        window.$message?.error(err.message || '请求失败')
+      const e = err as { name?: string; __handled?: boolean; message?: string }
+      if (e.name === 'AbortError') return
+      if (!e.__handled) {
+        window.$message?.error(e.message || '请求失败')
       }
     } finally {
       // Only clear shared state if this run still owns the controller
@@ -201,8 +255,8 @@ export function useAgent() {
   }
 
   // Listen for draft cancellation | 监听草稿取消事件
-  const handleDraftCancelled = (e) => {
-    const { draftId } = e.detail
+  const handleDraftCancelled = (e: Event) => {
+    const { draftId } = (e as CustomEvent<{ draftId?: string }>).detail
     if (draftId) {
       // Send hidden notification to agent backend | 发送隐藏通知到 Agent 后端
       const cancelMsg = `[system] 用户已取消草稿 ${draftId}，请勿继续修改该草稿。`
@@ -235,7 +289,7 @@ export function useAgent() {
    * Finds the nearest user message above, removes all messages after it, and re-sends.
    * @param {number} assistantMsgId - The id of the assistant message to regenerate
    */
-  const regenerate = (assistantMsgId) => {
+  const regenerate = (assistantMsgId: number) => {
     // Guard: don't destroy messages while a stream is active — send() would no-op
     // 守卫：流式进行中不要销毁消息，否则 send() 会被 loading 守卫静默跳过导致消息丢失
     if (loading.value) return
@@ -256,14 +310,14 @@ export function useAgent() {
     // Remove user message and everything after it — send() will re-add the user message
     // 删除用户消息及之后的所有消息，send() 会重新添加用户消息
     messages.value = messages.value.slice(0, userMsgIndex)
-    send(userContent)
+    send(userContent as string)
   }
 
   /**
    * Add an image to the canvas | 将图片添加到画布
    * @param {object} imageData - Image data with pic_url/picUrl and prompt
    */
-  const addImageToCanvas = (imageData) => {
+  const addImageToCanvas = (imageData: AgentImageData) => {
     const position = calculatePosition()
     const url = imageData.pic_url || imageData.picUrl
     addNode('textToImage', position, {

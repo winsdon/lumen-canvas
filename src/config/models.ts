@@ -62,7 +62,7 @@ export const IMAGE_MODEL_CAPABILITIES = [
         pattern: /doubao-seedream|seedream/i, // Match doubao seedream family
         sizes: SEEDREAM_SIZE_OPTIONS.map(s => s.key),
         qualities: SEEDREAM_QUALITY_OPTIONS,
-        getSizesByQuality: (quality) => quality === '4k' ? SEEDREAM_4K_SIZE_OPTIONS : SEEDREAM_SIZE_OPTIONS,
+        getSizesByQuality: (quality: string) => quality === '4k' ? SEEDREAM_4K_SIZE_OPTIONS : SEEDREAM_SIZE_OPTIONS,
         defaultParams: {
             size: '2048x2048',
             quality: 'standard',
@@ -159,10 +159,16 @@ export const CHAT_MODEL_CAPABILITIES = [
     { key: 'gemini-3-pro', label: 'Gemini 3 Pro' }
 ]
 
-// Deprecated: Use dynamic loading instead
-export const IMAGE_MODELS = []
-export const VIDEO_MODELS = []
-export const CHAT_MODELS = []
+// Deprecated: Use dynamic loading instead | 已废弃：改用动态加载
+// Loosely-typed model entries keyed by `key` | 以 key 索引的宽松模型条目
+interface ModelEntry {
+    key: string
+    label?: string
+    [prop: string]: unknown
+}
+export const IMAGE_MODELS: ModelEntry[] = []
+export const VIDEO_MODELS: ModelEntry[] = []
+export const CHAT_MODELS: ModelEntry[] = []
 
 // Video ratio options | 视频比例选项
 export const VIDEO_RATIO_OPTIONS = VIDEO_RATIO_LIST
@@ -183,7 +189,7 @@ export const DEFAULT_VIDEO_DURATION = 5
 export const DEFAULT_VIDEO_RESOLUTION = '720P'
 
 // Get model by key | 根据 key 获取模型
-export const getModelByName = (key) => {
+export const getModelByName = (key: string) => {
     const allModels = [...IMAGE_MODELS, ...VIDEO_MODELS, ...CHAT_MODELS]
     return allModels.find(m => m.key === key)
 }

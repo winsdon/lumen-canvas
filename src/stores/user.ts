@@ -20,14 +20,20 @@ export const isLoggedIn = computed(() => {
   return !!accessToken.value && !isTokenExpired()
 })
 
-export const setTokens = ({ accessToken: at, refreshToken: rt, expiresTime: et }) => {
-  accessToken.value = at
-  refreshToken.value = rt
-  expiresTime.value = et
+interface TokenInput {
+  accessToken?: string | null
+  refreshToken?: string | null
+  expiresTime?: string | number | null
+}
+
+export const setTokens = ({ accessToken: at, refreshToken: rt, expiresTime: et }: TokenInput) => {
+  accessToken.value = at ?? ''
+  refreshToken.value = rt ?? ''
+  expiresTime.value = et == null ? '' : String(et)
   saveTokens({ accessToken: at, refreshToken: rt, expiresTime: et })
 }
 
-export const setUserInfo = (info) => {
+export const setUserInfo = (info: unknown) => {
   userInfo.value = info
   saveUserInfo(info)
 }

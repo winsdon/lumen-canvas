@@ -7,7 +7,7 @@ import { authRequest } from '@/utils/request'
  * @param {number} data.payPrice - 充值金额（单位：分）
  * @param {string} data.channelCode - 支付渠道编码
  */
-export const createPointRecharge = (data) => {
+export const createPointRecharge = (data: Record<string, unknown>) => {
   return authRequest.post('/member/point-recharge/create', data)
 }
 
@@ -17,7 +17,7 @@ export const createPointRecharge = (data) => {
  * @param {number} params.pageNo - 页码
  * @param {number} params.pageSize - 每页条数
  */
-export const getPointRechargePage = (params) => {
+export const getPointRechargePage = (params: Record<string, unknown>) => {
   return authRequest.get('/member/point-recharge/page', { params })
 }
 
@@ -29,7 +29,7 @@ export const getPointRechargePage = (params) => {
  * @param {string} [data.displayMode] - 展示模式（url/qr_code/form）
  * @param {string} [data.returnUrl] - 支付成功后的回跳地址
  */
-export const submitPayOrder = (data) => {
+export const submitPayOrder = (data: Record<string, unknown>) => {
   return authRequest.post('/pay/order/submit', data)
 }
 
@@ -38,7 +38,7 @@ export const submitPayOrder = (data) => {
  * @param {Object} params
  * @param {number} params.id - 支付单编号
  */
-export const getPayOrder = (params) => {
+export const getPayOrder = (params: Record<string, unknown>) => {
   return authRequest.get('/pay/order/get', { params })
 }
 
@@ -47,7 +47,7 @@ export const getPayOrder = (params) => {
  * @param {number} modelId - 模型ID
  * @param {Object} params - 业务参数 (duration, resolution 等)
  */
-export const estimatePoint = (modelId, params) => {
+export const estimatePoint = (modelId: number, params: Record<string, unknown>) => {
   return authRequest.get('/ai/point/estimate', {
     params: { modelId, ...params }
   })
@@ -57,7 +57,7 @@ export const estimatePoint = (modelId, params) => {
  * 获取模型积分规则
  * @param {number} modelId - 模型ID
  */
-export const getPointRules = (modelId) => {
+export const getPointRules = (modelId: number) => {
   return authRequest.get('/ai/point/rules', {
     params: { modelId }
   })

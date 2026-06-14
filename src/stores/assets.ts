@@ -6,6 +6,7 @@
  * rather than Pinia. We follow that convention here for consistency.
  */
 import { ref, reactive } from 'vue'
+import type { PageResult } from '@/types/api'
 import { getAssetPage, importAsset, deleteAsset, updateAssetTags } from '@/api/asset'
 import { getFilePresignedUrl, uploadFileToUrl } from '@/api/file'
 
@@ -13,15 +14,41 @@ const USE_MOCK = import.meta.env.VITE_USE_ASSET_MOCK === 'true'
 
 const PAGE_SIZE = 24
 
+// Asset entity | 资产实体
+export interface Asset {
+  id: string | number
+  source?: string
+  assetType?: string
+  imageUrl?: string
+  videoUrl?: string
+  tags?: string[]
+  fileSize?: number
+  [key: string]: unknown
+}
+
+// Filter state shape | 过滤条件状态结构
+interface AssetFilters {
+  source: string | null
+  assetType: string | null
+  keyword: string
+  tag: string | null
+}
+
+// Presigned upload bundle from /infra/file/presigned-url | 预签名上传返回结构
+interface PresignedUrl {
+  uploadUrl: string
+  url: string
+}
+
 // State | 状态
-export const list = ref([])
+export const list = ref<Asset[]>([])
 export const page = ref(1)
 export const total = ref(0)
 export const hasMore = ref(true)
 export const loading = ref(false)
 export const uploading = ref(false)
 
-export const filters = reactive({
+export const filters = reactive<AssetFilters>({
   source: null,
   assetType: null,
   keyword: '',
@@ -34,7 +61,7 @@ let requestToken = 0
 
 /** Build a filters object with empty/null values pruned. */
 const prunedFilters = () => {
-  const out = {}
+  const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(filters)) {
     if (v !== null && v !== '') out[k] = v
   }
@@ -50,11 +77,13 @@ export const loadMore = async () => {
   const token = requestToken
   loading.value = true
   try {
-    const result = await getAssetPage({
+    // API returns unwrapped payload as unknown; bridge to PageResult<Asset>
+    // API 返回解包后的负载为 unknown，此处桥接为 PageResult<Asset>
+    const result = (await getAssetPage({
       pageNo: page.value,
       pageSize: PAGE_SIZE,
       ...prunedFilters()
-    })
+    })) as PageResult<Asset>
     // A reload happened during the request — discard this stale response
     // 请求期间发生了 reload —— 丢弃过期响应
     if (token !== requestToken) return
@@ -96,15 +125,17 @@ export const reload = async () => {
  * In mock mode, uses a blob URL so dev workflow doesn't hit the network.
  * 本地文件上传：参考画布图片/视频节点，先直传 OSS 再入库元数据。
  */
-export const upload = async (file) => {
+export const upload = async (file: File) => {
   uploading.value = true
   try {
-    let imageUrl
+    let imageUrl: string
     if (USE_MOCK) {
       imageUrl = URL.createObjectURL(file)
     } else {
       // 1. presigned URL
-      const presigned = await getFilePresignedUrl(file.name)
+      // API returns unwrapped payload as unknown; bridge to PresignedUrl
+      // API 返回解包后的负载为 unknown，此处桥接为 PresignedUrl
+      const presigned = (await getFilePresignedUrl(file.name)) as PresignedUrl
       // 2. direct PUT to OSS
       await uploadFileToUrl(presigned.uploadUrl, file)
       imageUrl = presigned.url
@@ -131,7 +162,7 @@ export const upload = async (file) => {
  * Delete an asset and remove from local list (immutable update).
  * 删除资产
  */
-export const remove = async (id) => {
+export const remove = async (id: string | number) => {
   await deleteAsset(id)
   list.value = list.value.filter(a => a.id !== id)
   total.value = Math.max(0, total.value - 1)
@@ -141,7 +172,7 @@ export const remove = async (id) => {
  * Update tags (full replace, immutable).
  * 更新标签
  */
-export const updateTags = async (id, tags) => {
+export const updateTags = async (id: string | number, tags: string[]) => {
   await updateAssetTags(id, tags)
   list.value = list.value.map(a =>
     a.id === id ? { ...a, tags: [...tags] } : a
@@ -149,9 +180,11 @@ export const updateTags = async (id, tags) => {
 }
 
 /** Set a single filter value. */
-export const setFilter = (name, value) => {
+export const setFilter = (name: keyof AssetFilters, value: AssetFilters[keyof AssetFilters]) => {
   if (name in filters) {
-    filters[name] = value
+    // Assert to satisfy the per-key narrowing; runtime assignment is unchanged
+    // 断言以满足按键收窄，运行时赋值不变
+    filters[name] = value as never
   }
 }
 

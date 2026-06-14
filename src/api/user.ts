@@ -14,7 +14,7 @@ export const getUserInfo = () => {
  * @param {string} data.avatar - 用户头像
  * @param {number} data.sex - 用户性别 (1: 男, 2: 女)
  */
-export const updateUserInfo = (data) => {
+export const updateUserInfo = (data: Record<string, unknown>) => {
   return authRequest.put('/member/user/update', data)
 }
 
@@ -24,7 +24,7 @@ export const updateUserInfo = (data) => {
  * @param {string} data.password - 新密码
  * @param {string} data.code - 手机验证码
  */
-export const updatePassword = (data) => {
+export const updatePassword = (data: Record<string, unknown>) => {
   return authRequest.put('/member/user/update-password', data)
 }
 
@@ -35,6 +35,6 @@ export const updatePassword = (data) => {
  * @param {string} data.code - 新手机验证码
  * @param {string} [data.oldCode] - 原手机验证码（可选）
  */
-export const updateMobile = (data) => {
+export const updateMobile = (data: Record<string, unknown>) => {
   return authRequest.put('/member/user/update-mobile', data)
 }

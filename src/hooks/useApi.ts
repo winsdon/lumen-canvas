@@ -16,12 +16,140 @@ import { fetchModels, getModelId } from '@/stores/aiModels'
 import { DEFAULT_CHAT_MODEL } from '@/config/models'
 import { onUnmounted, reactive, ref } from 'vue'
 
+// Chat message in conversation history | 对话历史消息
+interface ChatMessage {
+  role: string
+  content: string
+}
+
+// Options accepted by useChat | useChat 选项
+interface ChatOptions {
+  systemPrompt?: string
+  model?: string
+}
+
+// Mutable request payload sent to streamChatCompletions | 发送给流式对话的请求体
+interface ChatRequestData {
+  modelId: string | number
+  systemPrompt: string
+  userPrompt: string
+  images?: string[]
+  image?: string
+  imageUrls?: string[]
+  [key: string]: unknown
+}
+
+// Params for image generation | 图片生成参数
+interface ImageGenParams {
+  model: string
+  prompt: string
+  size?: string
+  n?: number
+  image?: unknown
+  systemPrompt?: string
+}
+
+// One AI image record returned by the backend | 后端返回的单条 AI 图片记录
+interface AiImageRecord {
+  id?: string | number
+  picUrl?: string
+  errorMessage?: string
+  prompt?: string
+  status?: number
+}
+
+// Unified generated image shape | 统一的生成图片结构
+interface GeneratedImage {
+  url?: string
+  revisedPrompt?: string
+  id?: string | number
+}
+
+// Reference image entry carried by video params | 视频参数携带的参考图
+interface VideoParamImage {
+  role?: string
+  [key: string]: unknown
+}
+
+// Params for video generation | 视频生成参数
+interface VideoGenParams {
+  model?: string
+  modelId?: string | number
+  prompt?: string
+  type?: number
+  duration?: number
+  dur?: number
+  resolution?: string
+  images?: VideoParamImage[]
+  negativePrompt?: string
+  audioUrl?: string
+  promptExtend?: unknown
+  watermark?: unknown
+  seed?: unknown
+  shotType?: unknown
+  audio?: unknown
+  options?: Record<string, unknown>
+  ratio?: unknown
+}
+
+// Options for video generation | 视频生成选项
+interface VideoGenOptions {
+  onTaskId?: (id: string | number) => void
+}
+
+// Mutable video request payload | 可变的视频请求体
+interface VideoRequestData {
+  modelId: string | number
+  type: number
+  prompt: string
+  duration: number
+  resolution: string
+  images?: VideoParamImage[]
+  negativePrompt?: string
+  audioUrl?: string
+  promptExtend?: unknown
+  watermark?: unknown
+  seed?: unknown
+  shotType?: unknown
+  audio?: unknown
+  options?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+// AI video record returned by the backend | 后端返回的 AI 视频记录
+interface AiVideoRecord {
+  status?: number
+  videoUrl?: string
+  errorMessage?: string
+  [key: string]: unknown
+}
+
+// Unified video result shape | 统一的视频结果结构
+interface VideoResult {
+  url: string
+  id: string | number
+  [key: string]: unknown
+}
+
+// AI enhance record returned by the backend | 后端返回的 AI 增强记录
+interface AiEnhanceRecord {
+  resultUrl?: string
+  errorMessage?: string
+  id?: string | number
+}
+
+// Unified enhance result shape | 统一的增强结果结构
+interface EnhanceResult {
+  url: string
+  id: string | number
+}
+
 /**
  * Base API state hook | 基础 API 状态 Hook
  */
 export const useApiState = () => {
   const loading = ref(false)
-  const error = ref(null)
+  const error = ref<unknown>(null)
   const status = ref('idle')
 
   const reset = () => {
@@ -30,12 +158,12 @@ export const useApiState = () => {
     status.value = 'idle'
   }
 
-  const setLoading = (isLoading) => {
+  const setLoading = (isLoading: boolean) => {
     loading.value = isLoading
     status.value = isLoading ? 'running' : status.value
   }
 
-  const setError = (err) => {
+  const setError = (err: unknown) => {
     error.value = err
     status.value = 'error'
     loading.value = false
@@ -53,14 +181,19 @@ export const useApiState = () => {
 /**
  * Chat composable | 问答组合式函数
  */
-export const useChat = (options = {}) => {
+export const useChat = (options: ChatOptions = {}) => {
   const { loading, error, status, reset, setLoading, setError, setSuccess } = useApiState()
 
-  const messages = ref([])
+  const messages = ref<ChatMessage[]>([])
   const currentResponse = ref('')
-  let abortController = null
+  let abortController: AbortController | null = null
 
-  const send = async (content, stream = true, modelKey = null, images = []) => {
+  const send = async (
+    content: string,
+    stream = true,
+    modelKey: string | null = null,
+    images: string[] = []
+  ) => {
     setLoading(true)
     currentResponse.value = ''
 
@@ -95,7 +228,7 @@ export const useChat = (options = {}) => {
           throw new Error(`Model not found: ${selectedModelKey}`)
         }
 
-        const requestData = { modelId, systemPrompt, userPrompt }
+        const requestData: ChatRequestData = { modelId, systemPrompt, userPrompt }
         if (images && images.length > 0) {
           if (import.meta.env.DEV) console.log('[useChat] Sending images with request:', images)
           requestData.images = images
@@ -120,7 +253,7 @@ export const useChat = (options = {}) => {
         return fullResponse
       }
     } catch (err) {
-      if (err.name !== 'AbortError') {
+      if ((err as { name?: string })?.name !== 'AbortError') {
         setError(err)
         throw err
       }
@@ -152,14 +285,14 @@ export const useChat = (options = {}) => {
 export const useImageGeneration = () => {
   const { loading, error, status, reset, setLoading, setError, setSuccess } = useApiState()
 
-  const images = ref([])
-  const currentImage = ref(null)
+  const images = ref<GeneratedImage[]>([])
+  const currentImage = ref<GeneratedImage | null>(null)
 
   /**
    * Generate image with fixed params | 固定参数生成图片
    * @param {Object} params - { model, prompt, size, n, image (optional ref image), systemPrompt (optional) }
    */
-  const generate = async (params) => {
+  const generate = async (params: ImageGenParams) => {
     setLoading(true)
     images.value = []
     currentImage.value = null
@@ -182,8 +315,8 @@ export const useImageGeneration = () => {
       
       // 4. Submit tasks (Handle batch) | 提交任务（处理批量）
       const count = params.n || 1
-      const taskIds = []
-      
+      const taskIds: Array<string | number> = []
+
       for (let i = 0; i < count; i++) {
          const taskId = await aiImageDraw({
            modelId,
@@ -192,7 +325,7 @@ export const useImageGeneration = () => {
            height,
            systemPrompt: params.systemPrompt,
            image: params.image // Optional for img2img
-         })
+         }) as string | number
          taskIds.push(taskId)
       }
       
@@ -208,9 +341,9 @@ export const useImageGeneration = () => {
       
       for (let i = 0; i < maxAttempts; i++) {
         // Fetch all statuses
-        const results = await getAiImageListByIds(taskIds)
+        const results = await getAiImageListByIds(taskIds) as AiImageRecord[]
         // results: Array of AiImageRespVO
-        
+
         // Filter finished items (Success or Fail)
         const finishedItems = results.filter(item => item.picUrl || item.errorMessage)
         
@@ -275,8 +408,8 @@ export const useImageGeneration = () => {
 export const useVideoGeneration = () => {
   const { loading, error, status, reset, setLoading, setError, setSuccess } = useApiState()
 
-  const video = ref(null)
-  const taskId = ref(null)
+  const video = ref<VideoResult | null>(null)
+  const taskId = ref<string | number | null>(null)
   const progress = reactive({
     attempt: 0,
     maxAttempts: 120,
@@ -287,7 +420,7 @@ export const useVideoGeneration = () => {
    * Generate video with fixed params | 固定参数生成视频
    * @param {Object} params
    */
-  const generate = async (params, options = {}) => {
+  const generate = async (params: VideoGenParams, options: VideoGenOptions = {}) => {
     setLoading(true)
     video.value = null
     taskId.value = null
@@ -324,7 +457,7 @@ export const useVideoGeneration = () => {
         throw new Error('请选择分辨率')
       }
 
-      const requestData = {
+      const requestData: VideoRequestData = {
         modelId,
         type,
         prompt: params.prompt,
@@ -349,7 +482,7 @@ export const useVideoGeneration = () => {
       if (params.ratio) mergedOptions.ratio = params.ratio
       if (Object.keys(mergedOptions).length > 0) requestData.options = mergedOptions
 
-      const id = await aiVideoGenerate(requestData)
+      const id = (await aiVideoGenerate(requestData)) as string | number
 
       if (!id) {
         throw new Error('未获取到视频记录 ID')
@@ -368,7 +501,7 @@ export const useVideoGeneration = () => {
         progress.attempt = i + 1
         progress.percentage = Math.min(Math.round((i / maxAttempts) * 100), 99)
 
-        const record = await getAiVideoMy(id)
+        const record = (await getAiVideoMy(id)) as AiVideoRecord
         const recordStatus = record?.status
 
         if (recordStatus === 30) {
@@ -404,7 +537,7 @@ export const useVideoGeneration = () => {
    * Resume polling for an existing task | 恢复已有任务的轮询
    * @param {number|string} existingTaskId - 已有的视频记录 ID
    */
-  const resumePoll = async (existingTaskId) => {
+  const resumePoll = async (existingTaskId: string | number) => {
     if (!existingTaskId) return null
     setLoading(true)
     taskId.value = existingTaskId
@@ -420,7 +553,7 @@ export const useVideoGeneration = () => {
         progress.attempt = i + 1
         progress.percentage = Math.min(Math.round((i / maxAttempts) * 100), 99)
 
-        const record = await getAiVideoMy(existingTaskId)
+        const record = (await getAiVideoMy(existingTaskId)) as AiVideoRecord
         const recordStatus = record?.status
 
         if (recordStatus === 30) {
@@ -460,21 +593,21 @@ export const useVideoGeneration = () => {
 export const useImageEnhance = () => {
   const { loading, error, status, reset, setLoading, setError, setSuccess } = useApiState()
 
-  const result = ref(null)
-  const taskId = ref(null)
+  const result = ref<EnhanceResult | null>(null)
+  const taskId = ref<string | number | null>(null)
 
   /**
    * Enhance image | 增强图片
    * @param {Object} params - { imageUrl, type, upscaleModel, upscaleStyle, upscaleScale, skinMode, skinIntensity }
    */
-  const enhance = async (params) => {
+  const enhance = async (params: Record<string, unknown>) => {
     setLoading(true)
     result.value = null
     taskId.value = null
 
     try {
       // 1. Submit task
-      const id = await aiEnhanceImage(params)
+      const id = (await aiEnhanceImage(params)) as string | number
       taskId.value = id
       status.value = 'polling'
 
@@ -483,7 +616,7 @@ export const useImageEnhance = () => {
       const interval = 3000 // 3s
 
       for (let i = 0; i < maxAttempts; i++) {
-        const results = await getAiEnhanceListByIds([id])
+        const results = (await getAiEnhanceListByIds([id])) as AiEnhanceRecord[]
         const task = results?.[0]
 
         if (task?.resultUrl) {

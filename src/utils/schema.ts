@@ -9,7 +9,7 @@
  * @param {string} path - Path like "data.url" or "choices.0.message"
  * @returns {*} Value at path
  */
-export const getNestedValue = (obj, path) => {
+export const getNestedValue = (obj: any, path: string): any => {
   if (!obj || !path) return obj
   const paths = path.split('.')
   let value = obj
@@ -25,13 +25,16 @@ export const getNestedValue = (obj, path) => {
  * @param {string} requestType - 'json' or 'formdata'
  * @returns {Object|FormData} Request body
  */
-export const buildRequestBody = (params, requestType = 'json') => {
+export const buildRequestBody = (
+  params: Record<string, any>,
+  requestType: string = 'json'
+): Record<string, any> | FormData => {
   if (requestType !== 'formdata') {
     return params
   }
 
   const fd = new FormData()
-  
+
   for (const [key, value] of Object.entries(params)) {
     if (Array.isArray(value)) {
       value.forEach((item, idx) => {
@@ -40,7 +43,7 @@ export const buildRequestBody = (params, requestType = 'json') => {
         } else if (typeof item === 'object' && item !== null) {
           fd.append(`${key}[${idx}]`, JSON.stringify(item))
         } else {
-          fd.append(`${key}[${idx}]`, item)
+          fd.append(`${key}[${idx}]`, String(item))
         }
       })
     } else if (value instanceof File) {
@@ -48,10 +51,10 @@ export const buildRequestBody = (params, requestType = 'json') => {
     } else if (typeof value === 'object' && value !== null) {
       fd.append(key, JSON.stringify(value))
     } else if (value !== undefined && value !== null && value !== '') {
-      fd.append(key, value)
+      fd.append(key, String(value))
     }
   }
-  
+
   return fd
 }
 
@@ -62,7 +65,11 @@ export const buildRequestBody = (params, requestType = 'json') => {
  * @param {string} resultType - Result type: 'image', 'video', 'chat'
  * @returns {Array} Parsed results
  */
-export const parseApiResult = (result, outputSchema, resultType = 'image') => {
+export const parseApiResult = (
+  result: any,
+  outputSchema?: { displayField?: string } | null,
+  resultType: string = 'image'
+): any[] => {
   if (!result) return []
   
   // Default field based on result type
@@ -93,7 +100,7 @@ export const parseApiResult = (result, outputSchema, resultType = 'image') => {
     
     // Extract field from each element if fieldPath exists
     if (fieldPath) {
-      return data.map(item => getNestedValue(item, fieldPath)).filter(Boolean)
+      return data.map((item: unknown) => getNestedValue(item, fieldPath)).filter(Boolean)
     }
     
     return data
