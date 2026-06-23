@@ -1,46 +1,66 @@
-/**
- * Asset library store | 资产库状态管理
- * Manages list, pagination, filters, upload state.
- *
- * Note: Project convention uses plain module-level reactive refs (see projects.js, user.js)
- * rather than Pinia. We follow that convention here for consistency.
- */
-import { ref, reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import type { PageResult } from '@/types/api'
-import { getAssetPage, importAsset, deleteAsset, updateAssetTags } from '@/api/asset'
+import { deleteAsset, getAssetPage, importAsset, updateAsset, updateAssetTags } from '@/api/asset'
 import { getFilePresignedUrl, uploadFileToUrl } from '@/api/file'
 
 const USE_MOCK = import.meta.env.VITE_USE_ASSET_MOCK === 'true'
-
+const USE_LOCAL_FALLBACK = import.meta.env.DEV
 const PAGE_SIZE = 24
+const LOCAL_STORAGE_KEY = 'lumen:collector-assets'
 
-// Asset entity | 资产实体
 export interface Asset {
   id: string | number
   source?: string
+  sourceUrl?: string
   assetType?: string
   imageUrl?: string
   videoUrl?: string
+  prompt?: string
+  platform?: string
+  model?: string
+  category?: string
+  notes?: string
   tags?: string[]
   fileSize?: number
+  width?: number
+  height?: number
+  createTime?: string
   [key: string]: unknown
 }
 
-// Filter state shape | 过滤条件状态结构
 interface AssetFilters {
   source: string | null
   assetType: string | null
   keyword: string
   tag: string | null
+  category: string | null
+  platform: string | null
 }
 
-// Presigned upload bundle from /infra/file/presigned-url | 预签名上传返回结构
+export interface SaveAssetFields {
+  source?: string
+  sourceUrl?: string
+  assetType?: string
+  imageUrl?: string
+  videoUrl?: string
+  prompt?: string
+  platform?: string
+  model?: string
+  category?: string
+  notes?: string
+  tags?: string[]
+  width?: number
+  height?: number
+  fileSize?: number
+  contentHash?: string
+  metadata?: Record<string, unknown> | string
+}
+
 interface PresignedUrl {
   uploadUrl: string
   url: string
 }
 
-// State | 状态
 export const list = ref<Asset[]>([])
 export const page = ref(1)
 export const total = ref(0)
@@ -52,40 +72,43 @@ export const filters = reactive<AssetFilters>({
   source: null,
   assetType: null,
   keyword: '',
-  tag: null
+  tag: null,
+  category: null,
+  platform: null
 })
 
-// Request sequence token: bumped on reload so an in-flight loadMore can be discarded
-// 请求序号 token：reload 时自增，使进行中的 loadMore 响应作废
 let requestToken = 0
+let localFallbackActive = false
 
-/** Build a filters object with empty/null values pruned. */
 const prunedFilters = () => {
   const out: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(filters)) {
-    if (v !== null && v !== '') out[k] = v
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== null && value !== '') out[key] = value
   }
   return out
 }
 
-/**
- * Load next page. No-op if already loading or no more pages.
- * 加载下一页
- */
 export const loadMore = async () => {
   if (loading.value || !hasMore.value) return
   const token = requestToken
   loading.value = true
   try {
-    // API returns unwrapped payload as unknown; bridge to PageResult<Asset>
-    // API 返回解包后的负载为 unknown，此处桥接为 PageResult<Asset>
-    const result = (await getAssetPage({
-      pageNo: page.value,
-      pageSize: PAGE_SIZE,
-      ...prunedFilters()
-    })) as PageResult<Asset>
-    // A reload happened during the request — discard this stale response
-    // 请求期间发生了 reload —— 丢弃过期响应
+    let result: PageResult<Asset>
+    try {
+      result = (await getAssetPage({
+        pageNo: page.value,
+        pageSize: PAGE_SIZE,
+        ...prunedFilters()
+      })) as PageResult<Asset>
+    } catch (error) {
+      if (!USE_LOCAL_FALLBACK) throw error
+      console.warn('[assets] remote page failed, using local fallback:', error)
+      localFallbackActive = true
+      result = getLocalAssetPage(page.value, PAGE_SIZE, prunedFilters())
+    }
+    if (USE_LOCAL_FALLBACK && localFallbackActive) {
+      result = getLocalAssetPage(page.value, PAGE_SIZE, prunedFilters())
+    }
     if (token !== requestToken) return
     const newItems = result?.list || []
     list.value = [...list.value, ...newItems]
@@ -96,110 +119,291 @@ export const loadMore = async () => {
     console.error('[assets] loadMore failed:', error)
     if (token === requestToken) throw error
   } finally {
-    // Only clear loading if this request still owns the token
-    // 仅当本请求仍持有 token 时才清除 loading
     if (token === requestToken) loading.value = false
   }
 }
 
-/**
- * Reset list and reload from page 1 with current filters.
- * 重置并从第一页重新加载。自增 token 使任何进行中的 loadMore 作废。
- */
+export const loadMoreRemote = async () => {
+  if (loading.value || !hasMore.value) return
+  const token = requestToken
+  loading.value = true
+  try {
+    const result = (await getAssetPage({
+      pageNo: page.value,
+      pageSize: PAGE_SIZE,
+      ...prunedFilters()
+    })) as PageResult<Asset>
+    if (token !== requestToken) return
+    const newItems = result?.list || []
+    list.value = [...list.value, ...newItems]
+    total.value = result?.total ?? list.value.length
+    hasMore.value = list.value.length < total.value
+    page.value += 1
+  } catch (error) {
+    console.error('[assets] loadMore failed:', error)
+    if (token === requestToken) throw error
+  } finally {
+    if (token === requestToken) loading.value = false
+  }
+}
+
 export const reload = async () => {
   requestToken += 1
   list.value = []
   page.value = 1
   hasMore.value = true
   total.value = 0
-  // Force-clear loading so the stale in-flight request can't block this reload
-  // 强制清除 loading，避免进行中的过期请求阻塞本次 reload
   loading.value = false
   await loadMore()
 }
 
-/**
- * Local file upload — follows canvas image/video upload pattern.
- * 1) presigned URL  2) PUT to OSS  3) /asset/import with the URL.
- *
- * In mock mode, uses a blob URL so dev workflow doesn't hit the network.
- * 本地文件上传：参考画布图片/视频节点，先直传 OSS 再入库元数据。
- */
-export const upload = async (file: File) => {
-  uploading.value = true
+const saveAssetInternal = async (fields: SaveAssetFields, file?: File, shouldReload = true) => {
+  if (shouldReload) uploading.value = true
   try {
-    let imageUrl: string
-    if (USE_MOCK) {
-      imageUrl = URL.createObjectURL(file)
-    } else {
-      // 1. presigned URL
-      // API returns unwrapped payload as unknown; bridge to PresignedUrl
-      // API 返回解包后的负载为 unknown，此处桥接为 PresignedUrl
-      const presigned = (await getFilePresignedUrl(file.name)) as PresignedUrl
-      // 2. direct PUT to OSS
-      await uploadFileToUrl(presigned.uploadUrl, file)
-      imageUrl = presigned.url
+    const payload: SaveAssetFields = { ...fields }
+    if (file) {
+      let imageUrl: string
+      if (USE_MOCK) {
+        imageUrl = URL.createObjectURL(file)
+      } else {
+        try {
+          const presigned = (await getFilePresignedUrl(file.name)) as PresignedUrl
+          await uploadFileToUrl(presigned.uploadUrl, file)
+          imageUrl = presigned.url
+        } catch (error) {
+          if (!USE_LOCAL_FALLBACK) throw error
+          localFallbackActive = true
+          console.warn('[assets] remote upload failed, using local preview fallback:', error)
+          imageUrl = await fileToDataUrl(file)
+        }
+      }
+      const size = await getImageSize(file).catch(() => null)
+      payload.imageUrl = imageUrl
+      payload.fileSize = file.size
+      payload.width = payload.width ?? size?.width
+      payload.height = payload.height ?? size?.height
     }
-    // 3. metadata insert
-    const resp = await importAsset({
-      source: 'local',
-      assetType: 'image',
-      imageUrl,
-      fileSize: file.size
-    })
-    // Refresh from page 1 to surface the new item at top.
-    await reload()
+
+    const importPayload = {
+      source: payload.source || 'manual',
+      assetType: payload.assetType || 'image',
+      ...payload
+    }
+
+    let resp
+    try {
+      resp = await importAsset(importPayload)
+    } catch (error) {
+      if (!USE_LOCAL_FALLBACK) throw error
+      localFallbackActive = true
+      console.warn('[assets] remote import failed, saving to local fallback:', error)
+      resp = saveLocalAsset(importPayload)
+    }
+    if (shouldReload) await reload()
     return resp
-  } catch (error) {
-    console.error('[assets] upload failed:', error)
-    throw error
+  } finally {
+    if (shouldReload) uploading.value = false
+  }
+}
+
+export const saveAsset = async (fields: SaveAssetFields, file?: File) => {
+  return saveAssetInternal(fields, file, true)
+}
+
+export const saveAssetsBatch = async (
+  items: Array<{ fields: SaveAssetFields; file?: File }>,
+  onProgress?: (finished: number, total: number) => void
+) => {
+  uploading.value = true
+  const saved = []
+  try {
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index]
+      saved.push(await saveAssetInternal(item.fields, item.file, false))
+      onProgress?.(index + 1, items.length)
+    }
+    await reload()
+    return saved
   } finally {
     uploading.value = false
   }
 }
 
-/**
- * Delete an asset and remove from local list (immutable update).
- * 删除资产
- */
-export const remove = async (id: string | number) => {
-  await deleteAsset(id)
-  list.value = list.value.filter(a => a.id !== id)
-  total.value = Math.max(0, total.value - 1)
-}
-
-/**
- * Update tags (full replace, immutable).
- * 更新标签
- */
-export const updateTags = async (id: string | number, tags: string[]) => {
-  await updateAssetTags(id, tags)
-  list.value = list.value.map(a =>
-    a.id === id ? { ...a, tags: [...tags] } : a
-  )
-}
-
-/** Set a single filter value. */
-export const setFilter = (name: keyof AssetFilters, value: AssetFilters[keyof AssetFilters]) => {
-  if (name in filters) {
-    // Assert to satisfy the per-key narrowing; runtime assignment is unchanged
-    // 断言以满足按键收窄，运行时赋值不变
-    filters[name] = value as never
+export const upload = async (file: File) => {
+  try {
+    return await saveAsset({ source: 'local', assetType: 'image' }, file)
+  } catch (error) {
+    console.error('[assets] upload failed:', error)
+    throw error
   }
 }
 
-/** Reset all filters to defaults. */
+export const remove = async (id: string | number) => {
+  await deleteAsset(id)
+  deleteLocalAsset(id)
+  list.value = list.value.filter(asset => asset.id !== id)
+  total.value = Math.max(0, total.value - 1)
+}
+
+export const removeMany = async (ids: Array<string | number>) => {
+  const idSet = new Set(ids.map(String))
+  for (const id of ids) {
+    await deleteAsset(id)
+  }
+  writeLocalAssets(readLocalAssets().filter(asset => !idSet.has(String(asset.id))))
+  list.value = list.value.filter(asset => !idSet.has(String(asset.id)))
+  total.value = Math.max(0, total.value - ids.length)
+}
+
+export const updateTags = async (id: string | number, tags: string[]) => {
+  await updateAssetTags(id, tags)
+  list.value = list.value.map(asset => (
+    asset.id === id ? { ...asset, tags: [...tags] } : asset
+  ))
+}
+
+export const update = async (id: string | number, fields: SaveAssetFields) => {
+  try {
+    await updateAsset(id, fields as Record<string, unknown>)
+  } catch (error) {
+    if (!USE_LOCAL_FALLBACK) throw error
+    localFallbackActive = true
+    console.warn('[assets] remote update failed, updating local fallback:', error)
+  }
+  updateLocalAsset(id, fields)
+  list.value = list.value.map(asset => (
+    String(asset.id) === String(id) ? { ...asset, ...fields, tags: fields.tags ? [...fields.tags] : asset.tags } : asset
+  ))
+}
+
+export const setFilter = (name: keyof AssetFilters, value: AssetFilters[keyof AssetFilters]) => {
+  filters[name] = value as never
+}
+
 export const resetFilters = () => {
   filters.source = null
   filters.assetType = null
   filters.keyword = ''
   filters.tag = null
+  filters.category = null
+  filters.platform = null
 }
 
-/**
- * Composable wrapper — provides Pinia-like API surface for components/tests
- * that prefer a `useAssetsStore()` accessor.
- */
+const getImageSize = (file: File): Promise<{ width: number; height: number }> => new Promise((resolve, reject) => {
+  if (!file.type.startsWith('image/')) {
+    reject(new Error('Not an image'))
+    return
+  }
+  const url = URL.createObjectURL(file)
+  const image = new Image()
+  image.onload = () => {
+    resolve({ width: image.naturalWidth, height: image.naturalHeight })
+    URL.revokeObjectURL(url)
+  }
+  image.onerror = () => {
+    URL.revokeObjectURL(url)
+    reject(new Error('Image load failed'))
+  }
+  image.src = url
+})
+
+const fileToDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader()
+  reader.onload = () => resolve(String(reader.result || ''))
+  reader.onerror = () => reject(reader.error || new Error('File read failed'))
+  reader.readAsDataURL(file)
+})
+
+const readLocalAssets = (): Asset[] => {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+const writeLocalAssets = (assets: Asset[]) => {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(assets))
+  } catch (error) {
+    console.warn('[assets] local fallback persist failed:', error)
+  }
+}
+
+const deleteLocalAsset = (id: string | number) => {
+  writeLocalAssets(readLocalAssets().filter(asset => String(asset.id) !== String(id)))
+}
+
+const updateLocalAsset = (id: string | number, fields: SaveAssetFields) => {
+  const assets = readLocalAssets()
+  const index = assets.findIndex(asset => String(asset.id) === String(id))
+  if (index === -1) return
+  assets[index] = {
+    ...assets[index],
+    ...fields,
+    tags: fields.tags ? [...fields.tags] : assets[index].tags
+  }
+  writeLocalAssets(assets)
+}
+
+const saveLocalAsset = (payload: Record<string, unknown>) => {
+  const asset: Asset = {
+    id: `local-${Date.now()}`,
+    source: String(payload.source || 'manual'),
+    sourceUrl: payload.sourceUrl ? String(payload.sourceUrl) : undefined,
+    assetType: String(payload.assetType || 'image'),
+    imageUrl: payload.imageUrl ? String(payload.imageUrl) : undefined,
+    videoUrl: payload.videoUrl ? String(payload.videoUrl) : undefined,
+    prompt: payload.prompt ? String(payload.prompt) : undefined,
+    platform: payload.platform ? String(payload.platform) : undefined,
+    model: payload.model ? String(payload.model) : undefined,
+    category: payload.category ? String(payload.category) : undefined,
+    notes: payload.notes ? String(payload.notes) : undefined,
+    tags: Array.isArray(payload.tags) ? payload.tags.map(String) : [],
+    width: typeof payload.width === 'number' ? payload.width : undefined,
+    height: typeof payload.height === 'number' ? payload.height : undefined,
+    fileSize: typeof payload.fileSize === 'number' ? payload.fileSize : undefined,
+    metadata: payload.metadata,
+    createTime: new Date().toISOString()
+  }
+  writeLocalAssets([asset, ...readLocalAssets()])
+  return {
+    id: asset.id,
+    imageUrl: asset.imageUrl,
+    videoUrl: asset.videoUrl,
+    duplicated: false
+  }
+}
+
+const getLocalAssetPage = (
+  pageNo: number,
+  pageSize: number,
+  params: Record<string, unknown>
+): PageResult<Asset> => {
+  const keyword = String(params.keyword || '').trim().toLowerCase()
+  const filtered = readLocalAssets().filter(asset => {
+    if (params.source && asset.source !== params.source) return false
+    if (params.assetType && asset.assetType !== params.assetType) return false
+    if (params.category && asset.category !== params.category) return false
+    if (params.platform && asset.platform !== params.platform) return false
+    if (params.tag && !asset.tags?.includes(String(params.tag))) return false
+    if (keyword) {
+      const haystack = [asset.prompt, asset.platform, asset.model, asset.category, asset.notes]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      if (!haystack.includes(keyword)) return false
+    }
+    return true
+  })
+  const start = (pageNo - 1) * pageSize
+  return {
+    list: filtered.slice(start, start + pageSize),
+    total: filtered.length
+  }
+}
+
 export const useAssetsStore = () => ({
   list,
   page,
@@ -211,7 +415,11 @@ export const useAssetsStore = () => ({
   reload,
   loadMore,
   upload,
+  saveAsset,
+  saveAssetsBatch,
   remove,
+  removeMany,
+  update,
   updateTags,
   setFilter,
   resetFilters

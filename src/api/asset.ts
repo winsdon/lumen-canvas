@@ -9,7 +9,7 @@
  * 上传流程参考画布图片/视频节点：先取预签名地址直传 OSS，再调用入库接口。
  */
 import { authRequest } from '@/utils/request'
-import { mockListPage, mockImport, mockDelete, mockUpdateTags } from '@/components/asset/_mock-data'
+import { mockListPage, mockImport, mockDelete, mockUpdateAsset, mockUpdateTags } from '@/components/asset/_mock-data'
 
 const USE_MOCK = import.meta.env.VITE_USE_ASSET_MOCK === 'true'
 
@@ -20,6 +20,10 @@ const USE_MOCK = import.meta.env.VITE_USE_ASSET_MOCK === 'true'
 export const getAssetPage = (params: Record<string, unknown> = {}) => {
   if (USE_MOCK) return mockListPage(params)
   return authRequest.get('/asset/page', { params })
+}
+
+export const getAsset = (id: string | number) => {
+  return authRequest.get('/asset/get', { params: { id } })
 }
 
 /**
@@ -55,4 +59,12 @@ export const deleteAsset = (id: string | number) => {
 export const updateAssetTags = (id: string | number, tags: string[]) => {
   if (USE_MOCK) return mockUpdateTags(id, tags)
   return authRequest.put('/asset/tags', { tags }, { params: { id } })
+}
+
+/**
+ * Update asset metadata.
+ */
+export const updateAsset = (id: string | number, fields: Record<string, unknown>) => {
+  if (USE_MOCK) return mockUpdateAsset(id, fields)
+  return authRequest.put('/asset/update', fields, { params: { id } })
 }

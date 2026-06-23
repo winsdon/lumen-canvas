@@ -36,6 +36,7 @@ interface ChatRequestData {
   images?: string[]
   image?: string
   imageUrls?: string[]
+  deductPoint?: boolean
   [key: string]: unknown
 }
 
@@ -192,7 +193,8 @@ export const useChat = (options: ChatOptions = {}) => {
     content: string,
     stream = true,
     modelKey: string | null = null,
-    images: string[] = []
+    images: string[] = [],
+    requestOptions: { deductPoint?: boolean } = {}
   ) => {
     setLoading(true)
     currentResponse.value = ''
@@ -237,6 +239,9 @@ export const useChat = (options: ChatOptions = {}) => {
           requestData.imageUrls = images
         } else {
           if (import.meta.env.DEV) console.log('[useChat] No images found in request')
+        }
+        if (requestOptions.deductPoint) {
+          requestData.deductPoint = true
         }
 
         for await (const chunk of streamChatCompletions(

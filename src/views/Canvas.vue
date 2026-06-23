@@ -84,7 +84,7 @@
             <SparklesOutline />
           </n-icon>
         </button>
-        <button @click="showAssetPanel = true"
+        <button @click="showAssetPanel = !showAssetPanel"
           class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors"
           :class="{ 'text-[var(--accent-color)]': showAssetPanel }"
           title="资产库">
@@ -241,7 +241,7 @@
     />
 
     <!-- Asset Library Panel | 资产库面板 -->
-    <AssetLibraryPanel v-model:show="showAssetPanel" />
+    <CanvasAssetPicker v-model:show="showAssetPanel" @select-asset="handleAssetSelect" />
   </div>
 </template>
 
@@ -289,7 +289,7 @@ import UserAvatar from '../components/UserAvatar.vue'
 import AgentPanel from '../components/AgentPanel.vue'
 import GenerationHistoryPanel from '../components/GenerationHistoryPanel.vue'
 import WorkflowPanel from '../components/WorkflowPanel.vue'
-import AssetLibraryPanel from '../components/AssetLibraryPanel.vue'
+import CanvasAssetPicker from '../components/CanvasAssetPicker.vue'
 import { useAgent } from '../hooks/useAgent'
 
 // Initialize models on page load | 页面加载时初始化模型
@@ -531,12 +531,43 @@ function onAssetDragOver(e) {
   }
 }
 
+const buildAssetReferenceImage = (asset) => {
+  const url = asset?.imageUrl
+  if (!url) return null
+  return {
+    url,
+    fileName: asset.fileName || null,
+    assetId: asset.id,
+    type: asset.fileType || null
+  }
+}
+
+const addImageAssetAsTextToImage = (asset, position) => {
+  const referenceImage = buildAssetReferenceImage(asset)
+  if (!referenceImage) {
+    window.$message?.warning('该素材缺少图片地址')
+    return
+  }
+
+  addNode('textToImage', position, {
+    url: asset.imageUrl,
+    content: asset.prompt || '',
+    label: '文生图(组合)',
+    assetId: asset.id,
+    platform: asset.platform,
+    model: asset.model,
+    category: asset.category,
+    tags: Array.isArray(asset.tags) ? [...asset.tags] : [],
+    notes: asset.notes,
+    referenceImages: [referenceImage],
+    referenceImageUrl: null,
+    referenceImageFileName: null,
+    referenceImageFileType: null
+  })
+}
+
 /**
- * Handle asset drop — create ImageNode (and TextNode if prompt present).
- * Field mapping (verified against node component implementations):
- *   ImageNode: data.url
- *   VideoNode: data.url
- *   TextNode:  data.content
+ * Handle asset drop — create a text-to-image combination node for image assets.
  */
 function onAssetDrop(e) {
   const raw = e.dataTransfer.getData('application/x-lumeng-asset')
@@ -562,21 +593,28 @@ function onAssetDrop(e) {
     return
   }
 
-  // image
-  addNode('image', pos, {
-    url: payload.imageUrl,
-    label: '图片素材',
-    assetId: payload.id
+  addImageAssetAsTextToImage(payload, pos)
+}
+
+function handleAssetSelect(asset) {
+  const pos = screenToFlowCoordinate({
+    x: window.innerWidth / 2,
+    y: window.innerHeight / 2
   })
 
-  // If prompt present, add a TextNode side-by-side (no edge — by design).
-  if (payload.prompt) {
-    addNode('text', { x: pos.x - 320, y: pos.y }, {
-      content: payload.prompt,
-      label: '采集提示词',
-      assetId: payload.id
+  if (asset.assetType === 'video') {
+    addNode('video', pos, {
+      url: asset.videoUrl || asset.imageUrl,
+      label: '视频素材',
+      assetId: asset.id
     })
+    showAssetPanel.value = false
+    return
   }
+
+  addImageAssetAsTextToImage(asset, pos)
+
+  showAssetPanel.value = false
 }
 
 const connectNodeMenuRef = ref(null)

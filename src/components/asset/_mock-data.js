@@ -76,3 +76,9 @@ export function mockUpdateTags(id, tags) {
   if (a) a.tags = [...tags]
   return Promise.resolve(true)
 }
+
+export function mockUpdateAsset(id, fields = {}) {
+  const a = MOCK_ASSETS.find(x => x.id === id)
+  if (a) Object.assign(a, { ...fields, tags: Array.isArray(fields.tags) ? [...fields.tags] : a.tags })
+  return Promise.resolve(true)
+}

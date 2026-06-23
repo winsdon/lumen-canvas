@@ -17,6 +17,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/collector',
+    name: 'Collector',
+    component: () => import('../views/Collector.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/recharge',
     name: 'PointRecharge',
     component: () => import('../views/PointRecharge.vue'),

@@ -11,6 +11,15 @@
 
     <!-- Main content | 主要内容 -->
     <main class="max-w-5xl mx-auto px-4 py-8 md:py-16">
+      <div class="mb-6 flex justify-end">
+        <button
+          @click="openCollector"
+          class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)] transition-colors"
+        >
+          <n-icon :size="16"><ImagesOutline /></n-icon>
+          素材采集器
+        </button>
+      </div>
       <!-- Welcome section | 欢迎区域 -->
       <section class="text-center mb-12">
         <div class="flex items-center justify-center gap-4 mb-8">
@@ -197,6 +206,7 @@ import {
     DocumentOutline,
     EllipsisHorizontalOutline,
     FolderOutline,
+    ImagesOutline,
     RefreshOutline,
     SendOutline,
     TrashOutline
@@ -380,6 +390,10 @@ const scrollToProjects = () => {
 }
 
 // Initialize projects store on mount | 挂载时初始化项目存储
+const openCollector = () => {
+  router.push('/collector')
+}
+
 onMounted(() => {
   initProjectsStore()
 })
